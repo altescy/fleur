@@ -1,215 +1,603 @@
+from __future__ import annotations
+
 import ast
+import json
 from typing import Any
 
+# ========================
+# JavaScript AST ノード定義
+# ========================
 
-class JSCodeGenerator(ast.NodeVisitor):
-    def __init__(self) -> None:
-        self.lines: list[str] = []
-        self.indent_level: int = 0
 
-    def indent(self) -> str:
-        return '  ' * self.indent_level
+class JsNode:
+    def to_code(self) -> str:
+        raise NotImplementedError()
 
-    def visit_Module(self, node: ast.Module) -> Any:
-        for stmt in node.body:
-            self.visit(stmt)
 
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        args = [arg.arg for arg in node.args.args]
-        self.lines.append(f"{self.indent()}function {node.name}({', '.join(args)}) {{")
-        self.indent_level += 1
-        for stmt in node.body:
-            self.visit(stmt)
-        self.indent_level -= 1
-        self.lines.append(f"{self.indent()}}}")
+class JsExpr(JsNode):
+    pass
 
-    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
-        self.lines.append(f"{self.indent()}class {node.name} {{")
-        self.indent_level += 1
+
+class JsStmt(JsNode):
+    pass
+
+
+class JsUndefined(JsExpr):
+    def to_code(self) -> str:
+        return "undefined"
+
+
+class JsLiteral(JsExpr):
+    def __init__(self, value: Any) -> None:
+        self.value = value
+
+    def to_code(self) -> str:
+        return json.dumps(self.value, ensure_ascii=False)
+
+
+class JsIdentifier(JsExpr):
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+    def to_code(self) -> str:
+        if self.name == "self":
+            return "this"
+        return self.name
+
+
+class JsBinaryOp(JsExpr):
+    def __init__(self, left: JsExpr, op: str, right: JsExpr) -> None:
+        self.left = left
+        self.op = op
+        self.right = right
+
+    def to_code(self) -> str:
+        return f"({self.left.to_code()} {self.op} {self.right.to_code()})"
+
+
+class JsCall(JsExpr):
+    def __init__(self, func: JsExpr, args: list[JsExpr]) -> None:
+        self.func = func
+        self.args = args
+
+    def to_code(self) -> str:
+        return f"{self.func.to_code()}({', '.join(arg.to_code() for arg in self.args)})"
+
+
+class JsMember(JsExpr):
+    def __init__(self, obj: JsExpr, prop: str):
+        self.obj = obj
+        self.prop = prop
+
+    def to_code(self) -> str:
+        return f"{self.obj.to_code()}.{self.prop}"
+
+
+class JsObject(JsExpr):
+    def __init__(self, props: list[tuple[str, JsExpr]]) -> None:
+        self.props = props
+
+    def to_code(self) -> str:
+        return "{" + ", ".join(f"{k}: {v.to_code()}" for k, v in self.props) + "}"
+
+
+class JsArray(JsExpr):
+    def __init__(self, elements: list[JsExpr]) -> None:
+        self.elements = elements
+
+    def to_code(self) -> str:
+        return "[" + ", ".join(e.to_code() for e in self.elements) + "]"
+
+
+class JsAccess(JsExpr):
+    def __init__(self, obj: JsExpr, prop: str) -> None:
+        self.obj = obj
+        self.prop = prop
+
+    def to_code(self) -> str:
+        return f"{self.obj.to_code()}[{self.prop}]"
+
+
+# === Statements ===
+
+
+class JsVarDecl(JsStmt):
+    def __init__(self, name: str, value: JsExpr) -> None:
+        self.name = name
+        self.value = value
+
+    def to_code(self) -> str:
+        return f"let {self.name} = {self.value.to_code()};"
+
+
+class JsAssign(JsStmt):
+    def __init__(self, left: JsExpr, right: JsExpr) -> None:
+        self.left = left
+        self.right = right
+
+    def to_code(self) -> str:
+        return f"{self.left.to_code()} = {self.right.to_code()}"
+
+
+class JsReturn(JsStmt):
+    def __init__(self, value: JsExpr) -> None:
+        self.value = value
+
+    def to_code(self) -> str:
+        return f"return {self.value.to_code()};"
+
+
+class JsExprStmt(JsStmt):
+    def __init__(self, expr: JsExpr) -> None:
+        self.expr = expr
+
+    def to_code(self) -> str:
+        return f"{self.expr.to_code()};"
+
+
+class JsFunction(JsStmt):
+    def __init__(self, name: str, params: list[str], body: list[JsStmt]) -> None:
+        self.name = name
+        self.params = params
+        self.body = body
+
+    def to_code(self) -> str:
+        body_code = "\n".join("  " + stmt.to_code() for stmt in self.body)
+        return f"function {self.name}({', '.join(self.params)}) {{\n{body_code}\n}}"
+
+
+class JsIf(JsStmt):
+    def __init__(
+        self,
+        test: JsExpr,
+        body: list[JsStmt],
+        orelse: list[JsStmt | JsIf],
+    ) -> None:
+        self.test = test
+        self.body = body
+        self.orelse = orelse
+
+    def to_code(self) -> str:
+        code = (
+            f"if ({self.test.to_code()}) {{\n"
+            + "\n".join("  " + s.to_code() for s in self.body)
+            + "\n}"
+        )
+        if self.orelse:
+            if len(self.orelse) == 1 and isinstance(self.orelse[0], JsIf):
+                code += f" else {self.orelse[0].to_code()}"
+            else:
+                code += (
+                    " else {{\n"
+                    + "\n".join("  " + s.to_code() for s in self.orelse)
+                    + "\n}}"
+                )
+        return code
+
+
+class JsForOf(JsStmt):
+    def __init__(self, var: str, iterable: JsExpr, body: list[JsStmt]) -> None:
+        self.var = var
+        self.iterable = iterable
+        self.body = body
+
+    def to_code(self) -> str:
+        body_code = "\n".join("  " + stmt.to_code() for stmt in self.body)
+        return f"for (let {self.var} of {self.iterable.to_code()}) {{\n{body_code}\n}}"
+
+
+class JsWhile(JsStmt):
+    def __init__(self, test: JsExpr, body: list[JsStmt]) -> None:
+        self.test = test
+        self.body = body
+
+    def to_code(self) -> str:
+        body_code = "\n".join("  " + stmt.to_code() for stmt in self.body)
+        return f"while ({self.test.to_code()}) {{\n{body_code}\n}}"
+
+
+class JsBreak(JsStmt):
+    def to_code(self) -> str:
+        return "break;"
+
+
+class JsContinue(JsStmt):
+    def to_code(self) -> str:
+        return "continue;"
+
+
+class JsMethod(JsStmt):
+    def __init__(
+        self, name: str, params: list[str], body: list[JsStmt], kind: str = "method"
+    ) -> None:
+        self.name = name
+        self.params = params
+        self.body = body
+        self.kind = kind  # "method", "static", "get", "set"
+
+    def to_code(self) -> str:
+        prefix = {
+            "method": "",
+            "static": "static ",
+            "get": "get ",
+            "set": "set ",
+        }[self.kind]
+        body_code = "\n".join("    " + stmt.to_code() for stmt in self.body)
+        return f"{prefix}{self.name}({', '.join(self.params)}) {{\n{body_code}\n  }}"
+
+
+class JsClass(JsStmt):
+    def __init__(self, name: str, methods: list[JsMethod]) -> None:
+        self.name = name
+        self.methods = methods
+
+    def to_code(self) -> str:
+        body_code = "\n".join("  " + m.to_code() for m in self.methods)
+        return f"class {self.name} {{\n{body_code}\n}}"
+
+
+# ========================
+# Builtin Call Map
+# ========================
+
+BUILTIN_CALL_MAP = {
+    "len": lambda args: JsMember(convert_expr(args[0]), "length"),
+    "range": lambda args: JsCall(
+        JsIdentifier("range"), [convert_expr(arg) for arg in args]
+    ),
+    "enumerate": lambda args: JsCall(
+        JsIdentifier("enumerate"), [convert_expr(arg) for arg in args]
+    ),
+    "print": lambda args: JsCall(
+        JsIdentifier("console.log"), [convert_expr(arg) for arg in args]
+    ),
+}
+
+# ========================
+# Python AST → JavaScript AST
+# ========================
+
+
+def convert_operator(op: ast.operator | ast.cmpop) -> str:
+    return {
+        ast.Add: "+",
+        ast.Sub: "-",
+        ast.Mult: "*",
+        ast.Div: "/",
+        ast.Pow: "**",
+        ast.Mod: "%",
+        ast.BitAnd: "&",
+        ast.BitOr: "|",
+        ast.And: "&&",
+        ast.Or: "||",
+        ast.Eq: "===",
+        ast.NotEq: "!==",
+        ast.Lt: "<",
+        ast.LtE: "<=",
+        ast.Gt: ">",
+        ast.GtE: ">=",
+    }.get(type(op), "?")
+
+
+# ========================
+# Statement Transformers
+# ========================
+
+
+class ExpressionTransformer[T: ast.expr]:
+    def matches(self, node: T) -> bool: ...
+    def transform(self, node: T) -> JsExpr: ...
+
+
+class ConstantTransformer(ExpressionTransformer):
+    def matches(self, node: ast.expr) -> bool:
+        return isinstance(node, ast.Constant)
+
+    def transform(self, node: ast.Constant) -> JsExpr:
+        return JsLiteral(node.value)
+
+
+class NameTransformer(ExpressionTransformer):
+    def matches(self, node: ast.expr) -> bool:
+        return isinstance(node, ast.Name)
+
+    def transform(self, node: ast.Name) -> JsExpr:
+        return JsIdentifier(node.id)
+
+
+class AttributeTransformer(ExpressionTransformer):
+    def matches(self, node: ast.expr) -> bool:
+        return isinstance(node, ast.Attribute)
+
+    def transform(self, node: ast.Attribute) -> JsExpr:
+        return JsMember(convert_expr(node.value), node.attr)
+
+
+class BinOpTransformer(ExpressionTransformer):
+    def matches(self, node: ast.expr) -> bool:
+        return isinstance(node, ast.BinOp)
+
+    def transform(self, node: ast.BinOp) -> JsExpr:
+        return JsBinaryOp(
+            convert_expr(node.left), convert_operator(node.op), convert_expr(node.right)
+        )
+
+
+class ComparisonTransformer(ExpressionTransformer):
+    def matches(self, node: ast.expr) -> bool:
+        return isinstance(node, ast.Compare)
+
+    def transform(self, node: ast.Compare) -> JsExpr:
+        if len(node.ops) == 1 and len(node.comparators) == 1:
+            return JsBinaryOp(
+                convert_expr(node.left),
+                convert_operator(node.ops[0]),
+                convert_expr(node.comparators[0]),
+            )
+        raise NotImplementedError(f"Unsupported comparison: {type(node)}")
+
+
+class CallTransformer(ExpressionTransformer):
+    def matches(self, node: ast.expr) -> bool:
+        return isinstance(node, ast.Call)
+
+    def transform(self, node: ast.Call) -> JsExpr:
+        if isinstance(node.func, ast.Name) and node.func.id in BUILTIN_CALL_MAP:
+            return BUILTIN_CALL_MAP[node.func.id](node.args)
+        return JsCall(convert_expr(node.func), [convert_expr(arg) for arg in node.args])
+
+
+class DictTransformer(ExpressionTransformer):
+    def matches(self, node: ast.expr) -> bool:
+        return isinstance(node, ast.Dict)
+
+    def transform(self, node: ast.Dict) -> JsExpr:
+        keys = [k.value if isinstance(k, ast.Constant) else str(k) for k in node.keys]
+        values = [convert_expr(v) for v in node.values]
+        return JsObject(list(zip(keys, values)))
+
+
+class ListTransformer(ExpressionTransformer):
+    def matches(self, node: ast.expr) -> bool:
+        return isinstance(node, ast.List)
+
+    def transform(self, node: ast.List) -> JsExpr:
+        return JsArray([convert_expr(e) for e in node.elts])
+
+
+class SubscriptTransformer(ExpressionTransformer):
+    def matches(self, node: ast.expr) -> bool:
+        return isinstance(node, ast.Subscript)
+
+    def transform(self, node: ast.Subscript) -> JsExpr:
+        obj = convert_expr(node.value)
+        index = convert_expr(node.slice)
+        return JsAccess(obj, index.to_code())  # type: ignore
+
+
+EXPRESSION_TRANSFORMERS = [
+    ConstantTransformer(),
+    NameTransformer(),
+    AttributeTransformer(),
+    BinOpTransformer(),
+    ComparisonTransformer(),
+    CallTransformer(),
+    DictTransformer(),
+    ListTransformer(),
+    SubscriptTransformer(),
+]
+
+
+def convert_expr(node: ast.expr | None) -> JsExpr:
+    if node is None:
+        return JsUndefined()
+    for t in EXPRESSION_TRANSFORMERS:
+        if t.matches(node):
+            return t.transform(node)
+    raise NotImplementedError(f"Unsupported expr: {type(node)}")
+
+
+# ========================
+# Statement Transformers
+# ========================
+
+
+class StatementTransformer[T: ast.stmt]:
+    def matches(self, node: T) -> bool: ...
+    def transform(self, node: T) -> JsStmt: ...
+
+
+class ReturnTransformer(StatementTransformer):
+    def matches(self, node: ast.stmt) -> bool:
+        return isinstance(node, ast.Return)
+
+    def transform(self, node: ast.Return) -> JsStmt:
+        return JsReturn(convert_expr(node.value))
+
+
+class ExprTransformer(StatementTransformer):
+    def matches(self, node: ast.stmt) -> bool:
+        return isinstance(node, ast.Expr)
+
+    def transform(self, node: ast.Expr) -> JsStmt:
+        return JsExprStmt(convert_expr(node.value))
+
+
+class AssignTransformer(StatementTransformer):
+    def matches(self, node: ast.stmt) -> bool:
+        return isinstance(node, ast.Assign)
+
+    def transform(self, node: ast.Assign) -> JsStmt:
+        if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            return JsVarDecl(node.targets[0].id, convert_expr(node.value))
+        elif len(node.targets) == 1 and isinstance(node.targets[0], ast.Attribute):
+            obj = convert_expr(node.targets[0].value)
+            prop = node.targets[0].attr
+            value = convert_expr(node.value)
+            return JsAssign(JsMember(obj, prop), value)
+        else:
+            raise NotImplementedError(f"Unsupported assignment: {type(node)}")
+
+
+class FunctionTransformer(StatementTransformer):
+    def matches(self, node: ast.stmt) -> bool:
+        return isinstance(node, ast.FunctionDef)
+
+    def transform(self, node: ast.FunctionDef) -> JsStmt:
+        params = [a.arg for a in node.args.args]
+        if node.args.vararg:
+            params.append(f"...{node.args.vararg.arg}")
+        if node.args.kwarg:
+            params.append(f"...{node.args.kwarg.arg}")
+        body = [convert_stmt(s) for s in node.body]
+        return JsFunction(node.name, params, body)
+
+
+class IfTransformer(StatementTransformer):
+    def matches(self, node: ast.stmt) -> bool:
+        return isinstance(node, ast.If)
+
+    def transform(self, node: ast.If) -> JsStmt:
+        def chain(n: ast.If) -> JsIf:
+            test = convert_expr(n.test)
+            body = [convert_stmt(s) for s in n.body]
+            orelse: list[JsStmt | JsIf]
+            if len(n.orelse) == 1 and isinstance(n.orelse[0], ast.If):
+                orelse = [chain(n.orelse[0])]
+            else:
+                orelse = [convert_stmt(s) for s in n.orelse]
+            return JsIf(test, body, orelse)
+
+        return chain(node)
+
+
+class ForTransformer(StatementTransformer):
+    def matches(self, node: ast.stmt) -> bool:
+        return isinstance(node, ast.For)
+
+    def transform(self, node: ast.For) -> JsStmt:
+        var = node.target.id if isinstance(node.target, ast.Name) else None
+        iter_expr = convert_expr(node.iter)
+        body = [convert_stmt(s) for s in node.body]
+        return JsForOf(var or "", iter_expr, body)
+
+
+class WhileTransformer(StatementTransformer):
+    def matches(self, node: ast.stmt) -> bool:
+        return isinstance(node, ast.While)
+
+    def transform(self, node: ast.While) -> JsStmt:
+        return JsWhile(convert_expr(node.test), [convert_stmt(s) for s in node.body])
+
+
+class BreakTransformer(StatementTransformer):
+    def matches(self, node: ast.stmt) -> bool:
+        return isinstance(node, ast.Break)
+
+    def transform(self, node: ast.Break) -> JsStmt:
+        return JsBreak()
+
+
+class ContinueTransformer(StatementTransformer):
+    def matches(self, node: ast.stmt) -> bool:
+        return isinstance(node, ast.Continue)
+
+    def transform(self, node: ast.Continue) -> JsStmt:
+        return JsContinue()
+
+
+class ClassTransformer(StatementTransformer):
+    def matches(self, node: ast.stmt) -> bool:
+        return isinstance(node, ast.ClassDef)
+
+    def transform(self, node: ast.ClassDef) -> JsStmt:
+        methods = []
         for stmt in node.body:
             if isinstance(stmt, ast.FunctionDef):
-                self.visit_FunctionDef_in_class(stmt)
-        self.indent_level -= 1
-        self.lines.append(f"{self.indent()}}}")
+                name = self.map_special_name(stmt.name)
+                kind = "method"
+                params = [a.arg for a in stmt.args.args[1:]]  # skip self
+                for dec in stmt.decorator_list:
+                    if isinstance(dec, ast.Name):
+                        if dec.id == "staticmethod":
+                            kind = "static"
+                            params = [a.arg for a in stmt.args.args]
+                        elif dec.id == "classmethod":
+                            kind = "static"
+                            params = [a.arg for a in stmt.args.args[1:]]  # skip cls
+                        elif dec.id == "property":
+                            kind = "get"
+                    elif isinstance(dec, ast.Attribute) and dec.attr == "setter":
+                        kind = "set"
+                body = [convert_stmt(s) for s in stmt.body]
+                methods.append(JsMethod(name, params, body, kind))
+        return JsClass(node.name, methods)
 
-    def visit_FunctionDef_in_class(self, node: ast.FunctionDef) -> Any:
-        args = [arg.arg for arg in node.args.args]
-        if args and args[0] == 'self':
-            args = args[1:]
-        method_name = node.name if node.name != '__init__' else 'constructor'
-        self.lines.append(f"{self.indent()}{method_name}({', '.join(args)}) {{")
-        self.indent_level += 1
-        for stmt in node.body:
-            self.visit(stmt)
-        self.indent_level -= 1
-        self.lines.append(f"{self.indent()}}}")
-
-    def visit_Return(self, node: ast.Return) -> Any:
-        value = self.visit(node.value) if node.value else "undefined"
-        self.lines.append(f"{self.indent()}return {value};")
-
-    def visit_Assign(self, node: ast.Assign) -> Any:
-        if len(node.targets) != 1:
-            raise NotImplementedError("Multiple assignment not supported")
-        target_node = node.targets[0]
-        value = self.visit(node.value)
-
-        if isinstance(target_node, ast.Attribute) and isinstance(target_node.value, ast.Name) and target_node.value.id == 'self':
-            # self.x = y → this.x = y;
-            attr = target_node.attr
-            self.lines.append(f"{self.indent()}this.{attr} = {value};")
-        else:
-            target = self.visit(target_node)
-            self.lines.append(f"{self.indent()}let {target} = {value};")
-
-    def visit_Expr(self, node: ast.Expr) -> Any:
-        value = self.visit(node.value)
-        self.lines.append(f"{self.indent()}{value};")
-
-    def visit_Call(self, node: ast.Call) -> str:
-        func = self.visit(node.func)
-        args = [self.visit(arg) for arg in node.args]
-        return f"{func}({', '.join(args)})"
-
-    def visit_Name(self, node: ast.Name) -> str:
-        return node.id
-
-    def visit_Constant(self, node: ast.Constant) -> str:
-        if isinstance(node.value, str):
-            return f'"{node.value}"'
-        elif isinstance(node.value, bool):
-            return "true" if node.value else "false"
-        return repr(node.value)
-
-    def visit_BinOp(self, node: ast.BinOp) -> str:
-        left = self.visit(node.left)
-        right = self.visit(node.right)
-        op = self.visit(node.op)
-        return f"({left} {op} {right})"
-
-    def visit_Compare(self, node: ast.Compare) -> str:
-        left = self.visit(node.left)
-        comparisons = []
-        for op, comparator in zip(node.ops, node.comparators):
-            op_str = self.visit(op)
-            comp = self.visit(comparator)
-            comparisons.append(f"{left} {op_str} {comp}")
-            left = comp
-        return " && ".join(comparisons)
-
-    def visit_Eq(self, node: ast.Eq) -> str:
-        return "=="
-
-    def visit_NotEq(self, node: ast.NotEq) -> str:
-        return "!="
-
-    def visit_Lt(self, node: ast.Lt) -> str:
-        return "<"
-
-    def visit_LtE(self, node: ast.LtE) -> str:
-        return "<="
-
-    def visit_Gt(self, node: ast.Gt) -> str:
-        return ">"
-
-    def visit_GtE(self, node: ast.GtE) -> str:
-        return ">="
-
-    def visit_If(self, node: ast.If) -> Any:
-        test = self.visit(node.test)
-        self.lines.append(f"{self.indent()}if ({test}) {{")
-        self.indent_level += 1
-        for stmt in node.body:
-            self.visit(stmt)
-        self.indent_level -= 1
-        self.lines.append(f"{self.indent()}}}")
-        if node.orelse:
-            if len(node.orelse) == 1 and isinstance(node.orelse[0], ast.If):
-                self.lines.append(f"{self.indent()}else ")
-                self.visit(node.orelse[0])  # elif
-            else:
-                self.lines.append(f"{self.indent()}else {{")
-                self.indent_level += 1
-                for stmt in node.orelse:
-                    self.visit(stmt)
-                self.indent_level -= 1
-                self.lines.append(f"{self.indent()}}}")
-
-    def visit_While(self, node: ast.While) -> Any:
-        test = self.visit(node.test)
-        self.lines.append(f"{self.indent()}while ({test}) {{")
-        self.indent_level += 1
-        for stmt in node.body:
-            self.visit(stmt)
-        self.indent_level -= 1
-        self.lines.append(f"{self.indent()}}}")
-
-    def visit_For(self, node: ast.For) -> Any:
-        if isinstance(node.iter, ast.Call) and isinstance(node.iter.func, ast.Name) and node.iter.func.id == 'range':
-            return self._handle_range_loop(node)
-        target = self.visit(node.target)
-        iter_expr = self.visit(node.iter)
-        self.lines.append(f"{self.indent()}for (const {target} of {iter_expr}) {{")
-        self.indent_level += 1
-        for stmt in node.body:
-            self.visit(stmt)
-        self.indent_level -= 1
-        self.lines.append(f"{self.indent()}}}")
-
-    def _handle_range_loop(self, node: ast.For) -> None:
-        args = getattr(node.iter, 'args')
-        target = self.visit(node.target)
-        if len(args) == 1:
-            start, end, step = "0", self.visit(args[0]), "1"
-        elif len(args) == 2:
-            start, end = self.visit(args[0]), self.visit(args[1])
-            step = "1"
-        elif len(args) == 3:
-            start, end, step = map(self.visit, args)
-        else:
-            raise NotImplementedError("range() with more than 3 arguments is not supported")
-
-        self.lines.append(f"{self.indent()}for (let {target} = {start}; {target} < {end}; {target} += {step}) {{")
-        self.indent_level += 1
-        for stmt in node.body:
-            self.visit(stmt)
-        self.indent_level -= 1
-        self.lines.append(f"{self.indent()}}}")
-
-    def visit_Dict(self, node: ast.Dict) -> str:
-        pairs = []
-        for key, value in zip(node.keys, node.values):
-            assert isinstance(key, ast.AST)
-            js_key = self.visit(key)
-            js_value = self.visit(value)
-            if isinstance(key, ast.Constant) and isinstance(key.value, str):
-                pairs.append(f'{js_key}: {js_value}')
-            else:
-                pairs.append(f'[{js_key}]: {js_value}')
-        return f"{{{', '.join(pairs)}}}"
-
-    def visit_Subscript(self, node: ast.Subscript) -> str:
-        obj = self.visit(node.value)
-        key = self.visit(node.slice)
-        if isinstance(node.slice, ast.Constant) and isinstance(node.slice.value, str) and node.slice.value.isidentifier():
-            return f"{obj}.{node.slice.value}"
-        return f"{obj}[{key}]"
-
-    def visit_JoinedStr(self, node: ast.JoinedStr) -> str:
-        parts: list[str] = []
-        for value in node.values:
-            if isinstance(value, ast.FormattedValue):
-                parts.append("${" + self.visit(value.value) + "}")
-            elif isinstance(value, ast.Constant):
-                parts.append(value.value.replace('`', '\\`'))
-        return f"`{''.join(parts)}`"
-
-    def generate(self, node: ast.AST) -> str:
-        self.visit(node)
-        return "\n".join(self.lines)
+    def map_special_name(self, py_name: str) -> str:
+        special_map = {
+            "__init__": "constructor",
+            "__str__": "toString",
+            "__repr__": "toString",
+            "__iter__": "[Symbol.iterator]",
+            "__next__": "next",
+            "__len__": "length",
+        }
+        return special_map.get(py_name, py_name)
 
 
-def python_to_js(python_code: str) -> str:
-    tree: ast.AST = ast.parse(python_code)
-    generator = JSCodeGenerator()
-    return generator.generate(tree)
+STATEMENT_TRANSFORMERS = [
+    ReturnTransformer(),
+    ExprTransformer(),
+    AssignTransformer(),
+    FunctionTransformer(),
+    IfTransformer(),
+    ForTransformer(),
+    WhileTransformer(),
+    BreakTransformer(),
+    ContinueTransformer(),
+    ClassTransformer(),
+]
+
+
+def convert_stmt(node: ast.stmt) -> JsStmt:
+    for t in STATEMENT_TRANSFORMERS:
+        if t.matches(node):
+            return t.transform(node)
+    raise NotImplementedError(f"Unsupported stmt: {type(node)}")
+
+
+# ========================
+# 実行例
+# ========================
+if __name__ == "__main__":
+    source = """
+class Counter:
+    def __init__(self):
+        self._value = 0
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, v):
+        self._value = v
+
+    @staticmethod
+    def static_hello():
+        print("hello")
+
+    @classmethod
+    def from_value(cls, v):
+        c = Counter()
+        c._value = v
+        for i in range(5):
+            print(i)
+
+x = {"key": 42, "value": [1, 2, 3]}
+print(x["key"][1])
+"""
+
+    tree = ast.parse(source)
+    for s in tree.body:
+        print(convert_stmt(s).to_code())
