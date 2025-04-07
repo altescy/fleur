@@ -3,16 +3,13 @@ from __future__ import annotations
 import ast
 import inspect
 import json
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from textwrap import dedent
 from typing import Any
 
 __all__ = [
-    "add",
     "document",
     "javascript",
-    "state",
-    "tags",
     "typeof",
     "JSON",
     "Node",
@@ -791,105 +788,3 @@ def Proxy[T](target: T, *args: Any) -> T: ...
 
 
 Dom = Any
-
-
-class Hook[T]:
-    def __init__(self, node: Node | None = None) -> None:
-        self.node = node
-
-    def update(self, value: T) -> None:
-        pass
-
-
-class StateProto[T]:
-    _value: T
-    _hooks: list[Hook[T]]
-
-    def __init__(self, value: T) -> None:
-        self._value = value
-        self._hooks = []
-
-    @property
-    def value(self) -> T:
-        return self._value
-
-    @value.setter
-    def value(self, v: T) -> None:
-        self._value = v
-        for hook in self._hooks:
-            hook.update(self._value)
-
-
-def get_node(dom: Any) -> Node:
-    if isinstance(dom, Node):
-        return dom
-    if typeof(dom) == "string":
-        return document.createTextNode(dom)
-    if typeof(dom) == "function":
-        return get_node(dom())
-    return document.createTextNode(JSON.stringify(dom))
-
-
-def bind(dom: Any) -> Node:
-    if isinstance(dom, StateProto):
-        node = get_node(dom.value)
-
-        class _Hook[T](Hook[T]):
-            def update(self, value: T) -> None:
-                new_node = get_node(value)
-                self.node.replaceWith(new_node)
-                self.node = new_node
-
-        dom._hooks.append(_Hook(node))
-        return node
-    return get_node(dom)
-
-
-def state[T](value: T) -> StateProto[T]:
-    return StateProto(value)
-
-
-def add(dom: Any, *children: Any) -> Dom:
-    for child in children:
-        dom.appendChild(bind(child))
-    return dom
-
-
-class TagAccessor:
-    def __getattr__(self, name: str) -> Callable[[Mapping, *tuple[Any, ...]], Node]:
-        def _tag(props: Mapping, *children: Any) -> Node:
-            dom = document.createElement(name)
-            for key, value in Object.entries(props):
-                if isinstance(value, StateProto):
-
-                    class _Hook[T](Hook[T]):
-                        def update(self, value: T) -> None:
-                            dom.setAttribute(key, value)
-
-                    value._hooks.append(_Hook())
-                    value = value.value
-                if key.startswith("on"):
-                    dom.addEventListener(key[2:].lower(), value)
-                elif key == "ref":
-                    value.current = dom
-                else:
-                    dom.setAttribute(key, value)
-            return add(dom, *children)
-
-        return _tag
-
-
-tags = TagAccessor()
-
-fleurjs = "\n".join(
-    [
-        javascript(Hook),
-        javascript(StateProto),
-        javascript(TagAccessor),
-        javascript(get_node),
-        javascript(bind),
-        javascript(add),
-        javascript(state),
-        "let tags = TagAccessor();",
-    ]
-)

@@ -67,9 +67,7 @@ def add(dom: Dom, *children: Dom | StateProto) -> Dom:
 
 
 class TagAccessor:
-    def __getattr__(
-        self, name: str
-    ) -> Callable[[Mapping, *tuple[Dom | StateProto, ...]], Node]:
+    def __getattr__(self, name: str) -> Callable[[Mapping, *tuple[Dom | StateProto, ...]], Node]:
         def _tag(props: Mapping, *children: Dom | StateProto) -> Node:
             dom = document.createElement(name)
             for key, value in Object.entries(props):
@@ -93,17 +91,19 @@ class TagAccessor:
 
 
 tags: Final = TagAccessor()
-fleurjs: Final = "\n".join([
-    javascript(Hook),
-    javascript(StateProto),
-    javascript(TagAccessor),
-    javascript(get_node),
-    javascript(bind),
-    javascript(add),
-    javascript(state),
-    "const tags = TagAccessor();",
-    "const fleur = {Hook, StateProto, TagAccessor, bind, add, state, tags};",
-])
+fleurjs: Final = "\n".join(
+    [
+        javascript(Hook),
+        javascript(StateProto),
+        javascript(TagAccessor),
+        javascript(get_node),
+        javascript(bind),
+        javascript(add),
+        javascript(state),
+        "const tags = TagAccessor();",
+        "const fleur = {Hook, StateProto, TagAccessor, bind, add, state, tags};",
+    ]
+)
 _DEFAULT_STYLE: Final = """
 * { box-sizing: border-box; }
 .block { display: block; }
@@ -187,9 +187,11 @@ def render(
     component: Callable[[], Node],
     style: str | None = _DEFAULT_STYLE,
 ) -> str:
-    script = "\n".join([
-        fleurjs,
-        f"const app = {javascript(component)}",
-        "add(document.body, app());",
-    ])
+    script = "\n".join(
+        [
+            fleurjs,
+            f"const app = {javascript(component)}",
+            "add(document.body, app());",
+        ]
+    )
     return f"<!DOCTYPE html><html><head><style>{style}</style></head><body><script>{script}</script></body></html>"
