@@ -20,12 +20,4 @@ def Counter():
     )
 
 
-def App():
-    return fleur.tags.div(
-        {},
-        Counter(),
-        Counter(),
-    )
-
-
-print(fleur.render(App))
+print(fleur.render(Counter))
