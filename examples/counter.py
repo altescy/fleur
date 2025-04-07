@@ -10,8 +10,8 @@ def Counter():
     def decrement():
         count.value -= 1
 
-    return fleur.tags.span(
-        {},
+    return fleur.tags.div(
+        {"class": "flex items-center justify-center gap-2 shadow rounded p-4 w-fit"},
         "Count: ",
         count,
         "  ",
