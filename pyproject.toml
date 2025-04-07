@@ -12,3 +12,16 @@ dev = [
     "pytest>=8.3.5",
     "ruff>=0.11.4",
 ]
+
+[build-system]
+requires = ['hatchling', 'hatch-fancy-pypi-readme>=22.5.0']
+build-backend = 'hatchling.build'
+
+[tool.ruff]
+line-length = 120
+
+[tool.hatch.version]
+path = 'fleur/__init__.py'
+
+[tool.hatch.metadata]
+allow-direct-references = true

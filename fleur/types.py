@@ -1,9 +1,7 @@
 import dataclasses
 from typing import Any, ClassVar, Protocol, TypeVar, Union, runtime_checkable
 
-type JsonValue = Union[
-    str, bool, int, float, None, list["JsonValue"], dict[str, "JsonValue"]
-]
+type JsonValue = Union[str, bool, int, float, None, list["JsonValue"], dict[str, "JsonValue"]]
 
 
 @runtime_checkable
