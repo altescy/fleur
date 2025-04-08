@@ -2,6 +2,7 @@ from collections.abc import Callable, Mapping
 from typing import Final
 
 from fleur.js import JSON, Dom, Node, Object, document, javascript, typeof
+from fleur.style import DEFAULT_CSS
 
 
 class Hook[T]:
@@ -104,88 +105,11 @@ fleurjs: Final = "\n".join(
         "const fleur = {Hook, StateProto, TagAccessor, bind, add, state, tags};",
     ]
 )
-_DEFAULT_STYLE: Final = """
-* { box-sizing: border-box; }
-.block { display: block; }
-.flex { display: flex; }
-.grid { display: grid; }
-.inline { display: inline; }
-.inline-block { display: inline-block; }
-.hidden { display: none; }
-.absolute { position: absolute; }
-.relative { position: relative; }
-.fixed { position: fixed; }
-.w-full { width: 100%; }
-.w-auto { width: auto; }
-.w-fit { width: fit-content; }
-.w-screen { width: 100vw; }
-.w-min { width: min-content; }
-.w-max { width: max-content; }
-.w-1/2 { width: 50%; }
-.w-1/3 { width: 33.333333%; }
-.w-1/4 { width: 25%; }
-.h-full { height: 100%; }
-.h-auto { height: auto; }
-.h-fit { height: fit-content; }
-.h-screen { height: 100vh; }
-.h-min { height: min-content; }
-.h-max { height: max-content; }
-.h-1/2 { height: 50%; }
-.h-1/3 { height: 33.333333%; }
-.h-1/4 { height: 25%; }
-.m-0 { margin: 0; }
-.m-1 { margin: 0.25rem; }
-.m-2 { margin: 0.5rem; }
-.m-3 { margin: 0.75rem; }
-.m-4 { margin: 1rem; }
-.p-0 { padding: 0; }
-.p-1 { padding: 0.25em; }
-.p-2 { padding: 0.5em; }
-.p-3 { padding: 0.75em; }
-.p-4 { padding: 1em; }
-.text-center { text-align: center; }
-.text-left { text-align: left; }
-.text-right { text-align: right; }
-.text-sm { font-size: 0.875rem; }
-.text-base { font-size: 1rem; }
-.text-lg { font-size: 1.125rem; }
-.font-bold { font-weight: bold; }
-.font-normal { font-weight: normal; }
-.font-light { font-weight: 300; }
-.text-xl { font-size: 1.25rem; }
-.jsutify-center { justify-content: center; }
-.jsutify-start { justify-content: flex-start; }
-.jsutify-end { justify-content: flex-end; }
-.items-center { align-items: center; }
-.items-start { align-items: flex-start; }
-.items-end { align-items: flex-end; }
-.flex-col { flex-direction: column; }
-.flex-row { flex-direction: row; }
-.gap-0 { gap: 0; }
-.gap-1 { gap: 0.25rem; }
-.gap-2 { gap: 0.5rem; }
-.gap-3 { gap: 0.75rem; }
-.gap-4 { gap: 1rem; }
-.rounded { border-radius: 0.25rem; }
-.rounded-sm { border-radius: 0.125rem; }
-.rounded-md { border-radius: 0.375rem; }
-.rounded-lg { border-radius: 0.5rem; }
-.rounded-full { border-radius: 9999px; }
-.border { border: 1px solid #000; }
-.shadow { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
-.shadow-md { box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
-.shadow-lg { box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1); }
-.overflow-hidden { overflow: hidden; }
-.overflow-auto { overflow: auto; }
-.overflow-scroll { overflow: scroll; }
-.overflow-x-auto { overflow-x: auto; }
-.overflow-y-auto { overflow-y: auto; }
-"""
 
 
 def render(
     component: Callable[[], Node],
-    style: str | None = _DEFAULT_STYLE,
+    style: str | None = DEFAULT_CSS,
 ) -> str:
     script = "\n".join(
         [
