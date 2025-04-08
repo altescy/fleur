@@ -3,9 +3,9 @@ from __future__ import annotations
 import ast
 import inspect
 import json
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from textwrap import dedent
-from typing import Any
+from typing import Any, overload
 
 __all__ = [
     "document",
@@ -743,7 +743,7 @@ def convert_stmt(node: ast.stmt) -> JsStmt:
     raise NotImplementedError(f"Unsupported stmt: {type(node)}")
 
 
-def javascript(fn: Any) -> str:
+def to_javascript(fn: Any) -> str:
     source = dedent(inspect.getsource(fn))
     tree = ast.parse(source)
     return "\n".join(convert_stmt(n).to_code() for n in tree.body)
@@ -754,13 +754,33 @@ def javascript(fn: Any) -> str:
 # ========================
 
 
+@overload
+def javascript[T](value: None = None) -> Callable[[T], T]: ...
+
+
+@overload
+def javascript[T](value: T) -> T: ...
+
+
+def javascript[T](value: T | None = None) -> T | Callable[[T], T]:
+    def decorator(value: T) -> T:
+        return value
+
+    if value is None:
+        return decorator
+    return decorator(value)
+
+
+@javascript
 class Node:
     def replaceWith(self, node: Node, /) -> None: ...
 
 
+@javascript
 def typeof(_: Any) -> str: ...
 
 
+@javascript
 class document:
     body: Dom
 
@@ -771,11 +791,13 @@ class document:
     def createElement(tag: str, /) -> Dom: ...
 
 
+@javascript
 class JSON:
     @staticmethod
     def stringify(_: Any) -> str: ...
 
 
+@javascript
 class Object:
     @staticmethod
     def getPrototypeOf(_: Any) -> Any: ...
@@ -784,6 +806,7 @@ class Object:
     def entries[K, V](_: Mapping[K, V]) -> list[tuple[K, V]]: ...
 
 
+@javascript
 def Proxy[T](target: T, *args: Any) -> T: ...
 
 

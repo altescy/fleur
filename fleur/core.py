@@ -1,10 +1,11 @@
 from collections.abc import Callable, Mapping, Sequence
 from typing import Final, cast, overload
 
-from fleur.js import JSON, Dom, Node, Object, document, javascript, typeof
+from fleur.js import JSON, Dom, Node, Object, document, javascript, to_javascript, typeof
 from fleur.style import DEFAULT_CSS
 
 
+@javascript
 class Hook[T]:
     def __init__(self, node: Node | None = None) -> None:
         self.node = node
@@ -13,6 +14,7 @@ class Hook[T]:
         pass
 
 
+@javascript
 class StateProto[T]:
     _value: T
     _hooks: list[Hook[T]]
@@ -32,6 +34,7 @@ class StateProto[T]:
             hook.update(self._value)
 
 
+@javascript
 def get_node(dom: Dom) -> Node:
     if isinstance(dom, Node):
         return dom
@@ -42,6 +45,7 @@ def get_node(dom: Dom) -> Node:
     return document.createTextNode(JSON.stringify(dom))
 
 
+@javascript
 def bind(dom: Dom | StateProto) -> Node:
     if isinstance(dom, StateProto):
         node = get_node(dom.value)
@@ -57,16 +61,19 @@ def bind(dom: Dom | StateProto) -> Node:
     return get_node(dom)
 
 
+@javascript
 def state[T](value: T) -> StateProto[T]:
     return StateProto(value)
 
 
+@javascript
 def add(dom: Dom, *children: Dom | StateProto) -> Dom:
     for child in children:
         dom.appendChild(bind(child))
     return dom
 
 
+@javascript
 class TagAccessor:
     def __getattr__(self, name: str) -> Callable[[Mapping, *tuple[Dom | StateProto, ...]], Node]:
         def _tag(props: Mapping, *children: Dom | StateProto) -> Node:
@@ -94,13 +101,13 @@ class TagAccessor:
 tags: Final = TagAccessor()
 fleurjs: Final = "\n".join(
     [
-        javascript(Hook),
-        javascript(StateProto),
-        javascript(TagAccessor),
-        javascript(get_node),
-        javascript(bind),
-        javascript(add),
-        javascript(state),
+        to_javascript(Hook),
+        to_javascript(StateProto),
+        to_javascript(TagAccessor),
+        to_javascript(get_node),
+        to_javascript(bind),
+        to_javascript(add),
+        to_javascript(state),
         "const tags = TagAccessor();",
         "const fleur = {Hook, StateProto, TagAccessor, bind, add, state, tags};",
     ]
@@ -155,8 +162,8 @@ def render(
     script = "\n".join(
         [
             fleurjs,
-            *(javascript(dep) for dep in dependencies),
-            f"const app = {javascript(component)}",
+            *(to_javascript(dep) for dep in dependencies),
+            f"const app = {to_javascript(component)}",
             "add(document.body, app());",
         ]
     )
