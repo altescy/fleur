@@ -1,5 +1,5 @@
-from collections.abc import Callable, Mapping
-from typing import Final
+from collections.abc import Callable, Mapping, Sequence
+from typing import Final, cast, overload
 
 from fleur.js import JSON, Dom, Node, Object, document, javascript, typeof
 from fleur.style import DEFAULT_CSS
@@ -107,15 +107,89 @@ fleurjs: Final = "\n".join(
 )
 
 
+# ========================
+# Render functions
+# ========================
+
+
+type Component = Callable[..., Node]
+
+
+def _find_dependencies(component: Component) -> set[Component]:
+    import ast
+    import inspect
+
+    class CallAnalyzer(ast.NodeVisitor):
+        def __init__(self) -> None:
+            self.calls: dict[str, ast.AST] = {}
+
+        def visit_Call(self, node: ast.Call) -> None:
+            func_expr = node.func
+            if isinstance((func_expr), ast.Name):
+                self.calls[func_expr.id] = node
+            elif isinstance(func_expr, ast.Attribute):
+                full_name = ast.unparse(func_expr)
+                self.calls[full_name] = node
+            self.generic_visit(node)
+
+    source = inspect.getsource(component)
+    tree = ast.parse(source)
+    analyzer = CallAnalyzer()
+    analyzer.visit(tree)
+
+    context = component.__globals__
+    dependencies: set[Component] = set(getattr(component, "__fleur_dependencies__", ()))
+    for name in analyzer.calls.keys():
+        if name in context:
+            obj = context[name]
+            if callable(obj) and getattr(obj, "__fleur_component__", False):
+                dependencies.add(cast(Component, obj))
+    return dependencies
+
+
 def render(
-    component: Callable[[], Node],
+    component: Component,
     style: str | None = DEFAULT_CSS,
 ) -> str:
+    dependencies = _find_dependencies(component)
     script = "\n".join(
         [
             fleurjs,
+            *(javascript(dep) for dep in dependencies),
             f"const app = {javascript(component)}",
             "add(document.body, app());",
         ]
     )
     return f"<!DOCTYPE html><html><head><style>{style}</style></head><body><script>{script}</script></body></html>"
+
+
+@overload
+def component[F: Component](
+    fn: None = None,
+    *,
+    dependencies: Sequence[Component] = (),
+) -> Callable[[F], F]: ...
+
+
+@overload
+def component[F: Component](
+    fn: F,
+    *,
+    dependencies: Sequence[Component] = (),
+) -> F: ...
+
+
+def component[F: Component](
+    fn: F | None = None,
+    *,
+    dependencies: Sequence[Component] = (),
+) -> F | Callable[[F], F]:
+    def decorator(fn: F) -> F:
+        setattr(fn, "__fleur_component__", True)
+        setattr(fn, "__fleur_dependencies__", dependencies)
+        return fn
+
+    if fn is None:
+        return decorator
+
+    return decorator(fn)

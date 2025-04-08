@@ -1,6 +1,7 @@
 import fleur
 
 
+@fleur.component
 def Counter():
     count = fleur.state(0)
 
@@ -20,4 +21,16 @@ def Counter():
     )
 
 
-print(fleur.render(Counter))
+@fleur.component
+def App():
+    return fleur.tags.div(
+        {"class": "flex flex-col items-center justify-center h-screen"},
+        Counter(),
+        fleur.tags.p(
+            {"class": "text-gray-500 text-sm"},
+            "Click the buttons to increment or decrement the count.",
+        ),
+    )
+
+
+print(fleur.render(App))
