@@ -1,7 +1,7 @@
 from collections.abc import Callable, Mapping, Sequence
 from typing import Final, cast, overload
 
-from fleur.js import JSON, Dom, Node, Object, document, javascript, to_javascript, typeof
+from fleur.js import JSON, Dom, Node, Object, asdecorator, document, javascript, to_javascript, typeof
 from fleur.style import DEFAULT_CSS
 
 
@@ -67,6 +67,34 @@ def state[T](value: T) -> StateProto[T]:
 
 
 @javascript
+@asdecorator
+def effect(fn: Callable, deps: Sequence[StateProto]) -> None:
+    for dep in deps:
+
+        class _Hook[T](Hook[T]):
+            def update(self, value: T) -> None:
+                fn()
+
+        dep._hooks.append(_Hook())
+
+
+@javascript
+@asdecorator
+def memo[R](fn: Callable[..., R], deps: Sequence[StateProto]) -> StateProto[R]:
+    s = state(fn())
+    for dep in deps:
+
+        class _Hook[T](Hook[T]):
+            def update(self, value: T) -> None:
+                new_value = fn()
+                if s.value != new_value:
+                    s.value = new_value
+
+        dep._hooks.append(_Hook())
+    return s
+
+
+@javascript
 def add(dom: Dom, *children: Dom | StateProto) -> Dom:
     for child in children:
         dom.appendChild(bind(child))
@@ -108,8 +136,10 @@ fleurjs: Final = "\n".join(
         to_javascript(bind),
         to_javascript(add),
         to_javascript(state),
+        to_javascript(effect),
+        to_javascript(memo),
         "const tags = TagAccessor();",
-        "const fleur = {Hook, StateProto, TagAccessor, bind, add, state, tags};",
+        "const fleur = {Hook, StateProto, TagAccessor, bind, add, state, effect, memo, tags};",
     ]
 )
 

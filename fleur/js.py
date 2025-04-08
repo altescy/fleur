@@ -5,7 +5,7 @@ import inspect
 import json
 from collections.abc import Callable, Mapping
 from textwrap import dedent
-from typing import Any, overload
+from typing import Any, ParamSpec, overload
 
 __all__ = [
     "document",
@@ -16,6 +16,8 @@ __all__ = [
     "Object",
     "Proxy",
 ]
+
+P = ParamSpec("P")
 
 # ========================
 # JavaScript AST Nodes
@@ -333,7 +335,7 @@ def convert_operator(op: ast.operator | ast.cmpop) -> str:
 
 class ExpressionTransformer[T: ast.expr]:
     def matches(self, node: T) -> bool: ...
-    def transform(self, node: T) -> JsExpr: ...
+    def transform(self, node: T) -> JsExpr | JsStmt: ...
 
 
 class ConstantTransformer(ExpressionTransformer):
@@ -429,17 +431,51 @@ class SubscriptTransformer(ExpressionTransformer):
 
 
 class FunctionTransformer(ExpressionTransformer):
+    IGNORED_DECORATORS = {
+        "asdecorator",
+        "component",
+        "javascript",
+        "fleur.asdecorator",
+        "fleur.component",
+        "fleur.javascript",
+    }
+
     def matches(self, node: ast.stmt) -> bool:
         return isinstance(node, ast.FunctionDef)
 
-    def transform(self, node: ast.FunctionDef) -> JsExpr:
+    def transform(self, node: ast.FunctionDef) -> JsExpr | JsStmt:
         params = [a.arg for a in node.args.args]
         if node.args.vararg:
             params.append(f"...{node.args.vararg.arg}")
         if node.args.kwarg:
-            params.append(f"...{node.args.kwarg.arg}")
+            params.append(f"{{...{node.args.kwarg.arg}}}")
         body = [convert_stmt(s) for s in node.body]
-        return JsFunction(node.name, params, body)
+        func = JsFunction(node.name, params, body)
+
+        for decorator_node in node.decorator_list:
+            decorator: JsExpr
+            decorator_args: list[JsExpr] = []
+            if isinstance(decorator_node, ast.Name):
+                decorator = JsIdentifier(decorator_node.id)
+            elif isinstance(decorator_node, ast.Attribute):
+                decorator = JsMember(convert_expr(decorator_node.value), decorator_node.attr)
+            elif isinstance(decorator_node, ast.Call):
+                decorator = convert_expr(decorator_node.func)
+                decorator_args = [convert_expr(arg) for arg in decorator_node.args]
+            else:
+                raise NotImplementedError(f"Unsupported decorator: {type(decorator_node)}")
+            if decorator.to_code() in self.IGNORED_DECORATORS:
+                continue
+            func = JsCall(decorator, [func, *decorator_args])
+
+        return (
+            JsVarDecl(
+                node.name,
+                func,
+            )
+            if isinstance(func, JsCall)
+            else func
+        )
 
 
 class StarredTransformer(ExpressionTransformer):
@@ -769,6 +805,10 @@ def javascript[T](value: T | None = None) -> T | Callable[[T], T]:
     if value is None:
         return decorator
     return decorator(value)
+
+
+def asdecorator[*P, R, F: Callable](fn: Callable[[F, *P], R]) -> Callable[[*P], Callable[[F], R]]:
+    return fn  # type: ignore
 
 
 @javascript
