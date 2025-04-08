@@ -5,7 +5,7 @@ import inspect
 import json
 from collections.abc import Callable, Mapping
 from textwrap import dedent
-from typing import Any, ParamSpec, overload
+from typing import Any, overload
 
 __all__ = [
     "document",
@@ -17,7 +17,6 @@ __all__ = [
     "Proxy",
 ]
 
-P = ParamSpec("P")
 
 # ========================
 # JavaScript AST Nodes
