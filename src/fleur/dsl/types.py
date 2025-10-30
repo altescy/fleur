@@ -81,57 +81,73 @@ class _GraineMethod:
         return Number(expr=self._expr)
 
     # Support arithmetic operations on the method result (for cases like obj.method + 1)
-    def __add__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "Number":
+    def __add__(self, other: Union["Number", PyNumberCompat, "_GraineMethod"]) -> "Number":
         # First get the property value, then add
         prop_value = self._as_number()
         if isinstance(other, _GraineMethod):
             return prop_value + other._as_number()
         return prop_value + other
 
-    def __radd__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "Number":
+    def __radd__(self, other: Union["Number", PyNumberCompat, "_GraineMethod"]) -> "Number":
         prop_value = self._as_number()
         if isinstance(other, _GraineMethod):
             return other._as_number() + prop_value
         return other + prop_value  # type: ignore[return-value]
 
-    def __sub__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "Number":
+    def __sub__(self, other: Union["Number", PyNumberCompat, "_GraineMethod"]) -> "Number":
         prop_value = self._as_number()
         if isinstance(other, _GraineMethod):
             return prop_value - other._as_number()
         return prop_value - other
 
-    def __rsub__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "Number":
+    def __rsub__(self, other: Union["Number", PyNumberCompat, "_GraineMethod"]) -> "Number":
         prop_value = self._as_number()
         if isinstance(other, _GraineMethod):
             return other._as_number() - prop_value
         return other - prop_value  # type: ignore[return-value]
 
-    def __mul__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "Number":
+    def __mul__(self, other: Union["Number", PyNumberCompat, "_GraineMethod"]) -> "Number":
         prop_value = self._as_number()
         if isinstance(other, _GraineMethod):
             return prop_value * other._as_number()
         return prop_value * other
 
-    def __rmul__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "Number":
+    def __rmul__(self, other: Union["Number", PyNumberCompat, "_GraineMethod"]) -> "Number":
         prop_value = self._as_number()
         if isinstance(other, _GraineMethod):
             return other._as_number() * prop_value
         return other * prop_value  # type: ignore[return-value]
 
-    def __truediv__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "Number":
+    def __truediv__(self, other: Union["Number", PyNumberCompat, "_GraineMethod"]) -> "Number":
         prop_value = self._as_number()
         if isinstance(other, _GraineMethod):
             return prop_value / other._as_number()
         return prop_value / other
 
-    def __rtruediv__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "Number":
+    def __rtruediv__(self, other: Union["Number", PyNumberCompat, "_GraineMethod"]) -> "Number":
         prop_value = self._as_number()
         if isinstance(other, _GraineMethod):
             return other._as_number() / prop_value
         return other / prop_value  # type: ignore[return-value]
 
+    def __pow__(self, exponent: Union["Number", PyNumberCompat, "_GraineMethod"]) -> "Number":
+        prop_value = self._as_number()
+        exp_value: Number
+        if isinstance(exponent, _GraineMethod):
+            exp_value = exponent._as_number()
+        elif isinstance(exponent, Number):
+            exp_value = exponent
+        else:
+            exp_value = Number(IRLiteralNumberExpr(exponent))
+        return Number(
+            expr=IRCallExpr(
+                function=IRPropertyAccessExpr(target=IRIdentifierExpr("Math"), property="pow"),
+                args=[prop_value._expr, exp_value._expr],
+            )
+        )
+
     # Support augmented assignment operators (+=, -=, *=, /=) for properties
-    def __iadd__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "_GraineMethod":
+    def __iadd__(self, other: Union["Number", PyNumberCompat, "_GraineMethod"]) -> "_GraineMethod":
         """Support += on properties like this.x += 1."""
         if not isinstance(self._expr, IRPropertyAccessExpr):
             raise TypeError("Can only use += on properties")
@@ -150,7 +166,7 @@ class _GraineMethod:
         )
         return self
 
-    def __isub__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "_GraineMethod":
+    def __isub__(self, other: Union["Number", PyNumberCompat, "_GraineMethod"]) -> "_GraineMethod":
         """Support -= on properties like this.x -= 1."""
         if not isinstance(self._expr, IRPropertyAccessExpr):
             raise TypeError("Can only use -= on properties")
@@ -169,7 +185,7 @@ class _GraineMethod:
         )
         return self
 
-    def __imul__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "_GraineMethod":
+    def __imul__(self, other: Union["Number", PyNumberCompat, "_GraineMethod"]) -> "_GraineMethod":
         """Support *= on properties like this.x *= 2."""
         if not isinstance(self._expr, IRPropertyAccessExpr):
             raise TypeError("Can only use *= on properties")
@@ -188,7 +204,7 @@ class _GraineMethod:
         )
         return self
 
-    def __itruediv__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "_GraineMethod":
+    def __itruediv__(self, other: Union["Number", PyNumberCompat, "_GraineMethod"]) -> "_GraineMethod":
         """Support /= on properties like this.x /= 2."""
         if not isinstance(self._expr, IRPropertyAccessExpr):
             raise TypeError("Can only use /= on properties")

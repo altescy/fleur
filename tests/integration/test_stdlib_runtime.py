@@ -277,3 +277,147 @@ class TestMathRuntime:
 
         assert ctx.call("distance_from_origin", 3, 4) == 5
         assert ctx.call("distance_from_origin", 5, 12) == 13
+
+    def test_math_with_getter(self, ctx):
+        """Test Math functions with getter properties."""
+        with parterre() as p:
+
+            @graine.define
+            class Point:
+                def __init__(self, x: graine.Number, y: graine.Number):
+                    self.x = x
+                    self.y = y
+
+                @graine.getter
+                def magnitude_squared(self) -> graine.Number:
+                    return self.x * self.x + self.y * self.y
+
+                @graine.getter
+                def magnitude(self) -> graine.Number:
+                    return graine.math.sqrt(self.magnitude_squared)
+
+            @graine.define
+            def get_magnitude(x: graine.Number, y: graine.Number) -> graine.Number:
+                p = Point(x, y)
+                return p.magnitude
+
+        js_code = p.germinate()
+        ctx.eval(js_code)
+
+        # Test 3-4-5 triangle
+        result = ctx.call("get_magnitude", 3, 4)
+        assert result == 5
+
+        # Test 5-12-13 triangle
+        result = ctx.call("get_magnitude", 5, 12)
+        assert result == 13
+
+    def test_math_chained_getters(self, ctx):
+        """Test chaining Math functions through getters."""
+        with parterre() as p:
+
+            @graine.define
+            class Circle:
+                def __init__(self, radius: graine.Number):
+                    self.radius = radius
+
+                @graine.getter
+                def diameter(self) -> graine.Number:
+                    return self.radius * graine.literal(2)
+
+                @graine.getter
+                def circumference(self) -> graine.Number:
+                    return graine.math.PI * self.diameter
+
+                @graine.getter
+                def area(self) -> graine.Number:
+                    return graine.math.PI * graine.math.pow(self.radius, graine.literal(2))
+
+            @graine.define
+            def calculate_circle_properties(r: graine.Number) -> graine.Number:
+                c = Circle(r)
+                # Return rounded area
+                return graine.math.round(c.area)
+
+        js_code = p.germinate()
+        ctx.eval(js_code)
+
+        # Circle with radius 5: area = π * 25 ≈ 78.54
+        result = ctx.call("calculate_circle_properties", 5)
+        assert result == 79
+
+        # Circle with radius 10: area = π * 100 ≈ 314.16
+        result = ctx.call("calculate_circle_properties", 10)
+        assert result == 314
+
+    def test_math_with_property_access(self, ctx):
+        """Test Math functions with property access in getters."""
+        with parterre() as p:
+
+            @graine.define
+            class Rectangle:
+                def __init__(self, width: graine.Number, height: graine.Number):
+                    self.width = width
+                    self.height = height
+
+                @graine.getter
+                def diagonal(self) -> graine.Number:
+                    # Use property access (self.width, self.height) in Math functions
+                    w_sq = graine.math.pow(self.width, graine.literal(2))
+                    h_sq = graine.math.pow(self.height, graine.literal(2))
+                    return graine.math.sqrt(w_sq + h_sq)
+
+            @graine.define
+            def get_diagonal(w: graine.Number, h: graine.Number) -> graine.Number:
+                rect = Rectangle(w, h)
+                return rect.diagonal
+
+        js_code = p.germinate()
+        ctx.eval(js_code)
+
+        # Rectangle 3x4: diagonal = 5
+        assert ctx.call("get_diagonal", 3, 4) == 5
+
+        # Rectangle 5x12: diagonal = 13
+        assert ctx.call("get_diagonal", 5, 12) == 13
+
+    def test_math_nested_getters(self, ctx):
+        """Test deeply nested getter calls with Math functions."""
+        with parterre() as p:
+
+            @graine.define
+            class Vector3D:
+                def __init__(self, x: graine.Number, y: graine.Number, z: graine.Number):
+                    self.x = x
+                    self.y = y
+                    self.z = z
+
+                @graine.getter
+                def xy_magnitude(self) -> graine.Number:
+                    return graine.math.sqrt(self.x * self.x + self.y * self.y)
+
+                @graine.getter
+                def magnitude(self) -> graine.Number:
+                    # Use xy_magnitude (getter) in Math.pow
+                    xy_sq = graine.math.pow(self.xy_magnitude, graine.literal(2))
+                    z_sq = graine.math.pow(self.z, graine.literal(2))
+                    return graine.math.sqrt(xy_sq + z_sq)
+
+                @graine.getter
+                def normalized_magnitude(self) -> graine.Number:
+                    # Use magnitude (getter) in Math.round
+                    return graine.math.round(self.magnitude)
+
+            @graine.define
+            def get_normalized_magnitude(x: graine.Number, y: graine.Number, z: graine.Number) -> graine.Number:
+                v = Vector3D(x, y, z)
+                return v.normalized_magnitude
+
+        js_code = p.germinate()
+        ctx.eval(js_code)
+
+        # Vector (2, 3, 6): magnitude = sqrt(4 + 9 + 36) = sqrt(49) = 7
+        assert ctx.call("get_normalized_magnitude", 2, 3, 6) == 7
+
+        # Vector (1, 2, 2): magnitude = sqrt(1 + 4 + 4) = sqrt(9) = 3
+        assert ctx.call("get_normalized_magnitude", 1, 2, 2) == 3

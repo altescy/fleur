@@ -3,10 +3,26 @@
 This module provides wrappers for JavaScript standard library functions.
 """
 
-from typing import Final, Union
+from typing import Any, Final, Union
 
-from .ir import IRCallExpr, IRIdentifierExpr, IRPropertyAccessExpr
+from .ir import IRCallExpr, IRExpr, IRIdentifierExpr, IRPropertyAccessExpr
 from .types import Number
+
+
+def _to_ir_expr(value: Any) -> IRExpr:
+    """Convert a value to an IRExpr.
+
+    Handles Number, _GraineMethod (property access), and Python primitives.
+    """
+    from .ir import IRLiteralNumberExpr
+
+    if hasattr(value, "_expr"):
+        return value._expr  # type: ignore[attr-defined,no-any-return]
+    elif isinstance(value, (int, float)):
+        return IRLiteralNumberExpr(value)
+    else:
+        # Fallback: assume it's already an IRExpr or can be converted
+        return value  # type: ignore[return-value]
 
 
 class Math:
@@ -33,9 +49,7 @@ class Math:
         Returns:
             Absolute value of x
         """
-        from .ir import IRLiteralNumberExpr
-
-        arg = x._expr if isinstance(x, Number) else IRLiteralNumberExpr(x)
+        arg = _to_ir_expr(x)
         return Number(
             expr=IRCallExpr(function=IRPropertyAccessExpr(target=IRIdentifierExpr("Math"), property="abs"), args=[arg])
         )
@@ -50,9 +64,8 @@ class Math:
         Returns:
             Ceiling of x
         """
-        from .ir import IRLiteralNumberExpr
 
-        arg = x._expr if isinstance(x, Number) else IRLiteralNumberExpr(x)
+        arg = _to_ir_expr(x)
         return Number(
             expr=IRCallExpr(function=IRPropertyAccessExpr(target=IRIdentifierExpr("Math"), property="ceil"), args=[arg])
         )
@@ -67,9 +80,8 @@ class Math:
         Returns:
             Floor of x
         """
-        from .ir import IRLiteralNumberExpr
 
-        arg = x._expr if isinstance(x, Number) else IRLiteralNumberExpr(x)
+        arg = _to_ir_expr(x)
         return Number(
             expr=IRCallExpr(
                 function=IRPropertyAccessExpr(target=IRIdentifierExpr("Math"), property="floor"), args=[arg]
@@ -86,9 +98,8 @@ class Math:
         Returns:
             Rounded value of x
         """
-        from .ir import IRLiteralNumberExpr
 
-        arg = x._expr if isinstance(x, Number) else IRLiteralNumberExpr(x)
+        arg = _to_ir_expr(x)
         return Number(
             expr=IRCallExpr(
                 function=IRPropertyAccessExpr(target=IRIdentifierExpr("Math"), property="round"), args=[arg]
@@ -105,9 +116,9 @@ class Math:
         Returns:
             Maximum value
         """
-        from .ir import IRExpr, IRLiteralNumberExpr
+        from .ir import IRExpr
 
-        args: list[IRExpr] = [v._expr if isinstance(v, Number) else IRLiteralNumberExpr(v) for v in values]
+        args: list[IRExpr] = [_to_ir_expr(v) for v in values]
         return Number(
             expr=IRCallExpr(function=IRPropertyAccessExpr(target=IRIdentifierExpr("Math"), property="max"), args=args)
         )
@@ -122,9 +133,9 @@ class Math:
         Returns:
             Minimum value
         """
-        from .ir import IRExpr, IRLiteralNumberExpr
+        from .ir import IRExpr
 
-        args: list[IRExpr] = [v._expr if isinstance(v, Number) else IRLiteralNumberExpr(v) for v in values]
+        args: list[IRExpr] = [_to_ir_expr(v) for v in values]
         return Number(
             expr=IRCallExpr(function=IRPropertyAccessExpr(target=IRIdentifierExpr("Math"), property="min"), args=args)
         )
@@ -140,10 +151,9 @@ class Math:
         Returns:
             x raised to the power y
         """
-        from .ir import IRLiteralNumberExpr
 
-        x_arg = x._expr if isinstance(x, Number) else IRLiteralNumberExpr(x)
-        y_arg = y._expr if isinstance(y, Number) else IRLiteralNumberExpr(y)
+        x_arg = _to_ir_expr(x)
+        y_arg = _to_ir_expr(y)
         return Number(
             expr=IRCallExpr(
                 function=IRPropertyAccessExpr(target=IRIdentifierExpr("Math"), property="pow"), args=[x_arg, y_arg]
@@ -160,9 +170,8 @@ class Math:
         Returns:
             Square root of x
         """
-        from .ir import IRLiteralNumberExpr
 
-        arg = x._expr if isinstance(x, Number) else IRLiteralNumberExpr(x)
+        arg = _to_ir_expr(x)
         return Number(
             expr=IRCallExpr(function=IRPropertyAccessExpr(target=IRIdentifierExpr("Math"), property="sqrt"), args=[arg])
         )
@@ -178,9 +187,8 @@ class Math:
         Returns:
             Sine of x
         """
-        from .ir import IRLiteralNumberExpr
 
-        arg = x._expr if isinstance(x, Number) else IRLiteralNumberExpr(x)
+        arg = _to_ir_expr(x)
         return Number(
             expr=IRCallExpr(function=IRPropertyAccessExpr(target=IRIdentifierExpr("Math"), property="sin"), args=[arg])
         )
@@ -195,9 +203,8 @@ class Math:
         Returns:
             Cosine of x
         """
-        from .ir import IRLiteralNumberExpr
 
-        arg = x._expr if isinstance(x, Number) else IRLiteralNumberExpr(x)
+        arg = _to_ir_expr(x)
         return Number(
             expr=IRCallExpr(function=IRPropertyAccessExpr(target=IRIdentifierExpr("Math"), property="cos"), args=[arg])
         )
@@ -212,9 +219,8 @@ class Math:
         Returns:
             Tangent of x
         """
-        from .ir import IRLiteralNumberExpr
 
-        arg = x._expr if isinstance(x, Number) else IRLiteralNumberExpr(x)
+        arg = _to_ir_expr(x)
         return Number(
             expr=IRCallExpr(function=IRPropertyAccessExpr(target=IRIdentifierExpr("Math"), property="tan"), args=[arg])
         )
@@ -229,9 +235,8 @@ class Math:
         Returns:
             Arcsine of x in radians
         """
-        from .ir import IRLiteralNumberExpr
 
-        arg = x._expr if isinstance(x, Number) else IRLiteralNumberExpr(x)
+        arg = _to_ir_expr(x)
         return Number(
             expr=IRCallExpr(function=IRPropertyAccessExpr(target=IRIdentifierExpr("Math"), property="asin"), args=[arg])
         )
@@ -246,9 +251,8 @@ class Math:
         Returns:
             Arccosine of x in radians
         """
-        from .ir import IRLiteralNumberExpr
 
-        arg = x._expr if isinstance(x, Number) else IRLiteralNumberExpr(x)
+        arg = _to_ir_expr(x)
         return Number(
             expr=IRCallExpr(function=IRPropertyAccessExpr(target=IRIdentifierExpr("Math"), property="acos"), args=[arg])
         )
@@ -263,9 +267,8 @@ class Math:
         Returns:
             Arctangent of x in radians
         """
-        from .ir import IRLiteralNumberExpr
 
-        arg = x._expr if isinstance(x, Number) else IRLiteralNumberExpr(x)
+        arg = _to_ir_expr(x)
         return Number(
             expr=IRCallExpr(function=IRPropertyAccessExpr(target=IRIdentifierExpr("Math"), property="atan"), args=[arg])
         )
@@ -281,10 +284,9 @@ class Math:
         Returns:
             Arctangent of y/x in radians
         """
-        from .ir import IRLiteralNumberExpr
 
-        y_arg = y._expr if isinstance(y, Number) else IRLiteralNumberExpr(y)
-        x_arg = x._expr if isinstance(x, Number) else IRLiteralNumberExpr(x)
+        y_arg = _to_ir_expr(y)
+        x_arg = _to_ir_expr(x)
         return Number(
             expr=IRCallExpr(
                 function=IRPropertyAccessExpr(target=IRIdentifierExpr("Math"), property="atan2"), args=[y_arg, x_arg]
@@ -302,9 +304,8 @@ class Math:
         Returns:
             e^x
         """
-        from .ir import IRLiteralNumberExpr
 
-        arg = x._expr if isinstance(x, Number) else IRLiteralNumberExpr(x)
+        arg = _to_ir_expr(x)
         return Number(
             expr=IRCallExpr(function=IRPropertyAccessExpr(target=IRIdentifierExpr("Math"), property="exp"), args=[arg])
         )
@@ -319,9 +320,8 @@ class Math:
         Returns:
             Natural logarithm of x
         """
-        from .ir import IRLiteralNumberExpr
 
-        arg = x._expr if isinstance(x, Number) else IRLiteralNumberExpr(x)
+        arg = _to_ir_expr(x)
         return Number(
             expr=IRCallExpr(function=IRPropertyAccessExpr(target=IRIdentifierExpr("Math"), property="log"), args=[arg])
         )
@@ -336,9 +336,8 @@ class Math:
         Returns:
             Base-10 logarithm of x
         """
-        from .ir import IRLiteralNumberExpr
 
-        arg = x._expr if isinstance(x, Number) else IRLiteralNumberExpr(x)
+        arg = _to_ir_expr(x)
         return Number(
             expr=IRCallExpr(
                 function=IRPropertyAccessExpr(target=IRIdentifierExpr("Math"), property="log10"), args=[arg]
@@ -355,9 +354,8 @@ class Math:
         Returns:
             Base-2 logarithm of x
         """
-        from .ir import IRLiteralNumberExpr
 
-        arg = x._expr if isinstance(x, Number) else IRLiteralNumberExpr(x)
+        arg = _to_ir_expr(x)
         return Number(
             expr=IRCallExpr(function=IRPropertyAccessExpr(target=IRIdentifierExpr("Math"), property="log2"), args=[arg])
         )
@@ -385,9 +383,8 @@ class Math:
         Returns:
             Sign of x
         """
-        from .ir import IRLiteralNumberExpr
 
-        arg = x._expr if isinstance(x, Number) else IRLiteralNumberExpr(x)
+        arg = _to_ir_expr(x)
         return Number(
             expr=IRCallExpr(function=IRPropertyAccessExpr(target=IRIdentifierExpr("Math"), property="sign"), args=[arg])
         )
@@ -402,9 +399,8 @@ class Math:
         Returns:
             Integer part of x
         """
-        from .ir import IRLiteralNumberExpr
 
-        arg = x._expr if isinstance(x, Number) else IRLiteralNumberExpr(x)
+        arg = _to_ir_expr(x)
         return Number(
             expr=IRCallExpr(
                 function=IRPropertyAccessExpr(target=IRIdentifierExpr("Math"), property="trunc"), args=[arg]
