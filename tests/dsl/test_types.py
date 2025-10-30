@@ -8,7 +8,7 @@ from fleur.dsl.ir import (
     IRIdentifierExpr,
     IRLiteralNumberExpr,
 )
-from fleur.dsl.types import Boolean, Number, String, Var
+from fleur.dsl.types import Boolean, Number, String
 
 
 class TestNumber:
@@ -84,6 +84,78 @@ class TestNumber:
         assert isinstance(result._expr, IRBinaryOpExpr)
         assert result._expr.operator == IRBinaryOperator.SUBTRACT
 
+    def test_number_mul_number(self):
+        """Test multiplying two Numbers."""
+        left = Number(IRLiteralNumberExpr(5))
+        right = Number(IRLiteralNumberExpr(3))
+        result = left * right
+
+        assert isinstance(result, Number)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.MULTIPLY
+
+    def test_number_mul_int(self):
+        """Test multiplying Number and int."""
+        num = Number(IRLiteralNumberExpr(7))
+        result = num * 6
+
+        assert isinstance(result, Number)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.MULTIPLY
+
+    def test_number_mul_float(self):
+        """Test multiplying Number and float."""
+        num = Number(IRLiteralNumberExpr(2))
+        result = num * 3.5
+
+        assert isinstance(result, Number)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+
+    def test_number_rmul_int(self):
+        """Test reverse multiply with int."""
+        num = Number(IRLiteralNumberExpr(4))
+        result = 5 * num
+
+        assert isinstance(result, Number)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.MULTIPLY
+
+    def test_number_div_number(self):
+        """Test dividing two Numbers."""
+        left = Number(IRLiteralNumberExpr(20))
+        right = Number(IRLiteralNumberExpr(4))
+        result = left / right
+
+        assert isinstance(result, Number)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.DIVIDE
+
+    def test_number_div_int(self):
+        """Test dividing Number by int."""
+        num = Number(IRLiteralNumberExpr(15))
+        result = num / 3
+
+        assert isinstance(result, Number)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.DIVIDE
+
+    def test_number_div_float(self):
+        """Test dividing Number by float."""
+        num = Number(IRLiteralNumberExpr(10))
+        result = num / 2.5
+
+        assert isinstance(result, Number)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+
+    def test_number_rdiv_int(self):
+        """Test reverse divide with int."""
+        num = Number(IRLiteralNumberExpr(4))
+        result = 20 / num
+
+        assert isinstance(result, Number)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.DIVIDE
+
     def test_number_operations_chain(self):
         """Test chaining multiple operations."""
         a = Number(IRLiteralNumberExpr(10))
@@ -99,6 +171,137 @@ class TestNumber:
         # The left side should be an addition
         assert isinstance(result._expr.left, IRBinaryOpExpr)
         assert result._expr.left.operator == IRBinaryOperator.ADD
+
+    def test_number_complex_operations_chain(self):
+        """Test chaining multiple operation types."""
+        a = Number(IRLiteralNumberExpr(10))
+        b = Number(IRLiteralNumberExpr(5))
+        c = Number(IRLiteralNumberExpr(2))
+
+        # (10 + 5) * 2
+        result = (a + b) * c
+
+        assert isinstance(result, Number)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.MULTIPLY
+        assert isinstance(result._expr.left, IRBinaryOpExpr)
+        assert result._expr.left.operator == IRBinaryOperator.ADD
+
+    def test_number_division_chain(self):
+        """Test chaining division operations."""
+        a = Number(IRLiteralNumberExpr(100))
+        b = Number(IRLiteralNumberExpr(5))
+        c = Number(IRLiteralNumberExpr(2))
+
+        # (100 / 5) / 2
+        result = (a / b) / c
+
+        assert isinstance(result, Number)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.DIVIDE
+        assert isinstance(result._expr.left, IRBinaryOpExpr)
+        assert result._expr.left.operator == IRBinaryOperator.DIVIDE
+
+
+class TestNumberComparison:
+    """Test Number comparison operations."""
+
+    def test_number_eq_number(self):
+        """Test equality comparison between two Numbers."""
+        left = Number(IRLiteralNumberExpr(10))
+        right = Number(IRLiteralNumberExpr(10))
+        result = left == right
+
+        assert isinstance(result, Boolean)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.EQUAL
+
+    def test_number_eq_int(self):
+        """Test equality comparison with int."""
+        num = Number(IRLiteralNumberExpr(42))
+        result = num == 42
+
+        assert isinstance(result, Boolean)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.EQUAL
+
+    def test_number_ne_number(self):
+        """Test inequality comparison between two Numbers."""
+        left = Number(IRLiteralNumberExpr(10))
+        right = Number(IRLiteralNumberExpr(20))
+        result = left != right
+
+        assert isinstance(result, Boolean)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.NOT_EQUAL
+
+    def test_number_lt_number(self):
+        """Test less than comparison between two Numbers."""
+        left = Number(IRLiteralNumberExpr(5))
+        right = Number(IRLiteralNumberExpr(10))
+        result = left < right
+
+        assert isinstance(result, Boolean)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.LESS_THAN
+
+    def test_number_lt_int(self):
+        """Test less than comparison with int."""
+        num = Number(IRLiteralNumberExpr(5))
+        result = num < 10
+
+        assert isinstance(result, Boolean)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.LESS_THAN
+
+    def test_number_le_number(self):
+        """Test less than or equal comparison."""
+        left = Number(IRLiteralNumberExpr(10))
+        right = Number(IRLiteralNumberExpr(10))
+        result = left <= right
+
+        assert isinstance(result, Boolean)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.LESS_THAN_OR_EQUAL
+
+    def test_number_gt_number(self):
+        """Test greater than comparison."""
+        left = Number(IRLiteralNumberExpr(15))
+        right = Number(IRLiteralNumberExpr(10))
+        result = left > right
+
+        assert isinstance(result, Boolean)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.GREATER_THAN
+
+    def test_number_gt_float(self):
+        """Test greater than comparison with float."""
+        num = Number(IRLiteralNumberExpr(10))
+        result = num > 5.5
+
+        assert isinstance(result, Boolean)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.GREATER_THAN
+
+    def test_number_ge_number(self):
+        """Test greater than or equal comparison."""
+        left = Number(IRLiteralNumberExpr(10))
+        right = Number(IRLiteralNumberExpr(10))
+        result = left >= right
+
+        assert isinstance(result, Boolean)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.GREATER_THAN_OR_EQUAL
+
+    def test_number_comparison_with_identifier(self):
+        """Test comparison with identifier (variable reference)."""
+        num = Number(IRLiteralNumberExpr(10))
+        var = Number(IRIdentifierExpr("x"))
+        result = num < var
+
+        assert isinstance(result, Boolean)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.LESS_THAN
 
 
 class TestBoolean:
@@ -138,99 +341,6 @@ class TestString:
         expr = IRLiteralStringExpr("hello")
         string = String(expr)
         assert string._expr == expr
-
-
-class TestVar:
-    """Test Var type operations."""
-
-    def test_var_creation_number(self):
-        """Test creating a Var[Number]."""
-        var = Var(name="x", type_=Number)
-        assert var.name == "x"
-        assert isinstance(var.read, Number)
-        assert isinstance(var.read._expr, IRIdentifierExpr)
-        assert var.read._expr.name == "x"
-
-    def test_var_creation_boolean(self):
-        """Test creating a Var[Boolean]."""
-        var = Var(name="flag", type_=Boolean)
-        assert var.name == "flag"
-        assert isinstance(var.read, Boolean)
-
-    def test_var_creation_string(self):
-        """Test creating a Var[String]."""
-        var = Var(name="text", type_=String)
-        assert var.name == "text"
-        assert isinstance(var.read, String)
-
-    def test_var_add_with_number(self):
-        """Test adding Var with Number."""
-        var = Var(name="x", type_=Number)
-        num = Number(IRLiteralNumberExpr(10))
-        result = var + num
-
-        assert isinstance(result._expr, IRBinaryOpExpr)
-        assert result._expr.operator == IRBinaryOperator.ADD
-
-    def test_var_add_with_int(self):
-        """Test adding Var with int."""
-        var = Var(name="x", type_=Number)
-        result = var + 5
-
-        assert isinstance(result._expr, IRBinaryOpExpr)
-
-    def test_var_add_two_vars(self):
-        """Test adding two Vars."""
-        var1 = Var(name="x", type_=Number)
-        var2 = Var(name="y", type_=Number)
-        result = var1 + var2
-
-        assert isinstance(result._expr, IRBinaryOpExpr)
-        assert result._expr.operator == IRBinaryOperator.ADD
-
-
-class TestVarMutation:
-    """Test Var mutation operations."""
-
-    def test_var_iadd_with_int(self, clean_block):
-        """Test += operator with int."""
-        var = Var(name="x", type_=Number)
-        var += 5
-
-        # Check that a statement was emitted
-        assert len(clean_block.body) == 1
-        from fleur.dsl.ir import IRAssignStmt
-
-        assert isinstance(clean_block.body[0], IRAssignStmt)
-        assert clean_block.body[0].name == "x"
-
-    def test_var_iadd_with_number(self, clean_block):
-        """Test += operator with Number."""
-        var = Var(name="x", type_=Number)
-        num = Number(IRLiteralNumberExpr(10))
-        var += num
-
-        assert len(clean_block.body) == 1
-        from fleur.dsl.ir import IRAssignStmt
-
-        assert isinstance(clean_block.body[0], IRAssignStmt)
-
-    def test_var_iadd_returns_self(self, clean_block):
-        """Test that += returns the same Var instance."""
-        var: Var[Number] = Var(name="x", type_=Number)
-        var += 5  # type: ignore[operator]
-
-        assert var.name == "x"
-
-    def test_var_iadd_multiple_times(self, clean_block):
-        """Test multiple += operations."""
-        var = Var(name="x", type_=Number)
-        var += 1  # type: ignore[operator]
-        var += 2  # type: ignore[operator]
-        var += 3  # type: ignore[operator]
-
-        # Should emit 3 assignment statements
-        assert len(clean_block.body) == 3
 
 
 class TestTypeCompatibility:
@@ -277,13 +387,6 @@ class TestTypeInheritance:
 
         string = String(IRIdentifierExpr("x"))
         assert isinstance(string, GraineType)
-
-    def test_var_is_graine_type(self):
-        """Test that Var is a GraineType."""
-        from fleur.dsl.types import GraineType
-
-        var = Var(name="x", type_=Number)
-        assert isinstance(var, GraineType)
 
 
 class TestFunction:

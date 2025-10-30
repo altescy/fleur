@@ -5,7 +5,7 @@ from ._utils import as_literal, extract_first_grainetype
 from .ir import IRFunctionStmt, IRIdentifierExpr, IRLetStmt, IRLiteralNumberExpr, IRReturnStmt
 from .javascript import emit_javascript
 from .runtime import require_block, use_block
-from .stdlib import Range
+from .stdlib import Cases, Range
 from .types import (
     Boolean,
     BooleanLike,
@@ -19,10 +19,9 @@ from .types import (
     PyStringCompat,
     String,
     StringLike,
-    Var,
 )
 
-__all__ = ["graine", "emit_javascript"]
+__all__ = ["graine", "emit_javascript", "require_block"]
 
 
 _GraineCallable = TypeVar("_GraineCallable", bound=Callable[..., GraineType])
@@ -72,7 +71,7 @@ class graine:
         gtype = init if isinstance(init, GraineType) else graine.literal(init)
         var_name = f"{name}_{idx}"
         block.emit(IRLetStmt(name=var_name, value=gtype._expr))
-        return Var(name=var_name, type_=type(gtype))
+        return type(gtype)(IRIdentifierExpr(var_name))
 
     @staticmethod
     def range(start: Union[int, float, Number], end: Union[int, float, Number]) -> Range:
@@ -80,6 +79,10 @@ class graine:
         start_expr = start._expr if isinstance(start, Number) else IRLiteralNumberExpr(start)
         end_expr = end._expr if isinstance(end, Number) else IRLiteralNumberExpr(end)
         return Range(var=var_name, start=start_expr, end=end_expr)
+
+    @staticmethod
+    def cases() -> Cases:
+        return Cases()
 
     @staticmethod
     def function(fn: _GraineCallable) -> _GraineCallable:

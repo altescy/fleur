@@ -8,6 +8,12 @@ class IRBinaryOperator(str, Enum):
     SUBTRACT = "-"
     MULTIPLY = "*"
     DIVIDE = "/"
+    EQUAL = "=="
+    NOT_EQUAL = "!="
+    LESS_THAN = "<"
+    LESS_THAN_OR_EQUAL = "<="
+    GREATER_THAN = ">"
+    GREATER_THAN_OR_EQUAL = ">="
 
 
 class IRExpr: ...
@@ -77,6 +83,13 @@ class IRRangeStmt(IRStmt):
     start: IRExpr
     end: IRExpr
     body: "IRBlock"
+
+
+@dataclasses.dataclass(frozen=True)
+class IRIfStmt(IRStmt):
+    condition: IRExpr
+    then_body: "IRBlock"
+    else_body: "IRBlock | None" = None
 
 
 @dataclasses.dataclass(frozen=True)

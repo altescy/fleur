@@ -1,6 +1,6 @@
 import inspect
 from collections.abc import Callable
-from typing import Any, Generic, TypeVar, Union, overload
+from typing import Generic, TypeVar, Union
 
 from .ir import (
     IRAssignStmt,
@@ -31,9 +31,8 @@ class Number(GraineType):
     def __init__(self, expr: IRExpr) -> None:
         super().__init__(expr=expr)
 
-    def __add__(self, other: Union["Number", "Var[Number]", int, float]) -> "Number":
-        rhs = other.read if isinstance(other, Var) else other
-        rhs = rhs._expr if isinstance(rhs, Number) else IRLiteralNumberExpr(rhs)
+    def __add__(self, other: Union["Number", int, float]) -> "Number":
+        rhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
         return Number(
             expr=IRBinaryOpExpr(
                 operator=IRBinaryOperator.ADD,
@@ -42,9 +41,8 @@ class Number(GraineType):
             )
         )
 
-    def __radd__(self, other: Union["Number", "Var[Number]", int, float]) -> "Number":
-        lhs = other.read if isinstance(other, Var) else other
-        lhs = lhs._expr if isinstance(lhs, Number) else IRLiteralNumberExpr(lhs)
+    def __radd__(self, other: Union["Number", int, float]) -> "Number":
+        lhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
         return Number(
             expr=IRBinaryOpExpr(
                 operator=IRBinaryOperator.ADD,
@@ -53,9 +51,8 @@ class Number(GraineType):
             )
         )
 
-    def __sub__(self, other: Union["Number", "Var[Number]", int, float]) -> "Number":
-        rhs = other.read if isinstance(other, Var) else other
-        rhs = rhs._expr if isinstance(rhs, Number) else IRLiteralNumberExpr(rhs)
+    def __sub__(self, other: Union["Number", int, float]) -> "Number":
+        rhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
         return Number(
             expr=IRBinaryOpExpr(
                 operator=IRBinaryOperator.SUBTRACT,
@@ -64,9 +61,8 @@ class Number(GraineType):
             )
         )
 
-    def __rsub__(self, other: Union["Number", "Var[Number]", int, float]) -> "Number":
-        lhs = other.read if isinstance(other, Var) else other
-        lhs = lhs._expr if isinstance(lhs, Number) else IRLiteralNumberExpr(lhs)
+    def __rsub__(self, other: Union["Number", int, float]) -> "Number":
+        lhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
         return Number(
             expr=IRBinaryOpExpr(
                 operator=IRBinaryOperator.SUBTRACT,
@@ -74,6 +70,124 @@ class Number(GraineType):
                 right=self._expr,
             )
         )
+
+    def __mul__(self, other: Union["Number", int, float]) -> "Number":
+        rhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
+        return Number(
+            expr=IRBinaryOpExpr(
+                operator=IRBinaryOperator.MULTIPLY,
+                left=self._expr,
+                right=rhs,
+            )
+        )
+
+    def __rmul__(self, other: Union["Number", int, float]) -> "Number":
+        lhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
+        return Number(
+            expr=IRBinaryOpExpr(
+                operator=IRBinaryOperator.MULTIPLY,
+                left=lhs,
+                right=self._expr,
+            )
+        )
+
+    def __truediv__(self, other: Union["Number", int, float]) -> "Number":
+        rhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
+        return Number(
+            expr=IRBinaryOpExpr(
+                operator=IRBinaryOperator.DIVIDE,
+                left=self._expr,
+                right=rhs,
+            )
+        )
+
+    def __rtruediv__(self, other: Union["Number", int, float]) -> "Number":
+        lhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
+        return Number(
+            expr=IRBinaryOpExpr(
+                operator=IRBinaryOperator.DIVIDE,
+                left=lhs,
+                right=self._expr,
+            )
+        )
+
+    def __eq__(self, other: Union["Number", int, float]) -> "Boolean":  # type: ignore[override]
+        rhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
+        return Boolean(
+            expr=IRBinaryOpExpr(
+                operator=IRBinaryOperator.EQUAL,
+                left=self._expr,
+                right=rhs,
+            )
+        )
+
+    def __ne__(self, other: Union["Number", int, float]) -> "Boolean":  # type: ignore[override]
+        rhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
+        return Boolean(
+            expr=IRBinaryOpExpr(
+                operator=IRBinaryOperator.NOT_EQUAL,
+                left=self._expr,
+                right=rhs,
+            )
+        )
+
+    def __lt__(self, other: Union["Number", int, float]) -> "Boolean":
+        rhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
+        return Boolean(
+            expr=IRBinaryOpExpr(
+                operator=IRBinaryOperator.LESS_THAN,
+                left=self._expr,
+                right=rhs,
+            )
+        )
+
+    def __le__(self, other: Union["Number", int, float]) -> "Boolean":
+        rhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
+        return Boolean(
+            expr=IRBinaryOpExpr(
+                operator=IRBinaryOperator.LESS_THAN_OR_EQUAL,
+                left=self._expr,
+                right=rhs,
+            )
+        )
+
+    def __gt__(self, other: Union["Number", int, float]) -> "Boolean":
+        rhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
+        return Boolean(
+            expr=IRBinaryOpExpr(
+                operator=IRBinaryOperator.GREATER_THAN,
+                left=self._expr,
+                right=rhs,
+            )
+        )
+
+    def __ge__(self, other: Union["Number", int, float]) -> "Boolean":
+        rhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
+        return Boolean(
+            expr=IRBinaryOpExpr(
+                operator=IRBinaryOperator.GREATER_THAN_OR_EQUAL,
+                left=self._expr,
+                right=rhs,
+            )
+        )
+
+    def __iadd__(self, other: Union["Number", int, float]) -> "Number":
+        # For += operator: x += y becomes x = x + y
+        # Extract variable name from IRIdentifierExpr if possible
+        if isinstance(self._expr, IRIdentifierExpr):
+            var_name = self._expr.name
+            rhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
+            new_expr = IRAssignStmt(
+                name=var_name,
+                value=IRBinaryOpExpr(
+                    operator=IRBinaryOperator.ADD,
+                    left=self._expr,
+                    right=rhs,
+                ),
+            )
+            require_block().emit(new_expr)
+            return self
+        raise TypeError("Can only use += on variables created with graine.let()")
 
 
 class Boolean(GraineType):
@@ -100,39 +214,6 @@ GraineLike = Union[BooleanLike, NumberLike, StringLike]
 
 
 _GraineT = TypeVar("_GraineT", bound=GraineType)
-
-
-class Var(GraineType, Generic[_GraineT]):
-    __slots__ = ("name", "read")
-
-    def __init__(self, name: str, type_: type[_GraineT]) -> None:
-        self.name = name
-        self.read = type_(expr=IRIdentifierExpr(name=name))
-        super().__init__(expr=self.read._expr)
-
-    def __add__(self, other: Any) -> GraineType:
-        if isinstance(other, Var):
-            return self.read + other.read
-        return self.read + other
-
-    @overload
-    def __iadd__(self: "Var[Union[Number, Boolean]]", other: Union[_GraineT, bool, int, float]) -> "Var[Number]": ...
-
-    @overload
-    def __iadd__(self: "Var[String]", other: Union[_GraineT, str]) -> "Var[String]": ...
-
-    def __iadd__(self, other: Any) -> "Var":
-        rhs = other._expr if isinstance(other, GraineType) else IRLiteralNumberExpr(other)
-        new_expr = IRAssignStmt(
-            name=self.name,
-            value=IRBinaryOpExpr(
-                operator=IRBinaryOperator.ADD,
-                left=self.read._expr,
-                right=rhs,
-            ),
-        )
-        require_block().emit(new_expr)
-        return self
 
 
 class Function(GraineType, Generic[_GraineT]):

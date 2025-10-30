@@ -11,6 +11,7 @@ from fleur.dsl.ir import (
     IRExprStmt,
     IRFunctionStmt,
     IRIdentifierExpr,
+    IRIfStmt,
     IRLetStmt,
     IRLiteralBooleanExpr,
     IRLiteralNumberExpr,
@@ -80,6 +81,12 @@ class TestEmitExpressions:
             (IRBinaryOperator.SUBTRACT, "-"),
             (IRBinaryOperator.MULTIPLY, "*"),
             (IRBinaryOperator.DIVIDE, "/"),
+            (IRBinaryOperator.EQUAL, "=="),
+            (IRBinaryOperator.NOT_EQUAL, "!="),
+            (IRBinaryOperator.LESS_THAN, "<"),
+            (IRBinaryOperator.LESS_THAN_OR_EQUAL, "<="),
+            (IRBinaryOperator.GREATER_THAN, ">"),
+            (IRBinaryOperator.GREATER_THAN_OR_EQUAL, ">="),
         ],
     )
     def test_emit_binary_operation(self, operator, expected_op):
@@ -361,6 +368,80 @@ class TestEmitComplexStructures:
         assert lines[0].startswith("for")  # No indent
         assert lines[1].startswith("  for")  # 2 spaces
         assert lines[2].startswith("    let")  # 4 spaces
+
+    def test_emit_if_stmt_only_then(self):
+        """Test emitting if statement with only then branch."""
+        then_body = IRBlock(body=[IRLetStmt(name="x", value=IRLiteralNumberExpr(42))])
+        condition = IRBinaryOpExpr(
+            operator=IRBinaryOperator.GREATER_THAN,
+            left=IRLiteralNumberExpr(5),
+            right=IRLiteralNumberExpr(3),
+        )
+        stmt = IRIfStmt(condition=condition, then_body=then_body)
+        result = emit_javascript(stmt)
+
+        expected = "if ((5 > 3)) {\n  let x = 42;\n}\n"
+        assert result == expected
+
+    def test_emit_if_stmt_with_else(self):
+        """Test emitting if statement with else branch."""
+        then_body = IRBlock(body=[IRLetStmt(name="x", value=IRLiteralNumberExpr(100))])
+        else_body = IRBlock(body=[IRLetStmt(name="x", value=IRLiteralNumberExpr(0))])
+        condition = IRBinaryOpExpr(
+            operator=IRBinaryOperator.EQUAL,
+            left=IRIdentifierExpr("y"),
+            right=IRLiteralNumberExpr(10),
+        )
+        stmt = IRIfStmt(condition=condition, then_body=then_body, else_body=else_body)
+        result = emit_javascript(stmt)
+
+        expected = "if ((y == 10)) {\n  let x = 100;\n} else {\n  let x = 0;\n}\n"
+        assert result == expected
+
+    def test_emit_nested_if_stmts(self):
+        """Test emitting nested if statements."""
+        inner_if = IRIfStmt(
+            condition=IRBinaryOpExpr(
+                operator=IRBinaryOperator.LESS_THAN,
+                left=IRIdentifierExpr("z"),
+                right=IRLiteralNumberExpr(5),
+            ),
+            then_body=IRBlock(body=[IRLetStmt(name="result", value=IRLiteralNumberExpr(1))]),
+        )
+        outer_if = IRIfStmt(
+            condition=IRBinaryOpExpr(
+                operator=IRBinaryOperator.GREATER_THAN,
+                left=IRIdentifierExpr("x"),
+                right=IRLiteralNumberExpr(10),
+            ),
+            then_body=IRBlock(body=[inner_if]),
+        )
+
+        result = emit_javascript(outer_if)
+
+        expected = "if ((x > 10)) {\n  if ((z < 5)) {\n    let result = 1;\n  }\n}\n"
+        assert result == expected
+
+    def test_emit_if_with_multiple_statements(self):
+        """Test if statement with multiple statements in branches."""
+        then_body = IRBlock(
+            body=[
+                IRLetStmt(name="x", value=IRLiteralNumberExpr(10)),
+                IRLetStmt(name="y", value=IRLiteralNumberExpr(20)),
+                IRReturnStmt(value=IRIdentifierExpr("x")),
+            ]
+        )
+        else_body = IRBlock(body=[IRReturnStmt(value=IRLiteralNumberExpr(0))])
+        stmt = IRIfStmt(
+            condition=IRLiteralBooleanExpr(True),
+            then_body=then_body,
+            else_body=else_body,
+        )
+
+        result = emit_javascript(stmt)
+
+        expected = "if (true) {\n  let x = 10;\n  let y = 20;\n  return x;\n} else {\n  return 0;\n}\n"
+        assert result == expected
 
 
 class TestEmitEdgeCases:

@@ -9,6 +9,7 @@ from .ir import (
     IRExprStmt,
     IRFunctionStmt,
     IRIdentifierExpr,
+    IRIfStmt,
     IRLetStmt,
     IRLiteralBooleanExpr,
     IRLiteralNumberExpr,
@@ -52,6 +53,14 @@ def emit_javascript(*args: Union[IRExpr, IRStmt]) -> str:
             head = f"for (let {st.var} = {e(st.start)}; {st.var} < {e(st.end)}; {st.var}++)"
             body = s(st.body, indent + "  ")
             return f"{indent}{head} {{\n{body}{indent}}}\n"
+        if isinstance(st, IRIfStmt):
+            condition_str = e(st.condition)
+            then_body = s(st.then_body, indent + "  ")
+            result = f"{indent}if ({condition_str}) {{\n{then_body}{indent}}}"
+            if st.else_body is not None:
+                else_body = s(st.else_body, indent + "  ")
+                result += f" else {{\n{else_body}{indent}}}"
+            return result + "\n"
         if isinstance(st, IRFunctionStmt):
             params_str = ", ".join(st.params)
             body = s(st.body, indent + "  ")

@@ -1,6 +1,7 @@
 """Tests for the DSL API (graine interface)."""
 
 from fleur.dsl import graine
+from fleur.dsl.ir import IRIdentifierExpr
 from fleur.dsl.types import Boolean, Number, String
 
 
@@ -53,30 +54,28 @@ class TestGraineLet:
 
     def test_let_with_number(self, clean_block):
         """Test let with a number value."""
-        from fleur.dsl.types import Var
-
         result = graine.let(graine.literal(42), name="x")
 
-        assert isinstance(result, Var)
-        assert result.name == "x_0"  # Variable naming pattern
+        assert isinstance(result, Number)
+        # Result is a Number with an IRIdentifierExpr pointing to the variable
+        assert isinstance(result._expr, IRIdentifierExpr)
+        assert result._expr.name == "x_0"  # Variable naming pattern
 
     def test_let_with_boolean(self, clean_block):
         """Test let with a boolean value."""
-        from fleur.dsl.types import Var
-
         result = graine.let(graine.literal(True), name="flag")
 
-        assert isinstance(result, Var)
-        assert result.name == "flag_0"
+        assert isinstance(result, Boolean)
+        assert isinstance(result._expr, IRIdentifierExpr)
+        assert result._expr.name == "flag_0"
 
     def test_let_with_python_int(self, clean_block):
         """Test let with a Python int (auto-conversion)."""
-        from fleur.dsl.types import Var
-
         result = graine.let(42, name="num")
 
-        assert isinstance(result, Var)
-        assert result.name == "num_0"
+        assert isinstance(result, Number)
+        assert isinstance(result._expr, IRIdentifierExpr)
+        assert result._expr.name == "num_0"
 
     def test_let_emits_statement(self, clean_block):
         """Test that let emits a statement to the current block."""
@@ -90,16 +89,14 @@ class TestGraineLet:
 
     def test_let_sequential_indexing(self, clean_block):
         """Test that sequential lets get incremental indices."""
-        from fleur.dsl.types import Var
-
         var1 = graine.let(graine.literal(1), name="a")
         var2 = graine.let(graine.literal(2), name="b")
         var3 = graine.let(graine.literal(3), name="c")
 
-        assert isinstance(var1, Var) and isinstance(var2, Var) and isinstance(var3, Var)
-        assert var1.name == "a_0"
-        assert var2.name == "b_1"
-        assert var3.name == "c_2"
+        assert isinstance(var1, Number) and isinstance(var2, Number) and isinstance(var3, Number)
+        assert var1._expr.name == "a_0"  # type: ignore
+        assert var2._expr.name == "b_1"  # type: ignore
+        assert var3._expr.name == "c_2"  # type: ignore
 
 
 class TestGraineRange:
