@@ -33,7 +33,7 @@ from .types import (
     StringLike,
 )
 
-__all__ = ["graine", "parterre", "emit_javascript", "require_block"]
+__all__ = ["graine", "parterre"]
 
 
 _GraineCallable = TypeVar("_GraineCallable", bound=Callable[..., Optional[GraineType]])
