@@ -3,25 +3,19 @@ name = "fleur"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12"
+authors = [
+    { name = "altescy", email = "me@altescy.jp" }
+]
+requires-python = ">=3.9"
 dependencies = []
+
+[build-system]
+requires = ["uv_build>=0.9.5,<0.10.0"]
+build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
-    "pyright>=1.1.398",
-    "pytest>=8.3.5",
-    "ruff>=0.11.4",
+    "pyright>=1.1.407",
+    "pytest>=8.4.2",
+    "ruff>=0.14.2",
 ]
-
-[build-system]
-requires = ['hatchling', 'hatch-fancy-pypi-readme>=22.5.0']
-build-backend = 'hatchling.build'
-
-[tool.ruff]
-line-length = 120
-
-[tool.hatch.version]
-path = 'fleur/__init__.py'
-
-[tool.hatch.metadata]
-allow-direct-references = true
