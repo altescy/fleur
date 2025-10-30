@@ -19,83 +19,110 @@ At the core of Fleur is **graine**, a domain-specific language (DSL) for writing
 
 This project is in early development. Currently, Fleur provides:
 
-- Type-safe primitive types (`Number`, `Boolean`, `String`)
+- Type-safe primitive types (`Number`, `Boolean`, `String`, `Array`, `Record`)
 - Function definitions with type annotations
+- Class definitions with constructors, methods, and getter properties
 - Variable declarations and assignments
-- Basic control flow (for loops with `graine.range`)
+- Arithmetic operators (`+`, `-`, `*`, `/`) and comparison operators (`==`, `!=`, `<`, `>`, `<=`, `>=`)
+- Control flow (for loops with `graine.range`, conditional branches with `graine.cases`)
+- Standard library (`graine.math` with JavaScript Math functions)
 - JavaScript code generation from Python DSL
 
 ## Example
 
-Here's an example that demonstrates calculating sums using type-safe operations:
+Here's an example demonstrating classes, getters, and Math functions:
 
 ```python
-from fleur.dsl import emit_javascript, graine, require_block
+from fleur.dsl import graine, parterre
 
 
-@graine.function
-def sum_range(start: graine.Number, end: graine.Number) -> graine.Number:
-    """Calculate the sum of all integers in the range [start, end)."""
-    total = graine.let(graine.literal(0), name="total")
+@graine.define
+class Point:
+    def __init__(self, x: graine.Number, y: graine.Number):
+        self.x = x
+        self.y = y
 
-    for i in graine.range(start, end):
-        total += i
+    @graine.getter
+    def magnitude_squared(self) -> graine.Number:
+        """Calculate the squared magnitude (x² + y²)."""
+        return self.x * self.x + self.y * self.y
 
-    return total
-
-
-@graine.function
-def triangle_number(n: graine.Number) -> graine.Number:
-    """Calculate the nth triangle number: 1 + 2 + 3 + ... + n."""
-    return sum_range(graine.literal(1), n + graine.literal(1))
-
-
-@graine.function
-def sum_arithmetic_sequence(first: graine.Number, diff: graine.Number, count: graine.Number) -> graine.Number:
-    """Calculate the sum of an arithmetic sequence."""
-    total = graine.let(graine.literal(0), name="total")
-    current = graine.let(first, name="current")
-
-    for _ in graine.range(0, count):
-        total += current
-        current += diff
-
-    return total
+    @graine.getter
+    def magnitude(self) -> graine.Number:
+        """Calculate the magnitude using Math.sqrt."""
+        return graine.math.sqrt(self.magnitude_squared)
 
 
-print(emit_javascript(require_block()))
+@graine.define
+def calculate_distance(p1: Point, p2: Point) -> graine.Number:
+    """Calculate Euclidean distance between two points."""
+    dx = p1.x - p2.x
+    dy = p1.y - p2.y
+    distance_squared = dx * dx + dy * dy
+    return graine.math.sqrt(distance_squared)
+
+
+@graine.define
+def classify_triangle(a: graine.Number, b: graine.Number, c: graine.Number) -> graine.Number:
+    """Classify triangle type: 1=equilateral, 2=isosceles, 3=scalene."""
+    result = graine.let(0, name="result")
+
+    with graine.cases() as when:
+        with when((a == b) & (b == c)):
+            result = graine.let(1, name="result")  # Equilateral
+        with when((a == b) | (b == c) | (a == c)):
+            result = graine.let(2, name="result")  # Isosceles
+        with when.default():
+            result = graine.let(3, name="result")  # Scalene
+
+    return result
+
+
+print(parterre().germinate())
 ```
 
-This generates the following clean JavaScript:
+This generates clean JavaScript:
 
 ```javascript
-function sum_range(start, end) {
-  let total_0 = 0;
-  for (let i_1 = start; i_1 < end; i_1++) {
-    total_0 = (total_0 + i_1);
+class Point {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
   }
-  return total_0;
-}
-function triangle_number(n) {
-  let _ret_0 = sum_range(1, (n + 1));
-  return _ret_0;
-}
-function sum_arithmetic_sequence(first, diff, count) {
-  let total_0 = 0;
-  let current_1 = first;
-  for (let i_2 = 0; i_2 < count; i_2++) {
-    total_0 = (total_0 + current_1);
-    current_1 = (current_1 + diff);
+  get magnitude_squared() {
+    return ((this.x * this.x) + (this.y * this.y));
   }
-  return total_0;
+  get magnitude() {
+    return Math.sqrt(this.magnitude_squared);
+  }
+}
+function calculate_distance(p1, p2) {
+  let _tmp_0 = (p1.x - p2.x);
+  let _tmp_1 = (p1.y - p2.y);
+  let _tmp_2 = ((_tmp_0 * _tmp_0) + (_tmp_1 * _tmp_1));
+  return Math.sqrt(_tmp_2);
+}
+function classify_triangle(a, b, c) {
+  let result_0 = 0;
+  if (((a == b) && (b == c))) {
+    let result_0 = 1;
+  } else {
+    if ((((a == b) || (b == c)) || (a == c))) {
+      let result_0 = 2;
+    } else {
+      let result_0 = 3;
+    }
+  }
+  return result_0;
 }
 ```
 
 The type checker ensures that:
-- All function arguments have the correct types (`graine.Number`)
-- Variables are properly initialized before use
+- All function/method arguments have correct types
+- Class properties are properly typed
+- Getter return types match declarations
+- Math functions receive compatible argument types
 - Operations are only performed on compatible types
-- Return types match the function signatures
 
 ## Architecture
 
