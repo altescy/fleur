@@ -7,6 +7,7 @@ from typing_extensions import Self
 from ._utils import as_literal, extract_first_grainetype
 from .ir import (
     IRBlock,
+    IRExpr,
     IRFunctionStmt,
     IRIdentifierExpr,
     IRLetStmt,
@@ -29,11 +30,8 @@ from .types import (
     GraineType,
     Number,
     NumberLike,
-    PyArrayCompat,
     PyBooleanCompat,
-    PyGraineCompat,
     PyNumberCompat,
-    PyRecordCompat,
     PyStringCompat,
     Record,
     RecordLike,
@@ -44,7 +42,20 @@ from .types import (
 __all__ = ["graine", "parterre"]
 
 
+def _make_array_from_elements(elements: list[Any]) -> Array[GraineType, IRLiteralArrayExpr]:
+    """Helper to create Array from elements with proper type inference."""
+    element_exprs = [as_literal(elem)._expr for elem in elements]
+    return Array(IRLiteralArrayExpr(element_exprs))
+
+
+def _make_record_from_fields(fields: dict[str, Any]) -> Record[GraineType, IRLiteralRecordExpr]:
+    """Helper to create Record from fields with proper type inference."""
+    field_exprs = {key: as_literal(val)._expr for key, val in fields.items()}
+    return Record(IRLiteralRecordExpr(field_exprs))
+
+
 _GraineCallable = TypeVar("_GraineCallable", bound=Callable[..., Optional[GraineType]])
+_ElementT = TypeVar("_ElementT")  # For Array element types
 
 
 class graine:
@@ -60,6 +71,33 @@ class graine:
     ArrayLike = ArrayLike
     RecordLike = RecordLike
 
+    # More specific array types first
+    @overload
+    @staticmethod
+    def literal(value: list[int]) -> Array[Number[IRLiteralNumberExpr], IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+    @overload
+    @staticmethod
+    def literal(value: list[float]) -> Array[Number[IRLiteralNumberExpr], IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+    @overload
+    @staticmethod
+    def literal(value: list[str]) -> Array[String[IRLiteralStringExpr], IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+    @overload
+    @staticmethod
+    def literal(value: list[bool]) -> Array[Boolean[IRLiteralBooleanExpr], IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+    # Generic list/dict fallback
+    @overload
+    @staticmethod
+    def literal(value: list) -> Array[GraineType, IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+    @overload
+    @staticmethod
+    def literal(value: dict) -> Record[GraineType, IRLiteralRecordExpr]: ...
+
+    # Scalar types - must come after list/dict to avoid overlap
     @overload
     @staticmethod
     def literal(value: PyStringCompat) -> String[IRLiteralStringExpr]: ...
@@ -72,16 +110,8 @@ class graine:
     @staticmethod
     def literal(value: PyNumberCompat) -> Number[IRLiteralNumberExpr]: ...  # pyright: ignore[reportOverlappingOverload]
 
-    @overload
     @staticmethod
-    def literal(value: PyArrayCompat) -> Array[GraineType, IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
-
-    @overload
-    @staticmethod
-    def literal(value: PyRecordCompat) -> Record[GraineType, IRLiteralRecordExpr]: ...  # pyright: ignore[reportOverlappingOverload]
-
-    @staticmethod
-    def literal(value: PyGraineCompat) -> GraineType:
+    def literal(value: Any) -> GraineType:
         return as_literal(value)
 
     @overload
@@ -115,6 +145,50 @@ class graine:
     @staticmethod
     def cases() -> Cases:
         return Cases()
+
+    # Array creation with type tracking
+    @overload
+    @staticmethod
+    def array(elements: list[NumberLike]) -> Array[Number, IRExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+    @overload
+    @staticmethod
+    def array(elements: list[StringLike]) -> Array[String, IRExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+    @overload
+    @staticmethod
+    def array(elements: list[BooleanLike]) -> Array[Boolean, IRExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+    # Generic fallback
+    @overload
+    @staticmethod
+    def array(elements: list) -> Array[GraineType, IRLiteralArrayExpr]: ...
+
+    @staticmethod
+    def array(elements: list) -> Any:  # pyright: ignore[reportInconsistentOverload]
+        return _make_array_from_elements(elements)
+
+    # Record creation with type tracking
+    @overload
+    @staticmethod
+    def record(fields: dict[str, NumberLike]) -> Record[Number, IRExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+    @overload
+    @staticmethod
+    def record(fields: dict[str, StringLike]) -> Record[String, IRExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+    @overload
+    @staticmethod
+    def record(fields: dict[str, BooleanLike]) -> Record[Boolean, IRExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+    # Generic fallback
+    @overload
+    @staticmethod
+    def record(fields: dict) -> Record[GraineType, IRLiteralRecordExpr]: ...
+
+    @staticmethod
+    def record(fields: dict) -> Any:  # pyright: ignore[reportInconsistentOverload]
+        return _make_record_from_fields(fields)
 
     @staticmethod
     def function(fn: _GraineCallable) -> _GraineCallable:

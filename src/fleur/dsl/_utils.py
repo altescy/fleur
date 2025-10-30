@@ -13,17 +13,41 @@ from .types import (
     Boolean,
     GraineType,
     Number,
-    PyArrayCompat,
     PyBooleanCompat,
-    PyGraineCompat,
     PyNumberCompat,
-    PyRecordCompat,
     PyStringCompat,
     Record,
     String,
 )
 
 
+# More specific array types first
+@overload
+def as_literal(value: list[int]) -> Array[Number[IRLiteralNumberExpr], IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+
+@overload
+def as_literal(value: list[float]) -> Array[Number[IRLiteralNumberExpr], IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+
+@overload
+def as_literal(value: list[str]) -> Array[String[IRLiteralStringExpr], IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+
+@overload
+def as_literal(value: list[bool]) -> Array[Boolean[IRLiteralBooleanExpr], IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+
+# Generic list/dict fallback
+@overload
+def as_literal(value: list) -> Array[GraineType, IRLiteralArrayExpr]: ...
+
+
+@overload
+def as_literal(value: dict) -> Record[GraineType, IRLiteralRecordExpr]: ...
+
+
+# Scalar types - must come after list/dict to avoid overlap
 @overload
 def as_literal(value: PyStringCompat) -> String[IRLiteralStringExpr]: ...
 
@@ -36,15 +60,7 @@ def as_literal(value: PyBooleanCompat) -> Boolean[IRLiteralBooleanExpr]: ...  # 
 def as_literal(value: PyNumberCompat) -> Number[IRLiteralNumberExpr]: ...  # pyright: ignore[reportOverlappingOverload]
 
 
-@overload
-def as_literal(value: PyArrayCompat) -> Array[GraineType, IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
-
-
-@overload
-def as_literal(value: PyRecordCompat) -> Record[GraineType, IRLiteralRecordExpr]: ...  # pyright: ignore[reportOverlappingOverload]
-
-
-def as_literal(value: PyGraineCompat) -> GraineType:
+def as_literal(value: Any) -> GraineType:
     if isinstance(value, GraineType):
         return value
     if isinstance(value, bool):

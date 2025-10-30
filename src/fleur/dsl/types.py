@@ -1,5 +1,5 @@
 import inspect
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from typing import Generic, Union, overload
 
 from typing_extensions import Never, TypeVar
@@ -21,9 +21,12 @@ from .runtime import require_block
 PyStringCompat = str
 PyBooleanCompat = bool
 PyNumberCompat = Union[int, float]
-PyArrayCompat = list
-PyRecordCompat = dict
-PyGraineCompat = Union[PyStringCompat, PyBooleanCompat, PyNumberCompat, PyArrayCompat, PyRecordCompat]
+
+# Use Any for now since GraineLike is defined later
+# These will be properly typed as generic aliases after GraineLike is defined
+PyArrayCompat = Sequence  # type: ignore[type-arg]
+PyRecordCompat = Mapping  # type: ignore[type-arg]
+PyGraineCompat = Union[PyStringCompat, PyBooleanCompat, PyNumberCompat, PyArrayCompat, PyRecordCompat]  # type: ignore[type-arg]
 
 ExprT = TypeVar("ExprT", bound=IRExpr, covariant=True)
 NumberExprT = TypeVar("NumberExprT", bound=IRExpr)
