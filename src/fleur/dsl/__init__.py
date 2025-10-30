@@ -1,8 +1,12 @@
 from collections.abc import Callable
+from contextlib import ExitStack
 from typing import Any, Optional, TypeVar, Union, cast, overload
+
+from typing_extensions import Self
 
 from ._utils import as_literal, extract_first_grainetype
 from .ir import (
+    IRBlock,
     IRFunctionStmt,
     IRIdentifierExpr,
     IRLetStmt,
@@ -29,7 +33,7 @@ from .types import (
     StringLike,
 )
 
-__all__ = ["graine", "emit_javascript", "require_block"]
+__all__ = ["graine", "parterre", "emit_javascript", "require_block"]
 
 
 _GraineCallable = TypeVar("_GraineCallable", bound=Callable[..., Optional[GraineType]])
@@ -111,3 +115,26 @@ class graine:
         )
 
         return cast(_GraineCallable, function)
+
+
+class parterre:
+    def __init__(self) -> None:
+        self._stack = ExitStack()
+        self._block: Optional[IRBlock] = None
+
+    def __enter__(self) -> Self:
+        self._stack.__enter__()
+        self._stack.enter_context(use_block())
+        return self
+
+    def __exit__(
+        self,
+        exc_type: Optional[type[BaseException]],
+        exc_value: Optional[BaseException],
+        traceback: Optional[Any],
+    ) -> Optional[bool]:
+        self._block = require_block()
+        return self._stack.__exit__(exc_type, exc_value, traceback)
+
+    def germinate(self) -> str:
+        return emit_javascript(self._block or require_block())
