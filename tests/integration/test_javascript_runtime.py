@@ -172,3 +172,140 @@ class TestJavaScriptExecution:
         # Total: 12 + 8 + 20 + 5 = 45
         result = ctx.call("calculate", 10, 2)
         assert result == 45
+
+    def test_boolean_and_operation(self, ctx):
+        """Test Boolean AND operation."""
+        with parterre() as p:
+
+            @graine.define
+            def test_and(a: graine.Boolean, b: graine.Boolean) -> graine.Boolean:
+                return a & b
+
+        js_code = p.germinate()
+        ctx.eval(js_code)
+
+        assert ctx.call("test_and", True, True) is True
+        assert ctx.call("test_and", True, False) is False
+        assert ctx.call("test_and", False, True) is False
+        assert ctx.call("test_and", False, False) is False
+
+    def test_boolean_or_operation(self, ctx):
+        """Test Boolean OR operation."""
+        with parterre() as p:
+
+            @graine.define
+            def test_or(a: graine.Boolean, b: graine.Boolean) -> graine.Boolean:
+                return a | b
+
+        js_code = p.germinate()
+        ctx.eval(js_code)
+
+        assert ctx.call("test_or", True, True) is True
+        assert ctx.call("test_or", True, False) is True
+        assert ctx.call("test_or", False, True) is True
+        assert ctx.call("test_or", False, False) is False
+
+    def test_boolean_complex_logic(self, ctx):
+        """Test complex Boolean logic with AND and OR."""
+        with parterre() as p:
+
+            @graine.define
+            def is_valid_range(x: graine.Number, min_val: graine.Number, max_val: graine.Number) -> graine.Boolean:
+                """Check if x is within [min_val, max_val]."""
+                return (x >= min_val) & (x <= max_val)
+
+            @graine.define
+            def is_outside_range(x: graine.Number, min_val: graine.Number, max_val: graine.Number) -> graine.Boolean:
+                """Check if x is outside [min_val, max_val]."""
+                return (x < min_val) | (x > max_val)
+
+        js_code = p.germinate()
+        ctx.eval(js_code)
+
+        # Test is_valid_range
+        assert ctx.call("is_valid_range", 5, 0, 10) is True
+        assert ctx.call("is_valid_range", 0, 0, 10) is True
+        assert ctx.call("is_valid_range", 10, 0, 10) is True
+        assert ctx.call("is_valid_range", -1, 0, 10) is False
+        assert ctx.call("is_valid_range", 11, 0, 10) is False
+
+        # Test is_outside_range
+        assert ctx.call("is_outside_range", 5, 0, 10) is False
+        assert ctx.call("is_outside_range", -1, 0, 10) is True
+        assert ctx.call("is_outside_range", 11, 0, 10) is True
+
+    def test_boolean_with_cases(self, ctx):
+        """Test Boolean operations with conditional branches."""
+        with parterre() as p:
+
+            @graine.define
+            def is_positive(x: graine.Number) -> graine.Boolean:
+                """Check if number is positive."""
+                return x > 0
+
+            @graine.define
+            def is_negative(x: graine.Number) -> graine.Boolean:
+                """Check if number is negative."""
+                return x < 0
+
+        js_code = p.germinate()
+        ctx.eval(js_code)
+
+        assert ctx.call("is_positive", 5) is True
+        assert ctx.call("is_positive", 0) is False
+        assert ctx.call("is_positive", -3) is False
+
+        assert ctx.call("is_negative", 5) is False
+        assert ctx.call("is_negative", 0) is False
+        assert ctx.call("is_negative", -3) is True
+
+    def test_boolean_truth_table(self, ctx):
+        """Test complete truth table for AND and OR operations."""
+        with parterre() as p:
+
+            @graine.define
+            def both_true(a: graine.Boolean, b: graine.Boolean) -> graine.Boolean:
+                """Check if both are true."""
+                return a & b
+
+            @graine.define
+            def at_least_one_true(a: graine.Boolean, b: graine.Boolean) -> graine.Boolean:
+                """Check if at least one is true."""
+                return a | b
+
+            @graine.define
+            def all_three(a: graine.Boolean, b: graine.Boolean, c: graine.Boolean) -> graine.Boolean:
+                """Check if all three are true."""
+                return (a & b) & c
+
+            @graine.define
+            def any_of_three(a: graine.Boolean, b: graine.Boolean, c: graine.Boolean) -> graine.Boolean:
+                """Check if any of three is true."""
+                return (a | b) | c
+
+        js_code = p.germinate()
+        ctx.eval(js_code)
+
+        # Test both_true (AND)
+        assert ctx.call("both_true", True, True) is True
+        assert ctx.call("both_true", True, False) is False
+        assert ctx.call("both_true", False, True) is False
+        assert ctx.call("both_true", False, False) is False
+
+        # Test at_least_one_true (OR)
+        assert ctx.call("at_least_one_true", True, True) is True
+        assert ctx.call("at_least_one_true", True, False) is True
+        assert ctx.call("at_least_one_true", False, True) is True
+        assert ctx.call("at_least_one_true", False, False) is False
+
+        # Test all_three (chained AND)
+        assert ctx.call("all_three", True, True, True) is True
+        assert ctx.call("all_three", True, True, False) is False
+        assert ctx.call("all_three", True, False, True) is False
+        assert ctx.call("all_three", False, False, False) is False
+
+        # Test any_of_three (chained OR)
+        assert ctx.call("any_of_three", False, False, False) is False
+        assert ctx.call("any_of_three", True, False, False) is True
+        assert ctx.call("any_of_three", False, True, False) is True
+        assert ctx.call("any_of_three", False, False, True) is True

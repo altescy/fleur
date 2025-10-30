@@ -15,6 +15,8 @@ class IRBinaryOperator(str, Enum):
     LESS_THAN_OR_EQUAL = "<="
     GREATER_THAN = ">"
     GREATER_THAN_OR_EQUAL = ">="
+    AND = "&&"
+    OR = "||"
 
 
 class IRExpr: ...

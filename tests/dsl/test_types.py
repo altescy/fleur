@@ -330,6 +330,87 @@ class TestBoolean:
             if boolean:
                 pass
 
+    def test_boolean_and_boolean(self):
+        """Test AND operation between two Booleans."""
+        from fleur.dsl.ir import IRLiteralBooleanExpr
+
+        left = Boolean(IRLiteralBooleanExpr(True))
+        right = Boolean(IRLiteralBooleanExpr(False))
+        result = left & right
+
+        assert isinstance(result, Boolean)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.AND
+
+    def test_boolean_and_bool(self):
+        """Test AND operation between Boolean and Python bool."""
+        from fleur.dsl.ir import IRLiteralBooleanExpr
+
+        boolean = Boolean(IRLiteralBooleanExpr(True))
+        result = boolean & False
+
+        assert isinstance(result, Boolean)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.AND
+
+    def test_boolean_rand_bool(self):
+        """Test reverse AND operation with Python bool."""
+        from fleur.dsl.ir import IRLiteralBooleanExpr
+
+        boolean = Boolean(IRLiteralBooleanExpr(True))
+        result = False & boolean
+
+        assert isinstance(result, Boolean)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.AND
+
+    def test_boolean_or_boolean(self):
+        """Test OR operation between two Booleans."""
+        from fleur.dsl.ir import IRLiteralBooleanExpr
+
+        left = Boolean(IRLiteralBooleanExpr(True))
+        right = Boolean(IRLiteralBooleanExpr(False))
+        result = left | right
+
+        assert isinstance(result, Boolean)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.OR
+
+    def test_boolean_or_bool(self):
+        """Test OR operation between Boolean and Python bool."""
+        from fleur.dsl.ir import IRLiteralBooleanExpr
+
+        boolean = Boolean(IRLiteralBooleanExpr(False))
+        result = boolean | True
+
+        assert isinstance(result, Boolean)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.OR
+
+    def test_boolean_ror_bool(self):
+        """Test reverse OR operation with Python bool."""
+        from fleur.dsl.ir import IRLiteralBooleanExpr
+
+        boolean = Boolean(IRLiteralBooleanExpr(False))
+        result = True | boolean
+
+        assert isinstance(result, Boolean)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.OR
+
+    def test_boolean_complex_expression(self):
+        """Test complex Boolean expression with AND and OR."""
+        from fleur.dsl.ir import IRLiteralBooleanExpr
+
+        a = Boolean(IRLiteralBooleanExpr(True))
+        b = Boolean(IRLiteralBooleanExpr(False))
+        c = Boolean(IRLiteralBooleanExpr(True))
+        result = (a & b) | c
+
+        assert isinstance(result, Boolean)
+        assert isinstance(result._expr, IRBinaryOpExpr)
+        assert result._expr.operator == IRBinaryOperator.OR
+
 
 class TestString:
     """Test String type operations."""

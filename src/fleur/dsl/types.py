@@ -514,6 +514,70 @@ class Boolean(GraineType[BooleanExprT], Generic[BooleanExprT]):
     def __bool__(self) -> bool:
         raise TypeError("Boolean instances cannot be converted to bool directly")
 
+    def __and__(self, other: Union["Boolean", bool]) -> "Boolean":
+        """Logical AND operator (&)."""
+        from .ir import IRLiteralBooleanExpr
+
+        if isinstance(other, Boolean):
+            rhs = other._expr
+        else:
+            rhs = IRLiteralBooleanExpr(other)
+        return Boolean(
+            expr=IRBinaryOpExpr(
+                operator=IRBinaryOperator.AND,
+                left=self._expr,
+                right=rhs,
+            )
+        )
+
+    def __rand__(self, other: Union["Boolean", bool]) -> "Boolean":
+        """Reverse logical AND operator (&)."""
+        from .ir import IRLiteralBooleanExpr
+
+        if isinstance(other, Boolean):
+            lhs = other._expr
+        else:
+            lhs = IRLiteralBooleanExpr(other)
+        return Boolean(
+            expr=IRBinaryOpExpr(
+                operator=IRBinaryOperator.AND,
+                left=lhs,
+                right=self._expr,
+            )
+        )
+
+    def __or__(self, other: Union["Boolean", bool]) -> "Boolean":
+        """Logical OR operator (|)."""
+        from .ir import IRLiteralBooleanExpr
+
+        if isinstance(other, Boolean):
+            rhs = other._expr
+        else:
+            rhs = IRLiteralBooleanExpr(other)
+        return Boolean(
+            expr=IRBinaryOpExpr(
+                operator=IRBinaryOperator.OR,
+                left=self._expr,
+                right=rhs,
+            )
+        )
+
+    def __ror__(self, other: Union["Boolean", bool]) -> "Boolean":
+        """Reverse logical OR operator (|)."""
+        from .ir import IRLiteralBooleanExpr
+
+        if isinstance(other, Boolean):
+            lhs = other._expr
+        else:
+            lhs = IRLiteralBooleanExpr(other)
+        return Boolean(
+            expr=IRBinaryOpExpr(
+                operator=IRBinaryOperator.OR,
+                left=lhs,
+                right=self._expr,
+            )
+        )
+
 
 class String(GraineType[StringExprT], Generic[StringExprT]):
     __slots__ = ("_expr",)

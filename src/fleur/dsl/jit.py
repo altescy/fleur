@@ -166,7 +166,7 @@ def define_function(fn: _GraineCallableT) -> _GraineCallableT:
                 args.append(grainetype_class(IRIdentifierExpr(name)))
 
         ret = fn(*args)
-        if ret and hasattr(ret, "_expr"):
+        if ret is not None and hasattr(ret, "_expr"):
             block.emit(IRReturnStmt(value=ret._expr))
 
     require_block().emit(
