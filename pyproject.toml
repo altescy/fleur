@@ -19,3 +19,9 @@ dev = [
     "pytest>=8.4.2",
     "ruff>=0.14.2",
 ]
+
+[tool.pyright]
+pythonVersion = "3.9"
+
+[tool.ruff]
+line-length = 120
