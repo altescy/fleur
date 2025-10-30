@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from contextlib import ExitStack
-from typing import Any, Final, Optional, TypeVar, Union, overload
+from typing import Any, Final, Generic, Optional, TypeVar, Union, cast, overload
 
 from typing_extensions import Self
 
@@ -58,17 +58,19 @@ def _make_record_from_fields(fields: dict[str, Any]) -> Record[GraineType, IRLit
 
 _ClassT = TypeVar("_ClassT", bound=type)
 _CallableT = TypeVar("_CallableT", bound=Callable[..., Any])
+_GraineT = TypeVar("_GraineT", bound="GraineType")
 _GraineCallableT = TypeVar("_GraineCallableT", bound=Callable[..., Optional[GraineType]])
-_ElementT = TypeVar("_ElementT")  # For Array element types
 
 
-class _GraineProperty(property):
+class _GraineProperty(Generic[_GraineT]):
     """Custom property class that can hold graine-specific metadata."""
 
-    def __init__(self, fget: Callable[..., Any]) -> None:
-        super().__init__(fget)
+    def __init__(self, fget: Callable[..., _GraineT]) -> None:
         self._graine_getter = True
-        self._graine_original_method = fget
+        self._graine_original_method = property(fget)
+
+    def __get__(self, instance: Any, owner: Any = None) -> _GraineT:
+        return cast(_GraineT, self._graine_original_method)
 
 
 class graine:
@@ -294,7 +296,7 @@ class graine:
         return fn
 
     @staticmethod
-    def getter(fn: Callable[..., Any]) -> _GraineProperty:
+    def getter(fn: Callable[..., _GraineT]) -> _GraineProperty[_GraineT]:
         """Decorator to mark a method as a getter.
 
         Returns a property object so that type checkers recognize it as a property,
