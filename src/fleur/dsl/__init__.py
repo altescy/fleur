@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from contextlib import ExitStack
-from typing import Any, Optional, TypeVar, Union, overload
+from typing import Any, Final, Optional, TypeVar, Union, overload
 
 from typing_extensions import Self
 
@@ -19,6 +19,7 @@ from .ir import (
 from .javascript import emit_javascript
 from .jit import Cases, Range, define_class, define_function
 from .runtime import require_block, use_block
+from .stdlib import Math
 from .types import (
     Array,
     ArrayElementT,
@@ -82,6 +83,8 @@ class graine:
     StringLike = StringLike
     ArrayLike = ArrayLike
     RecordLike = RecordLike
+
+    math: Final = Math
 
     # Array types
     @overload

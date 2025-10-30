@@ -46,7 +46,8 @@ def emit_javascript(*args: Union[IRExpr, IRStmt]) -> str:
             return f"({left} {op} {right})"
         if isinstance(x, IRCallExpr):
             args_str = ", ".join(e(arg) for arg in x.args)
-            return f"{x.function}({args_str})"
+            func_str = e(x.function) if isinstance(x.function, IRExpr) else x.function
+            return f"{func_str}({args_str})"
         if isinstance(x, IRLiteralArrayExpr):
             elements_str = ", ".join(e(elem) for elem in x.elements)
             return f"[{elements_str}]"

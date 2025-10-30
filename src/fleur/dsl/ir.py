@@ -59,7 +59,7 @@ class IRIdentifierExpr(IRExpr):
 
 @dataclasses.dataclass(frozen=True)
 class IRCallExpr(IRExpr):
-    function: str
+    function: Union[str, IRExpr]
     args: list[IRExpr]
 
 
