@@ -14,6 +14,8 @@ from .ir import (
     IRIndexAccessExpr,
     IRLetStmt,
     IRLiteralNumberExpr,
+    IRLiteralStringExpr,
+    IRMethodCallExpr,
     IRPropertyAccessExpr,
 )
 from .runtime import require_block
@@ -202,6 +204,15 @@ class Number(GraineType[NumberExprT], Generic[NumberExprT]):
             )
         )
 
+    def toFixed(self, digits: Union[int, "Number"] = 0) -> "String":
+        """Format number with fixed decimal places."""
+        digits_expr = digits._expr if isinstance(digits, Number) else IRLiteralNumberExpr(digits)
+        return String(expr=IRMethodCallExpr(target=self._expr, method="toFixed", args=[digits_expr]))
+
+    def toString(self) -> "String":
+        """Convert number to string."""
+        return String(expr=IRMethodCallExpr(target=self._expr, method="toString", args=[]))
+
     # Only Number[IRIdentifierExpr] (variables) support +=
     # Using overload to explicitly reject non-identifier numbers
     @overload
@@ -250,6 +261,48 @@ class String(GraineType[StringExprT], Generic[StringExprT]):
     def __init__(self, expr: StringExprT) -> None:
         super().__init__(expr=expr)
 
+    @property
+    def length(self) -> "Number":
+        """Get the length of the string."""
+        return Number(expr=IRPropertyAccessExpr(target=self._expr, property="length"))
+
+    def toUpperCase(self) -> "String":
+        """Convert string to uppercase."""
+        return String(expr=IRMethodCallExpr(target=self._expr, method="toUpperCase", args=[]))
+
+    def toLowerCase(self) -> "String":
+        """Convert string to lowercase."""
+        return String(expr=IRMethodCallExpr(target=self._expr, method="toLowerCase", args=[]))
+
+    def substring(self, start: Union[int, "Number"], end: Union[int, "Number", None] = None) -> "String":
+        """Extract a substring."""
+        start_expr = start._expr if isinstance(start, Number) else IRLiteralNumberExpr(start)
+        args: list[IRExpr] = [start_expr]
+        if end is not None:
+            end_expr = end._expr if isinstance(end, Number) else IRLiteralNumberExpr(end)
+            args.append(end_expr)
+        return String(expr=IRMethodCallExpr(target=self._expr, method="substring", args=args))
+
+    def indexOf(self, search: Union[str, "String"]) -> "Number":
+        """Find the index of a substring."""
+        search_expr = search._expr if isinstance(search, String) else IRLiteralStringExpr(search)
+        return Number(expr=IRMethodCallExpr(target=self._expr, method="indexOf", args=[search_expr]))
+
+    def split(self, separator: Union[str, "String"]) -> "Array[String, IRExpr]":
+        """Split string into an array."""
+        sep_expr = separator._expr if isinstance(separator, String) else IRLiteralStringExpr(separator)
+        return Array(expr=IRMethodCallExpr(target=self._expr, method="split", args=[sep_expr]))
+
+    def trim(self) -> "String":
+        """Remove whitespace from both ends."""
+        return String(expr=IRMethodCallExpr(target=self._expr, method="trim", args=[]))
+
+    def replace(self, search: Union[str, "String"], replacement: Union[str, "String"]) -> "String":
+        """Replace first occurrence of a substring."""
+        search_expr = search._expr if isinstance(search, String) else IRLiteralStringExpr(search)
+        replacement_expr = replacement._expr if isinstance(replacement, String) else IRLiteralStringExpr(replacement)
+        return String(expr=IRMethodCallExpr(target=self._expr, method="replace", args=[search_expr, replacement_expr]))
+
 
 class Array(GraineType[ArrayExprT], Generic[ArrayElementT, ArrayExprT]):
     __slots__ = ("_expr",)
@@ -262,6 +315,47 @@ class Array(GraineType[ArrayExprT], Generic[ArrayElementT, ArrayExprT]):
         index_expr = index._expr if isinstance(index, Number) else IRLiteralNumberExpr(index)
         # Return a generic GraineType; the actual element type is determined by the type parameter
         return GraineType(expr=IRIndexAccessExpr(target=self._expr, index=index_expr))  # type: ignore[return-value]
+
+    @property
+    def length(self) -> "Number":
+        """Get the length of the array."""
+        return Number(expr=IRPropertyAccessExpr(target=self._expr, property="length"))
+
+    def push(self, *elements: Union[ArrayElementT, int, float, str, bool]) -> "Number":
+        """Push elements to the array and return new length."""
+        args = []
+        for elem in elements:
+            if isinstance(elem, GraineType):
+                args.append(elem._expr)
+            elif isinstance(elem, bool):
+                args.append(IRLiteralNumberExpr(1 if elem else 0))
+            elif isinstance(elem, (int, float)):
+                args.append(IRLiteralNumberExpr(elem))
+            elif isinstance(elem, str):
+                args.append(IRLiteralStringExpr(elem))
+            else:
+                args.append(elem)
+        return Number(expr=IRMethodCallExpr(target=self._expr, method="push", args=args))
+
+    def pop(self) -> ArrayElementT:
+        """Remove and return the last element."""
+        return GraineType(expr=IRMethodCallExpr(target=self._expr, method="pop", args=[]))  # type: ignore[return-value]
+
+    def join(self, separator: Union[str, "String"] = ",") -> "String":
+        """Join array elements into a string."""
+        sep_expr = separator._expr if isinstance(separator, String) else IRLiteralStringExpr(separator)
+        return String(expr=IRMethodCallExpr(target=self._expr, method="join", args=[sep_expr]))
+
+    def slice(
+        self, start: Union[int, "Number"], end: Union[int, "Number", None] = None
+    ) -> "Array[ArrayElementT, IRExpr]":
+        """Return a slice of the array."""
+        start_expr = start._expr if isinstance(start, Number) else IRLiteralNumberExpr(start)
+        args: list[IRExpr] = [start_expr]
+        if end is not None:
+            end_expr = end._expr if isinstance(end, Number) else IRLiteralNumberExpr(end)
+            args.append(end_expr)
+        return Array(expr=IRMethodCallExpr(target=self._expr, method="slice", args=args))
 
 
 class Record(GraineType[RecordExprT], Generic[RecordValueT, RecordExprT]):

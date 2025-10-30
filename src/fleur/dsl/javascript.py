@@ -17,6 +17,7 @@ from .ir import (
     IRLiteralNumberExpr,
     IRLiteralRecordExpr,
     IRLiteralStringExpr,
+    IRMethodCallExpr,
     IRPropertyAccessExpr,
     IRRangeStmt,
     IRReturnStmt,
@@ -55,6 +56,10 @@ def emit_javascript(*args: Union[IRExpr, IRStmt]) -> str:
         if isinstance(x, IRPropertyAccessExpr):
             target_str = e(x.target)
             return f"{target_str}.{x.property}"
+        if isinstance(x, IRMethodCallExpr):
+            target_str = e(x.target)
+            args_str = ", ".join(e(arg) for arg in x.args)
+            return f"{target_str}.{x.method}({args_str})"
         raise ValueError(f"Unsupported IRExpr: {x}")
 
     def s(st: IRStmt, indent: str) -> str:

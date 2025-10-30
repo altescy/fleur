@@ -75,6 +75,13 @@ class IRPropertyAccessExpr(IRExpr):
     property: str
 
 
+@dataclasses.dataclass(frozen=True)
+class IRMethodCallExpr(IRExpr):
+    target: IRExpr
+    method: str
+    args: list[IRExpr]
+
+
 class IRStmt: ...
 
 
