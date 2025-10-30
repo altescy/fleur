@@ -82,6 +82,21 @@ class IRMethodCallExpr(IRExpr):
     args: list[IRExpr]
 
 
+@dataclasses.dataclass(frozen=True)
+class IRThisExpr(IRExpr):
+    """Represents 'this' keyword in JavaScript."""
+
+    pass
+
+
+@dataclasses.dataclass(frozen=True)
+class IRNewExpr(IRExpr):
+    """Represents 'new ClassName(args)' expression."""
+
+    class_name: str
+    args: list[IRExpr]
+
+
 class IRStmt: ...
 
 
@@ -135,3 +150,32 @@ class IRFunctionStmt(IRStmt):
     name: str
     params: list[str]
     body: IRBlock
+
+
+@dataclasses.dataclass(frozen=True)
+class IRPropertyAssignStmt(IRStmt):
+    """Represents property assignment like 'this.x = value'."""
+
+    target: IRExpr  # Usually IRPropertyAccessExpr
+    value: IRExpr
+
+
+@dataclasses.dataclass(frozen=True)
+class IRMethodStmt(IRStmt):
+    """Represents a method definition in a class."""
+
+    name: str
+    params: list[str]
+    body: IRBlock
+    is_static: bool = False
+    is_getter: bool = False
+
+
+@dataclasses.dataclass(frozen=True)
+class IRClassStmt(IRStmt):
+    """Represents a class definition."""
+
+    name: str
+    constructor_params: list[str]
+    constructor_body: IRBlock
+    methods: list[IRMethodStmt]

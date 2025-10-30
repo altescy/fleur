@@ -11,7 +11,7 @@ class TestEndToEnd:
         """Test compiling a simple function."""
         with use_block() as block:
 
-            @graine.function
+            @graine.define
             def get_answer() -> graine.Number:
                 return graine.literal(42)
 
@@ -24,7 +24,7 @@ class TestEndToEnd:
         """Test compiling a function with parameters."""
         with use_block() as block:
 
-            @graine.function
+            @graine.define
             def add(x: graine.Number, y: graine.Number) -> graine.Number:
                 return x + y
 
@@ -37,7 +37,7 @@ class TestEndToEnd:
         """Test compiling a function with a loop."""
         with use_block() as block:
 
-            @graine.function
+            @graine.define
             def sum_range(n: graine.Number) -> graine.Number:
                 total = graine.let(graine.literal(0), name="total")
                 for i in graine.range(0, n):
@@ -57,7 +57,7 @@ class TestEndToEnd:
         """Test compiling nested loops."""
         with use_block() as block:
 
-            @graine.function
+            @graine.define
             def nested(n: graine.Number, m: graine.Number) -> graine.Number:
                 sum_val = graine.let(graine.literal(0), name="sum")
                 for i in graine.range(0, n):
@@ -79,11 +79,11 @@ class TestEndToEnd:
         """Test compiling multiple functions."""
         with use_block() as block:
 
-            @graine.function
+            @graine.define
             def double(x: graine.Number) -> graine.Number:
                 return x + x
 
-            @graine.function
+            @graine.define
             def quadruple(x: graine.Number) -> graine.Number:
                 return double(double(x))
 
@@ -97,7 +97,7 @@ class TestEndToEnd:
         """Test various arithmetic operations."""
         with use_block() as block:
 
-            @graine.function
+            @graine.define
             def calc(a: graine.Number, b: graine.Number) -> graine.Number:
                 sum_val = graine.let(a + b, name="sum")
                 diff = graine.let(a - b, name="diff")
@@ -114,7 +114,7 @@ class TestEndToEnd:
         """Test variable mutation with +=."""
         with use_block() as block:
 
-            @graine.function
+            @graine.define
             def accumulate(n: graine.Number) -> graine.Number:
                 acc = graine.let(graine.literal(0), name="acc")
                 for i in graine.range(0, n):
@@ -130,11 +130,11 @@ class TestEndToEnd:
         """Test function calls within expressions."""
         with use_block() as block:
 
-            @graine.function
+            @graine.define
             def inc(x: graine.Number) -> graine.Number:
                 return x + graine.literal(1)
 
-            @graine.function
+            @graine.define
             def process(n: graine.Number) -> graine.Number:
                 result = graine.let(inc(n), name="result")
                 return result + graine.literal(10)
@@ -153,7 +153,7 @@ class TestRealWorldScenarios:
         """Test the arithmetic sequence sum example."""
         with use_block() as block:
 
-            @graine.function
+            @graine.define
             def sum_arithmetic_sequence(
                 first: graine.Number, diff: graine.Number, count: graine.Number
             ) -> graine.Number:
@@ -178,14 +178,14 @@ class TestRealWorldScenarios:
         """Test triangle number calculation."""
         with use_block() as block:
 
-            @graine.function
+            @graine.define
             def sum_range(start: graine.Number, end: graine.Number) -> graine.Number:
                 total = graine.let(graine.literal(0), name="total")
                 for i in graine.range(start, end):
                     total += i
                 return total
 
-            @graine.function
+            @graine.define
             def triangle_number(n: graine.Number) -> graine.Number:
                 return sum_range(graine.literal(1), n + graine.literal(1))
 
@@ -199,7 +199,7 @@ class TestRealWorldScenarios:
         """Test a complex calculation with multiple variables and operations."""
         with use_block() as block:
 
-            @graine.function
+            @graine.define
             def complex_calc(x: graine.Number, y: graine.Number, z: graine.Number) -> graine.Number:
                 a = graine.let(x + y, name="a")
                 b = graine.let(y + z, name="b")
@@ -230,7 +230,7 @@ class TestEdgeCases:
         """Test function with minimal body."""
         with use_block() as block:
 
-            @graine.function
+            @graine.define
             def returns_zero() -> graine.Number:
                 return graine.literal(0)
 
@@ -243,7 +243,7 @@ class TestEdgeCases:
         """Test deeply nested arithmetic operations."""
         with use_block() as block:
 
-            @graine.function
+            @graine.define
             def nested_ops(x: graine.Number) -> graine.Number:
                 return ((x + graine.literal(1)) + graine.literal(2)) + graine.literal(3)
 
@@ -257,7 +257,7 @@ class TestEdgeCases:
         """Test many sequential variable declarations."""
         with use_block() as block:
 
-            @graine.function
+            @graine.define
             def many_vars() -> graine.Number:
                 v1 = graine.let(graine.literal(1), name="v")
                 v2 = graine.let(graine.literal(2), name="v")
@@ -281,7 +281,7 @@ class TestJavaScriptValidity:
         """Test that statements have proper semicolons."""
         with use_block() as block:
 
-            @graine.function
+            @graine.define
             def test_func(x: graine.Number) -> graine.Number:
                 y = graine.let(x + graine.literal(1), name="y")
                 return y
@@ -298,7 +298,7 @@ class TestJavaScriptValidity:
         """Test that generated code has proper indentation."""
         with use_block() as block:
 
-            @graine.function
+            @graine.define
             def indented(n: graine.Number) -> graine.Number:
                 total = graine.let(graine.literal(0), name="total")
                 for i in graine.range(0, n):
@@ -317,7 +317,7 @@ class TestJavaScriptValidity:
         """Test that function parameters don't have trailing commas."""
         with use_block() as block:
 
-            @graine.function
+            @graine.define
             def multi_param(a: graine.Number, b: graine.Number, c: graine.Number) -> graine.Number:
                 return a + b + c
 

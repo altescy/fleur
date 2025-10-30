@@ -147,7 +147,7 @@ class TestGraineFunction:
     def test_function_decorator(self, clean_block):
         """Test basic function decoration."""
 
-        @graine.function
+        @graine.define
         def simple() -> Number:
             return graine.literal(42)
 
@@ -160,7 +160,7 @@ class TestGraineFunction:
         """Test function with parameters."""
         from fleur.dsl.types import Function
 
-        @graine.function
+        @graine.define
         def add(x: Number, y: Number) -> Number:
             return x + y
 
@@ -172,7 +172,7 @@ class TestGraineFunction:
     def test_function_emits_definition(self, clean_block):
         """Test that function decorator emits a function definition."""
 
-        @graine.function
+        @graine.define
         def double(x: Number) -> Number:
             return x + x
 
@@ -185,7 +185,7 @@ class TestGraineFunction:
     def test_function_callable(self, clean_block):
         """Test that decorated function is callable."""
 
-        @graine.function
+        @graine.define
         def get_answer() -> Number:
             return graine.literal(42)
 
@@ -195,7 +195,7 @@ class TestGraineFunction:
     def test_function_call_with_args(self, clean_block):
         """Test calling function with arguments."""
 
-        @graine.function
+        @graine.define
         def triple(x: Number) -> Number:
             return x + x + x
 
@@ -207,11 +207,11 @@ class TestGraineFunction:
     def test_nested_function_calls(self, clean_block):
         """Test nested function calls."""
 
-        @graine.function
+        @graine.define
         def double(x: Number) -> Number:
             return x + x
 
-        @graine.function
+        @graine.define
         def quadruple(x: Number) -> Number:
             return double(double(x))
 
@@ -275,7 +275,7 @@ class TestDSLIntegration:
     def test_function_with_loop(self, clean_block):
         """Test function containing a loop."""
 
-        @graine.function
+        @graine.define
         def sum_range(n: Number) -> Number:
             total = graine.let(graine.literal(0), name="total")
             for i in graine.range(0, n):
@@ -290,11 +290,11 @@ class TestDSLIntegration:
     def test_multiple_functions(self, clean_block):
         """Test defining multiple functions."""
 
-        @graine.function
+        @graine.define
         def double(x: Number) -> Number:
             return x + x
 
-        @graine.function
+        @graine.define
         def triple(x: Number) -> Number:
             return x + x + x
 

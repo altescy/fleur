@@ -17,6 +17,8 @@ from .ir import (
     IRLiteralStringExpr,
     IRMethodCallExpr,
     IRPropertyAccessExpr,
+    IRPropertyAssignStmt,
+    IRThisExpr,
 )
 from .runtime import require_block
 
@@ -31,6 +33,181 @@ PyRecordCompat = Mapping  # type: ignore[type-arg]
 PyGraineCompat = Union[PyStringCompat, PyBooleanCompat, PyNumberCompat, PyArrayCompat, PyRecordCompat]  # type: ignore[type-arg]
 
 ExprT = TypeVar("ExprT", bound=IRExpr, covariant=True)
+
+
+class _GraineMethod:
+    """Helper class to handle method calls and property access on GraineType."""
+
+    def __init__(self, target: IRExpr, method: str) -> None:
+        self._target = target
+        self._method = method
+        # Make it compatible with Number operations by providing _expr for property access
+        self._expr = IRPropertyAccessExpr(target=target, property=method)
+
+    def __call__(self, *args: Union["GraineType", int, float, str, bool]) -> "GraineType":
+        """Call the method with arguments."""
+        arg_exprs: list[IRExpr] = []
+        # Convert args to IRExpr
+        for arg in args:
+            if isinstance(arg, GraineType):
+                arg_exprs.append(arg._expr)
+            elif isinstance(arg, bool):
+                from .ir import IRLiteralBooleanExpr
+
+                arg_exprs.append(IRLiteralBooleanExpr(arg))
+            elif isinstance(arg, (int, float)):
+                arg_exprs.append(IRLiteralNumberExpr(arg))
+            elif isinstance(arg, str):
+                from .ir import IRLiteralStringExpr
+
+                arg_exprs.append(IRLiteralStringExpr(arg))
+            else:
+                arg_exprs.append(arg)
+
+        from .ir import IRMethodCallExpr
+
+        # Return GraineType with method call expression
+        return GraineType(expr=IRMethodCallExpr(target=self._target, method=self._method, args=arg_exprs))
+
+    def __getattr__(self, name: str) -> "_GraineMethod":
+        """Support method chaining like obj.prop.method()."""
+        if name.startswith("_"):
+            raise AttributeError(f"'_GraineMethod' object has no attribute '{name}'")
+        # Return new _GraineMethod for chained access
+        return _GraineMethod(target=self._expr, method=name)
+
+    def _as_number(self) -> "Number":
+        """Convert this property access to a Number."""
+        return Number(expr=self._expr)
+
+    # Support arithmetic operations on the method result (for cases like obj.method + 1)
+    def __add__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "Number":
+        # First get the property value, then add
+        prop_value = self._as_number()
+        if isinstance(other, _GraineMethod):
+            return prop_value + other._as_number()
+        return prop_value + other
+
+    def __radd__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "Number":
+        prop_value = self._as_number()
+        if isinstance(other, _GraineMethod):
+            return other._as_number() + prop_value
+        return other + prop_value  # type: ignore[return-value]
+
+    def __sub__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "Number":
+        prop_value = self._as_number()
+        if isinstance(other, _GraineMethod):
+            return prop_value - other._as_number()
+        return prop_value - other
+
+    def __rsub__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "Number":
+        prop_value = self._as_number()
+        if isinstance(other, _GraineMethod):
+            return other._as_number() - prop_value
+        return other - prop_value  # type: ignore[return-value]
+
+    def __mul__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "Number":
+        prop_value = self._as_number()
+        if isinstance(other, _GraineMethod):
+            return prop_value * other._as_number()
+        return prop_value * other
+
+    def __rmul__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "Number":
+        prop_value = self._as_number()
+        if isinstance(other, _GraineMethod):
+            return other._as_number() * prop_value
+        return other * prop_value  # type: ignore[return-value]
+
+    def __truediv__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "Number":
+        prop_value = self._as_number()
+        if isinstance(other, _GraineMethod):
+            return prop_value / other._as_number()
+        return prop_value / other
+
+    def __rtruediv__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "Number":
+        prop_value = self._as_number()
+        if isinstance(other, _GraineMethod):
+            return other._as_number() / prop_value
+        return other / prop_value  # type: ignore[return-value]
+
+    # Support augmented assignment operators (+=, -=, *=, /=) for properties
+    def __iadd__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "_GraineMethod":
+        """Support += on properties like this.x += 1."""
+        if not isinstance(self._expr, IRPropertyAccessExpr):
+            raise TypeError("Can only use += on properties")
+
+        if isinstance(other, _GraineMethod):
+            rhs = other._expr
+        elif isinstance(other, Number):
+            rhs = other._expr
+        else:
+            rhs = IRLiteralNumberExpr(other)
+
+        require_block().emit(
+            IRPropertyAssignStmt(
+                target=self._expr, value=IRBinaryOpExpr(operator=IRBinaryOperator.ADD, left=self._expr, right=rhs)
+            )
+        )
+        return self
+
+    def __isub__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "_GraineMethod":
+        """Support -= on properties like this.x -= 1."""
+        if not isinstance(self._expr, IRPropertyAccessExpr):
+            raise TypeError("Can only use -= on properties")
+
+        if isinstance(other, _GraineMethod):
+            rhs = other._expr
+        elif isinstance(other, Number):
+            rhs = other._expr
+        else:
+            rhs = IRLiteralNumberExpr(other)
+
+        require_block().emit(
+            IRPropertyAssignStmt(
+                target=self._expr, value=IRBinaryOpExpr(operator=IRBinaryOperator.SUBTRACT, left=self._expr, right=rhs)
+            )
+        )
+        return self
+
+    def __imul__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "_GraineMethod":
+        """Support *= on properties like this.x *= 2."""
+        if not isinstance(self._expr, IRPropertyAccessExpr):
+            raise TypeError("Can only use *= on properties")
+
+        if isinstance(other, _GraineMethod):
+            rhs = other._expr
+        elif isinstance(other, Number):
+            rhs = other._expr
+        else:
+            rhs = IRLiteralNumberExpr(other)
+
+        require_block().emit(
+            IRPropertyAssignStmt(
+                target=self._expr, value=IRBinaryOpExpr(operator=IRBinaryOperator.MULTIPLY, left=self._expr, right=rhs)
+            )
+        )
+        return self
+
+    def __itruediv__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "_GraineMethod":
+        """Support /= on properties like this.x /= 2."""
+        if not isinstance(self._expr, IRPropertyAccessExpr):
+            raise TypeError("Can only use /= on properties")
+
+        if isinstance(other, _GraineMethod):
+            rhs = other._expr
+        elif isinstance(other, Number):
+            rhs = other._expr
+        else:
+            rhs = IRLiteralNumberExpr(other)
+
+        require_block().emit(
+            IRPropertyAssignStmt(
+                target=self._expr, value=IRBinaryOpExpr(operator=IRBinaryOperator.DIVIDE, left=self._expr, right=rhs)
+            )
+        )
+        return self
+
+
 NumberExprT = TypeVar("NumberExprT", bound=IRExpr)
 BooleanExprT = TypeVar("BooleanExprT", bound=IRExpr)
 StringExprT = TypeVar("StringExprT", bound=IRExpr)
@@ -51,11 +228,17 @@ class GraineType(Generic[ExprT]):
         index_expr = index._expr if isinstance(index, Number) else IRLiteralNumberExpr(index)
         return GraineType(expr=IRIndexAccessExpr(target=self._expr, index=index_expr))
 
-    def __getattr__(self, name: str) -> "GraineType":
-        """Support property access on GraineType."""
+    def __getattr__(self, name: str) -> _GraineMethod:
+        """Support property access and method calls on GraineType.
+
+        Returns a _GraineMethod object that can be:
+        - Called as a method: obj.method()
+        - Used as a property in arithmetic: obj.prop * 2
+        """
         if name.startswith("_"):
             raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
-        return GraineType(expr=IRPropertyAccessExpr(target=self._expr, property=name))
+        # Return _GraineMethod which supports both property access and method calls
+        return _GraineMethod(target=self._expr, method=name)
 
 
 class Number(GraineType[NumberExprT], Generic[NumberExprT]):
@@ -64,8 +247,13 @@ class Number(GraineType[NumberExprT], Generic[NumberExprT]):
     def __init__(self, expr: NumberExprT) -> None:
         super().__init__(expr=expr)
 
-    def __add__(self, other: Union["Number", int, float]) -> "Number":
-        rhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
+    def __add__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "Number":
+        if isinstance(other, _GraineMethod):
+            rhs = other._expr
+        elif isinstance(other, Number):
+            rhs = other._expr
+        else:
+            rhs = IRLiteralNumberExpr(other)
         return Number(
             expr=IRBinaryOpExpr(
                 operator=IRBinaryOperator.ADD,
@@ -74,8 +262,13 @@ class Number(GraineType[NumberExprT], Generic[NumberExprT]):
             )
         )
 
-    def __radd__(self, other: Union["Number", int, float]) -> "Number":
-        lhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
+    def __radd__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "Number":
+        if isinstance(other, _GraineMethod):
+            lhs = other._expr
+        elif isinstance(other, Number):
+            lhs = other._expr
+        else:
+            lhs = IRLiteralNumberExpr(other)
         return Number(
             expr=IRBinaryOpExpr(
                 operator=IRBinaryOperator.ADD,
@@ -84,8 +277,13 @@ class Number(GraineType[NumberExprT], Generic[NumberExprT]):
             )
         )
 
-    def __sub__(self, other: Union["Number", int, float]) -> "Number":
-        rhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
+    def __sub__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "Number":
+        if isinstance(other, _GraineMethod):
+            rhs = other._expr
+        elif isinstance(other, Number):
+            rhs = other._expr
+        else:
+            rhs = IRLiteralNumberExpr(other)
         return Number(
             expr=IRBinaryOpExpr(
                 operator=IRBinaryOperator.SUBTRACT,
@@ -94,8 +292,13 @@ class Number(GraineType[NumberExprT], Generic[NumberExprT]):
             )
         )
 
-    def __rsub__(self, other: Union["Number", int, float]) -> "Number":
-        lhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
+    def __rsub__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "Number":
+        if isinstance(other, _GraineMethod):
+            lhs = other._expr
+        elif isinstance(other, Number):
+            lhs = other._expr
+        else:
+            lhs = IRLiteralNumberExpr(other)
         return Number(
             expr=IRBinaryOpExpr(
                 operator=IRBinaryOperator.SUBTRACT,
@@ -104,8 +307,13 @@ class Number(GraineType[NumberExprT], Generic[NumberExprT]):
             )
         )
 
-    def __mul__(self, other: Union["Number", int, float]) -> "Number":
-        rhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
+    def __mul__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "Number":
+        if isinstance(other, _GraineMethod):
+            rhs = other._expr
+        elif isinstance(other, Number):
+            rhs = other._expr
+        else:
+            rhs = IRLiteralNumberExpr(other)
         return Number(
             expr=IRBinaryOpExpr(
                 operator=IRBinaryOperator.MULTIPLY,
@@ -114,8 +322,13 @@ class Number(GraineType[NumberExprT], Generic[NumberExprT]):
             )
         )
 
-    def __rmul__(self, other: Union["Number", int, float]) -> "Number":
-        lhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
+    def __rmul__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "Number":
+        if isinstance(other, _GraineMethod):
+            lhs = other._expr
+        elif isinstance(other, Number):
+            lhs = other._expr
+        else:
+            lhs = IRLiteralNumberExpr(other)
         return Number(
             expr=IRBinaryOpExpr(
                 operator=IRBinaryOperator.MULTIPLY,
@@ -124,8 +337,13 @@ class Number(GraineType[NumberExprT], Generic[NumberExprT]):
             )
         )
 
-    def __truediv__(self, other: Union["Number", int, float]) -> "Number":
-        rhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
+    def __truediv__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "Number":
+        if isinstance(other, _GraineMethod):
+            rhs = other._expr
+        elif isinstance(other, Number):
+            rhs = other._expr
+        else:
+            rhs = IRLiteralNumberExpr(other)
         return Number(
             expr=IRBinaryOpExpr(
                 operator=IRBinaryOperator.DIVIDE,
@@ -134,8 +352,13 @@ class Number(GraineType[NumberExprT], Generic[NumberExprT]):
             )
         )
 
-    def __rtruediv__(self, other: Union["Number", int, float]) -> "Number":
-        lhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
+    def __rtruediv__(self, other: Union["Number", int, float, "_GraineMethod"]) -> "Number":
+        if isinstance(other, _GraineMethod):
+            lhs = other._expr
+        elif isinstance(other, Number):
+            lhs = other._expr
+        else:
+            lhs = IRLiteralNumberExpr(other)
         return Number(
             expr=IRBinaryOpExpr(
                 operator=IRBinaryOperator.DIVIDE,
@@ -213,12 +436,16 @@ class Number(GraineType[NumberExprT], Generic[NumberExprT]):
         """Convert number to string."""
         return String(expr=IRMethodCallExpr(target=self._expr, method="toString", args=[]))
 
-    # Only Number[IRIdentifierExpr] (variables) support +=
-    # Using overload to explicitly reject non-identifier numbers
+    # Number[IRIdentifierExpr] and Number[IRPropertyAccessExpr] support +=
     @overload
     def __iadd__(
         self: "Number[IRIdentifierExpr]", other: Union["Number", int, float]
     ) -> "Number[IRIdentifierExpr]": ...
+
+    @overload
+    def __iadd__(
+        self: "Number[IRPropertyAccessExpr]", other: Union["Number", int, float]
+    ) -> "Number[IRPropertyAccessExpr]": ...
 
     @overload
     def __iadd__(self: "Number[IRLiteralNumberExpr]", other: Union["Number", int, float]) -> Never: ...
@@ -226,9 +453,11 @@ class Number(GraineType[NumberExprT], Generic[NumberExprT]):
     @overload
     def __iadd__(self: "Number[IRBinaryOpExpr]", other: Union["Number", int, float]) -> Never: ...
 
-    def __iadd__(self, other: Union["Number", int, float]) -> Union["Number[IRIdentifierExpr]", Never]:
+    def __iadd__(
+        self, other: Union["Number", int, float]
+    ) -> Union["Number[IRIdentifierExpr]", "Number[IRPropertyAccessExpr]", Never]:
         # For += operator: x += y becomes x = x + y
-        # This method is only valid for Number[IRIdentifierExpr] (variables)
+        # This method is valid for Number[IRIdentifierExpr] (variables) and Number[IRPropertyAccessExpr] (properties)
         if isinstance(self._expr, IRIdentifierExpr):
             var_name = self._expr.name
             rhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
@@ -242,7 +471,22 @@ class Number(GraineType[NumberExprT], Generic[NumberExprT]):
             )
             require_block().emit(new_expr)
             return self  # type: ignore[return-value]
-        raise TypeError("Can only use += on variables created with graine.let()")
+        elif isinstance(self._expr, IRPropertyAccessExpr):
+            # For property access like this.x += 1
+            rhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
+            from .ir import IRPropertyAssignStmt
+
+            new_expr = IRPropertyAssignStmt(
+                target=self._expr,
+                value=IRBinaryOpExpr(
+                    operator=IRBinaryOperator.ADD,
+                    left=self._expr,
+                    right=rhs,
+                ),
+            )
+            require_block().emit(new_expr)
+            return self  # type: ignore[return-value]
+        raise TypeError("Can only use += on variables or properties")
 
 
 class Boolean(GraineType[BooleanExprT], Generic[BooleanExprT]):
@@ -413,3 +657,58 @@ class Function(GraineType[IRIdentifierExpr], Generic[GraineT]):
         )
         require_block().emit(assign_stmt)
         return self.ret_type(expr=IRIdentifierExpr(name=var_name))
+
+
+class This(GraineType[IRThisExpr]):
+    """Represents 'this' in JavaScript class methods."""
+
+    def __init__(self) -> None:
+        super().__init__(expr=IRThisExpr())
+
+    def __getattr__(self, name: str) -> _GraineMethod:
+        """Support property access on This.
+
+        Returns _GraineMethod which supports:
+        - Arithmetic operations (self.x + 1)
+        - Augmented assignment (self.x += 1)
+        - Method calls (self.foo())
+        """
+        if name.startswith("_"):
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+        # Return _GraineMethod so that arithmetic operations and augmented assignments work
+        return _GraineMethod(target=self._expr, method=name)
+
+    def __setattr__(self, name: str, value: GraineLike) -> None:
+        """Handle property assignment: self.x = value
+
+        Args:
+            name: Property name
+            value: Value to assign (can be any Graine-compatible type)
+        """
+        if name.startswith("_"):
+            # Internal attributes
+            object.__setattr__(self, name, value)
+        else:
+            # Generate property assignment
+            from ._utils import as_literal
+
+            # Handle GraineType, _GraineMethod, or plain Python values
+            if isinstance(value, GraineType):
+                val_expr = value._expr
+            elif hasattr(value, "_expr"):
+                val_expr = value._expr  # type: ignore[attr-defined]
+            else:
+                val_expr = as_literal(value)._expr
+
+            prop_access = IRPropertyAccessExpr(target=IRThisExpr(), property=name)
+
+            # Skip self-assignment like this.x = this.x (which can occur from += operations)
+            if (
+                isinstance(val_expr, IRPropertyAccessExpr)
+                and isinstance(val_expr.target, IRThisExpr)
+                and val_expr.property == name
+            ):
+                # This is a self-assignment, skip it
+                return
+
+            require_block().emit(IRPropertyAssignStmt(target=prop_access, value=val_expr))

@@ -81,6 +81,10 @@ def extract_first_grainetype(annotation: Any) -> type[GraineType]:
     def _dfs(annotation: Any) -> Optional[type[GraineType]]:
         if isinstance(annotation, type) and issubclass(annotation, GraineType):
             return annotation
+        # Check if this is a graine-defined class (has _graine_class attribute)
+        if isinstance(annotation, type) and hasattr(annotation, "_graine_class"):
+            # Return the class itself as it inherits from GraineType
+            return annotation  # type: ignore[return-value]
         origin = typing.get_origin(annotation)
         args = typing.get_args(annotation)
         # Check if origin is a GraineType (for Generic types like Array[Number])

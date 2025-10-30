@@ -128,7 +128,7 @@ class TestRange:
 
         with use_block() as block:
 
-            @graine.function
+            @graine.define
             def test_func(n: Number) -> Number:
                 total = graine.let(graine.literal(0), name="total")
                 for i in graine.range(0, n):
@@ -231,7 +231,7 @@ class TestCases:
 
         with use_block() as block:
 
-            @graine.function
+            @graine.define
             def sign(x: Number) -> Number:
                 result = graine.let(0, name="result")
 

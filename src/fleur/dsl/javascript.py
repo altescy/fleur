@@ -5,6 +5,7 @@ from .ir import (
     IRBinaryOpExpr,
     IRBlock,
     IRCallExpr,
+    IRClassStmt,
     IRExpr,
     IRExprStmt,
     IRFunctionStmt,
@@ -18,10 +19,13 @@ from .ir import (
     IRLiteralRecordExpr,
     IRLiteralStringExpr,
     IRMethodCallExpr,
+    IRNewExpr,
     IRPropertyAccessExpr,
+    IRPropertyAssignStmt,
     IRRangeStmt,
     IRReturnStmt,
     IRStmt,
+    IRThisExpr,
 )
 
 
@@ -60,6 +64,11 @@ def emit_javascript(*args: Union[IRExpr, IRStmt]) -> str:
             target_str = e(x.target)
             args_str = ", ".join(e(arg) for arg in x.args)
             return f"{target_str}.{x.method}({args_str})"
+        if isinstance(x, IRThisExpr):
+            return "this"
+        if isinstance(x, IRNewExpr):
+            args_str = ", ".join(e(arg) for arg in x.args)
+            return f"new {x.class_name}({args_str})"
         raise ValueError(f"Unsupported IRExpr: {x}")
 
     def s(st: IRStmt, indent: str) -> str:
@@ -87,6 +96,30 @@ def emit_javascript(*args: Union[IRExpr, IRStmt]) -> str:
             params_str = ", ".join(st.params)
             body = s(st.body, indent + "  ")
             return f"{indent}function {st.name}({params_str}) {{\n{body}{indent}}}\n"
+        if isinstance(st, IRPropertyAssignStmt):
+            return f"{indent}{e(st.target)} = {e(st.value)};\n"
+        if isinstance(st, IRClassStmt):
+            # Generate constructor
+            constructor_params = ", ".join(st.constructor_params)
+            constructor_body = s(st.constructor_body, indent + "    ")
+
+            # Generate methods
+            methods_lines = []
+            for method in st.methods:
+                prefix = "static " if method.is_static else ""
+                prefix = "get " if method.is_getter else prefix
+                params = ", ".join(method.params)
+                method_body = s(method.body, indent + "    ")
+                methods_lines.append(f"{indent}  {prefix}{method.name}({params}) {{\n{method_body}{indent}  }}")
+
+            methods_str = "\n".join(methods_lines)
+
+            result = f"{indent}class {st.name} {{\n"
+            result += f"{indent}  constructor({constructor_params}) {{\n{constructor_body}{indent}  }}\n"
+            if methods_str:
+                result += methods_str + "\n"
+            result += f"{indent}}}\n"
+            return result
         if isinstance(st, IRBlock):
             body_lines = [s(bst, indent) for bst in st.body]
             return "".join(body_lines)

@@ -18,7 +18,7 @@ class TestJavaScriptExecution:
         """Test executing a simple function."""
         with parterre() as p:
 
-            @graine.function
+            @graine.define
             def add(a: graine.Number, b: graine.Number) -> graine.Number:
                 return a + b
 
@@ -32,7 +32,7 @@ class TestJavaScriptExecution:
         """Test sum of squares function."""
         with parterre() as p:
 
-            @graine.function
+            @graine.define
             def sum_of_squares(n: graine.Number) -> graine.Number:
                 total = graine.let(0, name="total")
                 for i in graine.range(0, n):
@@ -51,7 +51,7 @@ class TestJavaScriptExecution:
         """Test factorial function with loop."""
         with parterre() as p:
 
-            @graine.function
+            @graine.define
             def factorial(n: graine.Number) -> graine.Number:
                 result = graine.let(1, name="result")
                 for i in graine.range(1, n + 1):
@@ -70,7 +70,7 @@ class TestJavaScriptExecution:
         """Test conditional logic with cases - returns directly from branches."""
         with parterre() as p:
 
-            @graine.function
+            @graine.define
             def absolute_value(x: graine.Number) -> graine.Number:
                 result = graine.let(0, name="result")
                 with graine.cases() as when:
@@ -92,7 +92,7 @@ class TestJavaScriptExecution:
         """Test division operation."""
         with parterre() as p:
 
-            @graine.function
+            @graine.define
             def divide(a: graine.Number, b: graine.Number) -> graine.Number:
                 return a / b
 
@@ -109,7 +109,7 @@ class TestJavaScriptExecution:
         """Test all comparison operators."""
         with parterre() as p:
 
-            @graine.function
+            @graine.define
             def max_value(a: graine.Number, b: graine.Number) -> graine.Number:
                 result = graine.let(0, name="result")
                 with graine.cases() as when:
@@ -131,7 +131,7 @@ class TestJavaScriptExecution:
         """Test nested loop execution."""
         with parterre() as p:
 
-            @graine.function
+            @graine.define
             def multiplication_table(n: graine.Number) -> graine.Number:
                 total = graine.let(0, name="total")
                 for i in graine.range(1, n + 1):
@@ -153,7 +153,7 @@ class TestJavaScriptExecution:
         """Test all arithmetic operations."""
         with parterre() as p:
 
-            @graine.function
+            @graine.define
             def calculate(a: graine.Number, b: graine.Number) -> graine.Number:
                 add_result = a + b
                 sub_result = a - b

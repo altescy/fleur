@@ -18,7 +18,7 @@ class TestArrayIntegration:
         """Test creating and accessing array literal."""
         with parterre() as p:
 
-            @graine.function
+            @graine.define
             def get_first(arr: graine.Array) -> graine.Number:
                 return arr[0]  # type: ignore[return-value]
 
@@ -32,7 +32,7 @@ class TestArrayIntegration:
         """Test accessing array with Number index."""
         with parterre() as p:
 
-            @graine.function
+            @graine.define
             def get_element(arr: graine.Array, idx: graine.Number) -> graine.Number:
                 return arr[idx]  # type: ignore[return-value]
 
@@ -46,7 +46,7 @@ class TestArrayIntegration:
         """Test creating array with graine.literal."""
         with parterre() as p:
 
-            @graine.function
+            @graine.define
             def create_array() -> graine.Array:
                 return graine.literal([1, 2, 3])  # pyright: ignore[reportReturnType]
 
@@ -69,7 +69,7 @@ class TestRecordIntegration:
         """Test accessing record properties."""
         with parterre() as p:
 
-            @graine.function
+            @graine.define
             def get_name(person: graine.Record) -> graine.String:
                 return person.name  # type: ignore[return-value]
 
@@ -83,7 +83,7 @@ class TestRecordIntegration:
         """Test creating record with graine.literal."""
         with parterre() as p:
 
-            @graine.function
+            @graine.define
             def create_person() -> graine.Record:
                 return graine.literal({"name": "Bob", "age": 25})  # pyright: ignore[reportReturnType]
 
@@ -97,7 +97,7 @@ class TestRecordIntegration:
         """Test nested record and array access."""
         with parterre() as p:
 
-            @graine.function
+            @graine.define
             def get_first_friend_name(person: graine.Record) -> graine.String:
                 friends = person.friends
                 first_friend = friends[0]
