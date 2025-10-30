@@ -1,8 +1,16 @@
 from collections.abc import Callable
-from typing import Any, TypeVar, Union, cast, overload
+from typing import Any, Optional, TypeVar, Union, cast, overload
 
 from ._utils import as_literal, extract_first_grainetype
-from .ir import IRFunctionStmt, IRIdentifierExpr, IRLetStmt, IRLiteralNumberExpr, IRReturnStmt
+from .ir import (
+    IRFunctionStmt,
+    IRIdentifierExpr,
+    IRLetStmt,
+    IRLiteralBooleanExpr,
+    IRLiteralNumberExpr,
+    IRLiteralStringExpr,
+    IRReturnStmt,
+)
 from .javascript import emit_javascript
 from .runtime import require_block, use_block
 from .stdlib import Cases, Range
@@ -24,7 +32,7 @@ from .types import (
 __all__ = ["graine", "emit_javascript", "require_block"]
 
 
-_GraineCallable = TypeVar("_GraineCallable", bound=Callable[..., GraineType])
+_GraineCallable = TypeVar("_GraineCallable", bound=Callable[..., Optional[GraineType]])
 
 
 class graine:
@@ -38,15 +46,15 @@ class graine:
 
     @overload
     @staticmethod
-    def literal(value: PyStringCompat) -> String: ...
+    def literal(value: PyStringCompat) -> String[IRLiteralStringExpr]: ...
 
     @overload
     @staticmethod
-    def literal(value: PyBooleanCompat) -> Boolean: ...  # pyright: ignore[reportOverlappingOverload]
+    def literal(value: PyBooleanCompat) -> Boolean[IRLiteralBooleanExpr]: ...  # pyright: ignore[reportOverlappingOverload]
 
     @overload
     @staticmethod
-    def literal(value: PyNumberCompat) -> Number: ...  # pyright: ignore[reportOverlappingOverload]
+    def literal(value: PyNumberCompat) -> Number[IRLiteralNumberExpr]: ...  # pyright: ignore[reportOverlappingOverload]
 
     @staticmethod
     def literal(value: PyGraineCompat) -> GraineType:
@@ -54,15 +62,15 @@ class graine:
 
     @overload
     @staticmethod
-    def let(init: NumberLike, name: str = "v") -> Number: ...
+    def let(init: NumberLike, name: str = "v") -> Number[IRIdentifierExpr]: ...
 
     @overload
     @staticmethod
-    def let(init: BooleanLike, name: str = "v") -> Boolean: ...
+    def let(init: BooleanLike, name: str = "v") -> Boolean[IRIdentifierExpr]: ...
 
     @overload
     @staticmethod
-    def let(init: StringLike, name: str = "v") -> String: ...
+    def let(init: StringLike, name: str = "v") -> String[IRIdentifierExpr]: ...
 
     @staticmethod
     def let(init: Any, name: str = "v") -> Any:
@@ -86,7 +94,7 @@ class graine:
 
     @staticmethod
     def function(fn: _GraineCallable) -> _GraineCallable:
-        function = Function(name=fn.__name__, fn=fn)
+        function = Function(name=fn.__name__, fn=fn)  # type: ignore[arg-type]
 
         with use_block() as block:
             args = [extract_first_grainetype(type_)(IRIdentifierExpr(name)) for name, type_ in function.params]

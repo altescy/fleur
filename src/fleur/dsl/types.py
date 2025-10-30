@@ -1,6 +1,8 @@
 import inspect
 from collections.abc import Callable
-from typing import Generic, TypeVar, Union
+from typing import Generic, TypeVar, Union, overload
+
+from typing_extensions import Never
 
 from .ir import (
     IRAssignStmt,
@@ -19,16 +21,21 @@ PyBooleanCompat = bool
 PyNumberCompat = Union[int, float]
 PyGraineCompat = Union[PyStringCompat, PyBooleanCompat, PyNumberCompat]
 
+ExprT = TypeVar("ExprT", bound=IRExpr, covariant=True)
+NumberExprT = TypeVar("NumberExprT", bound=IRExpr)
+BooleanExprT = TypeVar("BooleanExprT", bound=IRExpr)
+StringExprT = TypeVar("StringExprT", bound=IRExpr)
 
-class GraineType:
-    def __init__(self, expr: IRExpr) -> None:
-        self._expr = expr
+
+class GraineType(Generic[ExprT]):
+    def __init__(self, expr: ExprT) -> None:
+        self._expr: ExprT = expr
 
 
-class Number(GraineType):
+class Number(GraineType[NumberExprT], Generic[NumberExprT]):
     __slots__ = ("_expr",)
 
-    def __init__(self, expr: IRExpr) -> None:
+    def __init__(self, expr: NumberExprT) -> None:
         super().__init__(expr=expr)
 
     def __add__(self, other: Union["Number", int, float]) -> "Number":
@@ -171,9 +178,22 @@ class Number(GraineType):
             )
         )
 
-    def __iadd__(self, other: Union["Number", int, float]) -> "Number":
+    # Only Number[IRIdentifierExpr] (variables) support +=
+    # Using overload to explicitly reject non-identifier numbers
+    @overload
+    def __iadd__(
+        self: "Number[IRIdentifierExpr]", other: Union["Number", int, float]
+    ) -> "Number[IRIdentifierExpr]": ...
+
+    @overload
+    def __iadd__(self: "Number[IRLiteralNumberExpr]", other: Union["Number", int, float]) -> Never: ...
+
+    @overload
+    def __iadd__(self: "Number[IRBinaryOpExpr]", other: Union["Number", int, float]) -> Never: ...
+
+    def __iadd__(self, other: Union["Number", int, float]) -> Union["Number[IRIdentifierExpr]", Never]:
         # For += operator: x += y becomes x = x + y
-        # Extract variable name from IRIdentifierExpr if possible
+        # This method is only valid for Number[IRIdentifierExpr] (variables)
         if isinstance(self._expr, IRIdentifierExpr):
             var_name = self._expr.name
             rhs = other._expr if isinstance(other, Number) else IRLiteralNumberExpr(other)
@@ -186,24 +206,24 @@ class Number(GraineType):
                 ),
             )
             require_block().emit(new_expr)
-            return self
+            return self  # type: ignore[return-value]
         raise TypeError("Can only use += on variables created with graine.let()")
 
 
-class Boolean(GraineType):
+class Boolean(GraineType[BooleanExprT], Generic[BooleanExprT]):
     __slots__ = ("_expr",)
 
-    def __init__(self, expr: IRExpr) -> None:
+    def __init__(self, expr: BooleanExprT) -> None:
         super().__init__(expr=expr)
 
     def __bool__(self) -> bool:
         raise TypeError("Boolean instances cannot be converted to bool directly")
 
 
-class String(GraineType):
+class String(GraineType[StringExprT], Generic[StringExprT]):
     __slots__ = ("_expr",)
 
-    def __init__(self, expr: IRExpr) -> None:
+    def __init__(self, expr: StringExprT) -> None:
         super().__init__(expr=expr)
 
 
@@ -213,24 +233,26 @@ StringLike = Union[PyStringCompat, String]
 GraineLike = Union[BooleanLike, NumberLike, StringLike]
 
 
-_GraineT = TypeVar("_GraineT", bound=GraineType)
+GraineT = TypeVar("GraineT", bound=GraineType[IRExpr])
 
 
-class Function(GraineType, Generic[_GraineT]):
+class Function(GraineType[IRIdentifierExpr], Generic[GraineT]):
     def __init__(
         self,
         name: str,
-        fn: Callable[..., _GraineT],
+        fn: Callable[..., GraineT],
     ) -> None:
+        # Function is identified by its name
+        super().__init__(expr=IRIdentifierExpr(name))
         self.name = name
         self.fn = fn
         signature = inspect.signature(fn)
         self.params: tuple[tuple[str, type[GraineType]], ...] = tuple(
             (param.name, param.annotation) for param in signature.parameters.values()
         )
-        self.ret_type: type[_GraineT] = signature.return_annotation
+        self.ret_type: type[GraineT] = signature.return_annotation
 
-    def __call__(self, *args: GraineType) -> _GraineT:
+    def __call__(self, *args: GraineType[IRExpr]) -> GraineT:
         arg_exprs = [arg._expr for arg in args]
         call_expr = IRCallExpr(function=self.name, args=arg_exprs)
         var_name = f"_ret_{len(require_block().body)}"

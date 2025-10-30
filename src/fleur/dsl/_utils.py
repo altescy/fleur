@@ -1,7 +1,7 @@
 import typing
 from typing import Any, Optional, Union, overload
 
-from .ir import IRLiteralNumberExpr, IRLiteralStringExpr
+from .ir import IRLiteralBooleanExpr, IRLiteralNumberExpr, IRLiteralStringExpr
 from .types import (
     Boolean,
     GraineType,
@@ -15,15 +15,15 @@ from .types import (
 
 
 @overload
-def as_literal(value: PyStringCompat) -> String: ...
+def as_literal(value: PyStringCompat) -> String[IRLiteralStringExpr]: ...
 
 
 @overload
-def as_literal(value: PyBooleanCompat) -> Boolean: ...  # pyright: ignore[reportOverlappingOverload]
+def as_literal(value: PyBooleanCompat) -> Boolean[IRLiteralBooleanExpr]: ...  # pyright: ignore[reportOverlappingOverload]
 
 
 @overload
-def as_literal(value: PyNumberCompat) -> Number: ...  # pyright: ignore[reportOverlappingOverload]
+def as_literal(value: PyNumberCompat) -> Number[IRLiteralNumberExpr]: ...  # pyright: ignore[reportOverlappingOverload]
 
 
 def as_literal(value: PyGraineCompat) -> GraineType:
