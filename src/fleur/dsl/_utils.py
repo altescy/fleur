@@ -11,31 +11,30 @@ from .ir import (
 from .types import (
     Array,
     Boolean,
+    BooleanLike,
     GraineType,
     Number,
+    NumberLike,
     PyBooleanCompat,
     PyNumberCompat,
     PyStringCompat,
     Record,
     String,
+    StringLike,
 )
 
 
 # More specific array types first
 @overload
-def as_literal(value: list[int]) -> Array[Number[IRLiteralNumberExpr], IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+def as_literal(value: list[NumberLike]) -> Array[Number, IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
 
 
 @overload
-def as_literal(value: list[float]) -> Array[Number[IRLiteralNumberExpr], IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+def as_literal(value: list[StringLike]) -> Array[String, IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
 
 
 @overload
-def as_literal(value: list[str]) -> Array[String[IRLiteralStringExpr], IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
-
-
-@overload
-def as_literal(value: list[bool]) -> Array[Boolean[IRLiteralBooleanExpr], IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+def as_literal(value: list[BooleanLike]) -> Array[Boolean, IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
 
 
 # Generic list/dict fallback

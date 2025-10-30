@@ -23,6 +23,8 @@ from .runtime import require_block, use_block
 from .stdlib import Cases, Range
 from .types import (
     Array,
+    ArrayElementT,
+    ArrayExprT,
     ArrayLike,
     Boolean,
     BooleanLike,
@@ -34,7 +36,9 @@ from .types import (
     PyNumberCompat,
     PyStringCompat,
     Record,
+    RecordExprT,
     RecordLike,
+    RecordValueT,
     String,
     StringLike,
 )
@@ -71,22 +75,31 @@ class graine:
     ArrayLike = ArrayLike
     RecordLike = RecordLike
 
-    # More specific array types first
+    # Array types
     @overload
     @staticmethod
-    def literal(value: list[int]) -> Array[Number[IRLiteralNumberExpr], IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+    def literal(value: list[PyNumberCompat]) -> Array[Number[IRLiteralNumberExpr], IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
 
     @overload
     @staticmethod
-    def literal(value: list[float]) -> Array[Number[IRLiteralNumberExpr], IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+    def literal(value: list[PyStringCompat]) -> Array[String[IRLiteralStringExpr], IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
 
     @overload
     @staticmethod
-    def literal(value: list[str]) -> Array[String[IRLiteralStringExpr], IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+    def literal(value: list[PyBooleanCompat]) -> Array[Boolean[IRLiteralBooleanExpr], IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+    # Record types
+    @overload
+    @staticmethod
+    def literal(value: dict[str, PyNumberCompat]) -> Record[Number[IRLiteralNumberExpr], IRLiteralRecordExpr]: ...  # pyright: ignore[reportOverlappingOverload]
 
     @overload
     @staticmethod
-    def literal(value: list[bool]) -> Array[Boolean[IRLiteralBooleanExpr], IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+    def literal(value: dict[str, PyStringCompat]) -> Record[String[IRLiteralStringExpr], IRLiteralRecordExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+    @overload
+    @staticmethod
+    def literal(value: dict[str, PyBooleanCompat]) -> Record[Boolean[IRLiteralBooleanExpr], IRLiteralRecordExpr]: ...  # pyright: ignore[reportOverlappingOverload]
 
     # Generic list/dict fallback
     @overload
@@ -114,6 +127,7 @@ class graine:
     def literal(value: Any) -> GraineType:
         return as_literal(value)
 
+    # Primitive types
     @overload
     @staticmethod
     def let(init: NumberLike, name: str = "v") -> Number[IRIdentifierExpr]: ...
@@ -125,6 +139,51 @@ class graine:
     @overload
     @staticmethod
     def let(init: StringLike, name: str = "v") -> String[IRIdentifierExpr]: ...
+
+    @overload
+    @staticmethod
+    def let(init: list[NumberLike], name: str = "v") -> Array[Number, IRIdentifierExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+    @overload
+    @staticmethod
+    def let(init: list[StringLike], name: str = "v") -> Array[String, IRIdentifierExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+    @overload
+    @staticmethod
+    def let(init: list[BooleanLike], name: str = "v") -> Array[Boolean, IRIdentifierExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+    # Array with Graine types
+    @overload
+    @staticmethod
+    def let(init: Array[ArrayElementT, ArrayExprT], name: str = "v") -> Array[ArrayElementT, IRIdentifierExpr]: ...
+
+    # Generic array fallback
+    @overload
+    @staticmethod
+    def let(init: list, name: str = "v") -> Array[GraineType, IRIdentifierExpr]: ...
+
+    # Record types - specific value types
+    @overload
+    @staticmethod
+    def let(init: dict[str, NumberLike], name: str = "v") -> Record[Number, IRIdentifierExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+    @overload
+    @staticmethod
+    def let(init: dict[str, StringLike], name: str = "v") -> Record[String, IRIdentifierExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+    @overload
+    @staticmethod
+    def let(init: dict[str, BooleanLike], name: str = "v") -> Record[Boolean, IRIdentifierExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+    # Record with Graine types
+    @overload
+    @staticmethod
+    def let(init: Record[RecordValueT, RecordExprT], name: str = "v") -> Record[RecordValueT, IRIdentifierExpr]: ...
+
+    # Generic record fallback
+    @overload
+    @staticmethod
+    def let(init: dict, name: str = "v") -> Record[GraineType, IRIdentifierExpr]: ...
 
     @staticmethod
     def let(init: Any, name: str = "v") -> Any:
