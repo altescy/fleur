@@ -10,8 +10,10 @@ from .ir import (
     IRFunctionStmt,
     IRIdentifierExpr,
     IRLetStmt,
+    IRLiteralArrayExpr,
     IRLiteralBooleanExpr,
     IRLiteralNumberExpr,
+    IRLiteralRecordExpr,
     IRLiteralStringExpr,
     IRReturnStmt,
 )
@@ -19,16 +21,22 @@ from .javascript import emit_javascript
 from .runtime import require_block, use_block
 from .stdlib import Cases, Range
 from .types import (
+    Array,
+    ArrayLike,
     Boolean,
     BooleanLike,
     Function,
     GraineType,
     Number,
     NumberLike,
+    PyArrayCompat,
     PyBooleanCompat,
     PyGraineCompat,
     PyNumberCompat,
+    PyRecordCompat,
     PyStringCompat,
+    Record,
+    RecordLike,
     String,
     StringLike,
 )
@@ -43,10 +51,14 @@ class graine:
     Number = Number
     Boolean = Boolean
     String = String
+    Array = Array
+    Record = Record
 
     BooleanLike = BooleanLike
     NumberLike = NumberLike
     StringLike = StringLike
+    ArrayLike = ArrayLike
+    RecordLike = RecordLike
 
     @overload
     @staticmethod
@@ -59,6 +71,14 @@ class graine:
     @overload
     @staticmethod
     def literal(value: PyNumberCompat) -> Number[IRLiteralNumberExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+    @overload
+    @staticmethod
+    def literal(value: PyArrayCompat) -> Array[GraineType, IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+    @overload
+    @staticmethod
+    def literal(value: PyRecordCompat) -> Record[GraineType, IRLiteralRecordExpr]: ...  # pyright: ignore[reportOverlappingOverload]
 
     @staticmethod
     def literal(value: PyGraineCompat) -> GraineType:

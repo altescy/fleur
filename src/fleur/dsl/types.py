@@ -1,8 +1,8 @@
 import inspect
 from collections.abc import Callable
-from typing import Generic, TypeVar, Union, overload
+from typing import Generic, Union, overload
 
-from typing_extensions import Never
+from typing_extensions import Never, TypeVar
 
 from .ir import (
     IRAssignStmt,
@@ -11,25 +11,46 @@ from .ir import (
     IRCallExpr,
     IRExpr,
     IRIdentifierExpr,
+    IRIndexAccessExpr,
     IRLetStmt,
     IRLiteralNumberExpr,
+    IRPropertyAccessExpr,
 )
 from .runtime import require_block
 
 PyStringCompat = str
 PyBooleanCompat = bool
 PyNumberCompat = Union[int, float]
-PyGraineCompat = Union[PyStringCompat, PyBooleanCompat, PyNumberCompat]
+PyArrayCompat = list
+PyRecordCompat = dict
+PyGraineCompat = Union[PyStringCompat, PyBooleanCompat, PyNumberCompat, PyArrayCompat, PyRecordCompat]
 
 ExprT = TypeVar("ExprT", bound=IRExpr, covariant=True)
 NumberExprT = TypeVar("NumberExprT", bound=IRExpr)
 BooleanExprT = TypeVar("BooleanExprT", bound=IRExpr)
 StringExprT = TypeVar("StringExprT", bound=IRExpr)
+ArrayExprT = TypeVar("ArrayExprT", bound=IRExpr, default=IRExpr)
+RecordExprT = TypeVar("RecordExprT", bound=IRExpr, default=IRExpr)
+
+# Element/Value type variables for Array and Record
+ArrayElementT = TypeVar("ArrayElementT", bound="GraineType")
+RecordValueT = TypeVar("RecordValueT", bound="GraineType")
 
 
 class GraineType(Generic[ExprT]):
     def __init__(self, expr: ExprT) -> None:
         self._expr: ExprT = expr
+
+    def __getitem__(self, index: Union[int, "Number"]) -> "GraineType":
+        """Support array-like indexing on GraineType."""
+        index_expr = index._expr if isinstance(index, Number) else IRLiteralNumberExpr(index)
+        return GraineType(expr=IRIndexAccessExpr(target=self._expr, index=index_expr))
+
+    def __getattr__(self, name: str) -> "GraineType":
+        """Support property access on GraineType."""
+        if name.startswith("_"):
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+        return GraineType(expr=IRPropertyAccessExpr(target=self._expr, property=name))
 
 
 class Number(GraineType[NumberExprT], Generic[NumberExprT]):
@@ -227,10 +248,43 @@ class String(GraineType[StringExprT], Generic[StringExprT]):
         super().__init__(expr=expr)
 
 
+class Array(GraineType[ArrayExprT], Generic[ArrayElementT, ArrayExprT]):
+    __slots__ = ("_expr",)
+
+    def __init__(self, expr: ArrayExprT) -> None:
+        super().__init__(expr=expr)
+
+    def __getitem__(self, index: Union[int, "Number"]) -> ArrayElementT:  # type: ignore[override]
+        """Access array element by index."""
+        index_expr = index._expr if isinstance(index, Number) else IRLiteralNumberExpr(index)
+        # Return a generic GraineType; the actual element type is determined by the type parameter
+        return GraineType(expr=IRIndexAccessExpr(target=self._expr, index=index_expr))  # type: ignore[return-value]
+
+
+class Record(GraineType[RecordExprT], Generic[RecordValueT, RecordExprT]):
+    __slots__ = ("_expr",)
+
+    def __init__(self, expr: RecordExprT) -> None:
+        super().__init__(expr=expr)
+
+    def __getattr__(self, name: str) -> RecordValueT:  # type: ignore[override]
+        """Access record property by name."""
+        if name.startswith("_"):
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+        # Return a generic GraineType; the actual value type is determined by the type parameter
+        return GraineType(expr=IRPropertyAccessExpr(target=self._expr, property=name))  # type: ignore[return-value]
+
+
 BooleanLike = Union[PyBooleanCompat, Boolean]
 NumberLike = Union[PyNumberCompat, float, Number]
 StringLike = Union[PyStringCompat, String]
-GraineLike = Union[BooleanLike, NumberLike, StringLike]
+ArrayLike = Union[list, "Array"]
+RecordLike = Union[dict, "Record"]
+GraineLike = Union[BooleanLike, NumberLike, StringLike, ArrayLike, RecordLike]
+
+# Type aliases for commonly used Array and Record types with element/value types
+# These allow simpler syntax like Array[Number] instead of Array[Number, IRExpr]
+# Note: For runtime use with explicit IR types, use the full Array[ElementT, ExprT] syntax
 
 
 GraineT = TypeVar("GraineT", bound=GraineType[IRExpr])

@@ -1,4 +1,5 @@
 import dataclasses
+from collections.abc import Mapping, Sequence
 from enum import Enum
 from typing import Union
 
@@ -35,6 +36,16 @@ class IRLiteralStringExpr(IRExpr):
 
 
 @dataclasses.dataclass(frozen=True)
+class IRLiteralArrayExpr(IRExpr):
+    elements: Sequence[IRExpr]
+
+
+@dataclasses.dataclass(frozen=True)
+class IRLiteralRecordExpr(IRExpr):
+    fields: Mapping[str, IRExpr]
+
+
+@dataclasses.dataclass(frozen=True)
 class IRBinaryOpExpr(IRExpr):
     operator: IRBinaryOperator
     left: IRExpr
@@ -50,6 +61,18 @@ class IRIdentifierExpr(IRExpr):
 class IRCallExpr(IRExpr):
     function: str
     args: list[IRExpr]
+
+
+@dataclasses.dataclass(frozen=True)
+class IRIndexAccessExpr(IRExpr):
+    target: IRExpr
+    index: IRExpr
+
+
+@dataclasses.dataclass(frozen=True)
+class IRPropertyAccessExpr(IRExpr):
+    target: IRExpr
+    property: str
 
 
 class IRStmt: ...

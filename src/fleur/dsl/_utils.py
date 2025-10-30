@@ -1,15 +1,25 @@
 import typing
 from typing import Any, Optional, Union, overload
 
-from .ir import IRLiteralBooleanExpr, IRLiteralNumberExpr, IRLiteralStringExpr
+from .ir import (
+    IRLiteralArrayExpr,
+    IRLiteralBooleanExpr,
+    IRLiteralNumberExpr,
+    IRLiteralRecordExpr,
+    IRLiteralStringExpr,
+)
 from .types import (
+    Array,
     Boolean,
     GraineType,
     Number,
+    PyArrayCompat,
     PyBooleanCompat,
     PyGraineCompat,
     PyNumberCompat,
+    PyRecordCompat,
     PyStringCompat,
+    Record,
     String,
 )
 
@@ -26,6 +36,14 @@ def as_literal(value: PyBooleanCompat) -> Boolean[IRLiteralBooleanExpr]: ...  # 
 def as_literal(value: PyNumberCompat) -> Number[IRLiteralNumberExpr]: ...  # pyright: ignore[reportOverlappingOverload]
 
 
+@overload
+def as_literal(value: PyArrayCompat) -> Array[GraineType, IRLiteralArrayExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+
+@overload
+def as_literal(value: PyRecordCompat) -> Record[GraineType, IRLiteralRecordExpr]: ...  # pyright: ignore[reportOverlappingOverload]
+
+
 def as_literal(value: PyGraineCompat) -> GraineType:
     if isinstance(value, GraineType):
         return value
@@ -35,6 +53,12 @@ def as_literal(value: PyGraineCompat) -> GraineType:
         return Number(IRLiteralNumberExpr(value))
     if isinstance(value, str):
         return String(IRLiteralStringExpr(value))
+    if isinstance(value, list):
+        elements = [as_literal(elem)._expr for elem in value]
+        return Array(IRLiteralArrayExpr(elements))
+    if isinstance(value, dict):
+        fields = {key: as_literal(val)._expr for key, val in value.items()}
+        return Record(IRLiteralRecordExpr(fields))
     raise TypeError(f"Unsupported literal type: {type(value)}")
 
 
@@ -44,6 +68,9 @@ def extract_first_grainetype(annotation: Any) -> type[GraineType]:
             return annotation
         origin = typing.get_origin(annotation)
         args = typing.get_args(annotation)
+        # Check if origin is a GraineType (for Generic types like Array[Number])
+        if origin is not None and isinstance(origin, type) and issubclass(origin, GraineType):
+            return origin
         if origin is Union or str(origin) == "types.UnionType":
             for arg in args:
                 res = _dfs(arg)

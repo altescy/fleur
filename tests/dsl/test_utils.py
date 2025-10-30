@@ -58,15 +58,25 @@ class TestAsLiteral:
         result = as_literal(num)  # type: ignore[arg-type]
         assert result is num
 
-    def test_as_literal_unsupported_type(self):
-        """Test that unsupported types raise TypeError."""
-        with pytest.raises(TypeError, match="Unsupported literal type"):
-            as_literal([1, 2, 3])  # type: ignore
+    def test_as_literal_list(self):
+        """Test converting list to Array."""
+        from fleur.dsl.ir import IRLiteralArrayExpr
+        from fleur.dsl.types import Array
 
-    def test_as_literal_dict_raises(self):
-        """Test that dict types raise TypeError."""
-        with pytest.raises(TypeError):
-            as_literal({"key": "value"})  # type: ignore
+        result = as_literal([1, 2, 3])  # type: ignore
+        assert isinstance(result, Array)
+        assert isinstance(result._expr, IRLiteralArrayExpr)
+        assert len(result._expr.elements) == 3
+
+    def test_as_literal_dict(self):
+        """Test converting dict to Record."""
+        from fleur.dsl.ir import IRLiteralRecordExpr
+        from fleur.dsl.types import Record
+
+        result = as_literal({"key": "value"})  # type: ignore
+        assert isinstance(result, Record)
+        assert isinstance(result._expr, IRLiteralRecordExpr)
+        assert "key" in result._expr.fields
 
     def test_as_literal_none_raises(self):
         """Test that None raises TypeError."""

@@ -3,8 +3,7 @@
 import pytest
 from py_mini_racer import MiniRacer
 
-from fleur.dsl import emit_javascript, graine
-from fleur.dsl.runtime import use_block
+from fleur.dsl import graine, parterre
 
 
 class TestJavaScriptExecution:
@@ -17,13 +16,13 @@ class TestJavaScriptExecution:
 
     def test_simple_function(self, ctx):
         """Test executing a simple function."""
-        with use_block() as block:
+        with parterre() as p:
 
             @graine.function
             def add(a: graine.Number, b: graine.Number) -> graine.Number:
                 return a + b
 
-        js_code = emit_javascript(block)
+        js_code = p.germinate()
         ctx.eval(js_code)
 
         result = ctx.call("add", 2, 3)
@@ -31,7 +30,7 @@ class TestJavaScriptExecution:
 
     def test_sum_of_squares(self, ctx):
         """Test sum of squares function."""
-        with use_block() as block:
+        with parterre() as p:
 
             @graine.function
             def sum_of_squares(n: graine.Number) -> graine.Number:
@@ -41,7 +40,7 @@ class TestJavaScriptExecution:
                     total += square
                 return total
 
-        js_code = emit_javascript(block)
+        js_code = p.germinate()
         ctx.eval(js_code)
 
         # 0² + 1² + 2² + 3² + 4² = 0 + 1 + 4 + 9 + 16 = 30
@@ -50,7 +49,7 @@ class TestJavaScriptExecution:
 
     def test_factorial(self, ctx):
         """Test factorial function with loop."""
-        with use_block() as block:
+        with parterre() as p:
 
             @graine.function
             def factorial(n: graine.Number) -> graine.Number:
@@ -59,7 +58,7 @@ class TestJavaScriptExecution:
                     result += result * i
                 return result
 
-        js_code = emit_javascript(block)
+        js_code = p.germinate()
         ctx.eval(js_code)
 
         # Note: This is actually computing a different formula due to +=
@@ -69,7 +68,7 @@ class TestJavaScriptExecution:
 
     def test_conditionals_with_cases(self, ctx):
         """Test conditional logic with cases - returns directly from branches."""
-        with use_block() as block:
+        with parterre() as p:
 
             @graine.function
             def absolute_value(x: graine.Number) -> graine.Number:
@@ -82,7 +81,7 @@ class TestJavaScriptExecution:
                         result += x
                 return result
 
-        js_code = emit_javascript(block)
+        js_code = p.germinate()
         ctx.eval(js_code)
 
         assert ctx.call("absolute_value", -5) == 5
@@ -91,13 +90,13 @@ class TestJavaScriptExecution:
 
     def test_division(self, ctx):
         """Test division operation."""
-        with use_block() as block:
+        with parterre() as p:
 
             @graine.function
             def divide(a: graine.Number, b: graine.Number) -> graine.Number:
                 return a / b
 
-        js_code = emit_javascript(block)
+        js_code = p.germinate()
         ctx.eval(js_code)
 
         result = ctx.call("divide", 10, 2)
@@ -108,7 +107,7 @@ class TestJavaScriptExecution:
 
     def test_comparison_operators(self, ctx):
         """Test all comparison operators."""
-        with use_block() as block:
+        with parterre() as p:
 
             @graine.function
             def max_value(a: graine.Number, b: graine.Number) -> graine.Number:
@@ -120,7 +119,7 @@ class TestJavaScriptExecution:
                         result += b
                 return result
 
-        js_code = emit_javascript(block)
+        js_code = p.germinate()
         ctx.eval(js_code)
 
         # Test max function
@@ -130,7 +129,7 @@ class TestJavaScriptExecution:
 
     def test_nested_loops(self, ctx):
         """Test nested loop execution."""
-        with use_block() as block:
+        with parterre() as p:
 
             @graine.function
             def multiplication_table(n: graine.Number) -> graine.Number:
@@ -141,7 +140,7 @@ class TestJavaScriptExecution:
                         total += product
                 return total
 
-        js_code = emit_javascript(block)
+        js_code = p.germinate()
         ctx.eval(js_code)
 
         # For n=3: sum of all products in 3x3 table
@@ -152,7 +151,7 @@ class TestJavaScriptExecution:
 
     def test_arithmetic_operations(self, ctx):
         """Test all arithmetic operations."""
-        with use_block() as block:
+        with parterre() as p:
 
             @graine.function
             def calculate(a: graine.Number, b: graine.Number) -> graine.Number:
@@ -163,7 +162,7 @@ class TestJavaScriptExecution:
                 # Combine all results
                 return add_result + sub_result + mul_result + div_result
 
-        js_code = emit_javascript(block)
+        js_code = p.germinate()
         ctx.eval(js_code)
 
         # 10 + 2 = 12
