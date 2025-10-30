@@ -1,8 +1,8 @@
 """Tests for standard library components."""
 
 from fleur.dsl.ir import IRIdentifierExpr, IRLiteralNumberExpr
+from fleur.dsl.jit import Cases, Range
 from fleur.dsl.runtime import use_block
-from fleur.dsl.stdlib import Cases, Range
 from fleur.dsl.types import Number
 
 

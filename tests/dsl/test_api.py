@@ -106,7 +106,7 @@ class TestGraineRange:
         """Test range with integer bounds."""
         range_obj = graine.range(0, 10)
 
-        from fleur.dsl.stdlib import Range
+        from fleur.dsl.jit import Range
 
         assert isinstance(range_obj, Range)
 
@@ -116,7 +116,7 @@ class TestGraineRange:
         end = graine.literal(15)
         range_obj = graine.range(start, end)
 
-        from fleur.dsl.stdlib import Range
+        from fleur.dsl.jit import Range
 
         assert isinstance(range_obj, Range)
 
