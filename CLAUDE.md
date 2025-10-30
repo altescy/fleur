@@ -24,12 +24,36 @@ PYTHONPATH=$(PWD) uv run pyright  # Type check only
 make format                  # Auto-format code with ruff
 
 # Testing
-make test                    # Run all tests
-PYTHONPATH=$(PWD) uv run pytest tests/test_version.py  # Run single test file
+make test                    # Run all tests (183 tests)
+uv run pytest tests/dsl/     # Run all DSL module tests
+uv run pytest tests/integration/  # Run integration tests only
+uv run pytest tests/dsl/test_ir.py  # Run single test file
+uv run pytest tests/dsl/test_api.py::TestGraineLiteral -v  # Run specific test class
 
 # Running examples
 uv run python main.py        # Run the main example
 uv run python example.py     # Run the example file
+```
+
+## Test Structure
+
+Tests are organized to mirror the `src/fleur` structure:
+
+```
+tests/
+├── conftest.py              # Root pytest configuration
+├── test_version.py          # Version tests
+├── dsl/                     # Tests for fleur.dsl module
+│   ├── conftest.py          # DSL-specific fixtures
+│   ├── test_api.py          # graine API tests (literal, let, range, function)
+│   ├── test_ir.py           # IR structure tests
+│   ├── test_javascript.py   # JavaScript emission tests
+│   ├── test_runtime.py      # Context management tests
+│   ├── test_stdlib.py       # Standard library tests (Range)
+│   ├── test_types.py        # Type system tests (Number, Boolean, String, Var)
+│   └── test_utils.py        # Utility function tests
+└── integration/             # End-to-end integration tests
+    └── test_e2e.py          # Complete DSL → JavaScript compilation tests
 ```
 
 ## Architecture
