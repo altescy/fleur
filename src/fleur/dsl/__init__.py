@@ -1,5 +1,5 @@
 from contextlib import ExitStack
-from typing import Any, Final, Optional, Union, cast, overload
+from typing import Any, Final, Optional, cast, overload
 
 from typing_extensions import Self, TypeAlias
 
@@ -12,8 +12,15 @@ __all__ = ["graine", "parterre"]
 class graine:
     # Types
     Number: TypeAlias = types.GraineNumber
+    String: TypeAlias = types.GraineString
+    Array: TypeAlias = types.GraineArray
 
     # Type constructors
+    @jit.auto_let
+    @staticmethod
+    def boolean(value: types.PyBooleanCompat) -> types.GraineObject[ast.GraineBooleanNode]:
+        return cast(types.GraineObject[ast.GraineBooleanNode], jit._GraineBuilder(ast.GraineBooleanNode(value=value)))
+
     @jit.auto_let
     @staticmethod
     def number(value: types.PyNumberCompat) -> types.GraineObject[ast.GraineNumberNode]:
@@ -25,9 +32,11 @@ class graine:
         return cast(types.GraineObject[ast.GraineStringNode], jit._GraineBuilder(ast.GraineStringNode(value=value)))
 
     @overload
-    def array(*elements: Union[int, float]) -> types.GraineObject[ast.GraineArrayNode[types.GraineNumberType]]: ...
+    def array(*elements: types.PyBooleanCompat) -> types.GraineObject[ast.GraineArrayNode[types.GraineBooleanType]]: ...  # pyright: ignore[reportOverlappingOverload]
     @overload
-    def array(*elements: str) -> types.GraineObject[ast.GraineArrayNode[types.GraineStringType]]: ...
+    def array(*elements: types.PyNumberCompat) -> types.GraineObject[ast.GraineArrayNode[types.GraineNumberType]]: ...
+    @overload
+    def array(*elements: types.PyStringCompat) -> types.GraineObject[ast.GraineArrayNode[types.GraineStringType]]: ...
     @overload
     def array(*elements: types.GraineNumber) -> types.GraineObject[ast.GraineArrayNode[types.GraineNumberType]]: ...
     @overload
@@ -45,6 +54,9 @@ class graine:
             ),
         )
 
+    @overload
+    @staticmethod
+    def from_python(value: types.PyBooleanCompat) -> types.GraineObject[ast.GraineBooleanNode]: ...  # pyright: ignore[reportOverlappingOverload]
     @overload
     @staticmethod
     def from_python(value: types.PyStringCompat) -> types.GraineObject[ast.GraineStringNode]: ...
@@ -91,7 +103,12 @@ class graine:
 
     # Control flow
     when: Final = staticmethod(stdlib.when)
+    case: Final = staticmethod(stdlib.case)
     foreach: Final = staticmethod(stdlib.foreach)
+
+    # Special operations
+    typeof: Final = staticmethod(stdlib.typeof)
+    instanceof: Final = staticmethod(stdlib.instanceof)
 
     # Standard library
     math: Final = stdlib.math

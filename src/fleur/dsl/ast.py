@@ -3,7 +3,16 @@ from typing import Generic, Literal, Optional, Union
 
 from typing_extensions import TypeVar
 
-from .types import GraineArrayType, GraineClassType, GraineNumberType, GraineStringType, GraineType, GraineUndefinedType
+from .types import (
+    GraineArrayType,
+    GraineBooleanLikeType,
+    GraineBooleanType,
+    GraineClassType,
+    GraineNumberType,
+    GraineStringType,
+    GraineType,
+    GraineUndefinedType,
+)
 
 _GraineTypeS_co = TypeVar("_GraineTypeS_co", bound=GraineType, covariant=True)
 _GraineTypeT_co = TypeVar("_GraineTypeT_co", bound=GraineType, covariant=True, default=GraineType)
@@ -20,6 +29,11 @@ class GraineASTStmt(GraineASTNode): ...
 
 @dataclasses.dataclass
 class GraineUndefinedNode(GraineASTExpr[GraineUndefinedType]): ...
+
+
+@dataclasses.dataclass
+class GraineBooleanNode(GraineASTExpr[GraineBooleanType]):
+    value: bool
 
 
 @dataclasses.dataclass
@@ -68,8 +82,8 @@ class GraineIndexAccessNode(GraineASTExpr[_GraineTypeT_co]):
 
 
 @dataclasses.dataclass
-class GraineIfNode(GraineASTExpr[Union[_GraineTypeS_co, _GraineTypeT_co, GraineUndefinedType]]):
-    condition: GraineASTExpr[Union[GraineNumberType, GraineStringType]]
+class GraineConditionalNode(GraineASTExpr[Union[_GraineTypeS_co, _GraineTypeT_co, GraineUndefinedType]]):
+    condition: GraineASTExpr[GraineBooleanLikeType]
     then_branch: GraineASTExpr[_GraineTypeS_co]
     else_branch: Optional[GraineASTExpr[_GraineTypeT_co]] = None
 
@@ -93,7 +107,7 @@ class GraineAssignNode(GraineASTStmt):
 
 
 @dataclasses.dataclass
-class ReturnNode(GraineASTStmt):
+class GraineReturnNode(GraineASTStmt):
     value: GraineASTExpr
 
 
@@ -135,3 +149,10 @@ class GraineForOfNode(GraineASTStmt):
     variable: GraineIdentifierNode
     iterator: GraineASTExpr[GraineArrayType]
     body: GraineBlockNode = dataclasses.field(default_factory=GraineBlockNode)
+
+
+@dataclasses.dataclass
+class GraineIfNode(GraineASTStmt):
+    condition: GraineASTExpr[GraineBooleanLikeType]
+    then_branch: GraineBlockNode = dataclasses.field(default_factory=GraineBlockNode)
+    else_branch: Optional[GraineBlockNode] = None

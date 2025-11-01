@@ -8,6 +8,7 @@ from .ast import (
     GraineBlockNode,
     GraineCallNode,
     GraineClassNode,
+    GraineConditionalNode,
     GraineConstructionNode,
     GraineForOfNode,
     GraineFunctionNode,
@@ -17,8 +18,8 @@ from .ast import (
     GraineLetNode,
     GraineNumberNode,
     GrainePropertyAccessNode,
+    GraineReturnNode,
     GraineStringNode,
-    ReturnNode,
 )
 
 
@@ -48,7 +49,7 @@ def emit_javascript(*asts: GraineASTNode) -> str:
             return f"{receiver}[{index}]"
         elif isinstance(expr, GraineIdentifierNode):
             return expr.name
-        elif isinstance(expr, GraineIfNode):
+        elif isinstance(expr, GraineConditionalNode):
             condition = e(expr.condition)
             then_branch = e(expr.then_branch)
             if expr.else_branch:
@@ -71,7 +72,7 @@ def emit_javascript(*asts: GraineASTNode) -> str:
             identifier = e(stmt.identifier)
             value = e(stmt.value)
             return f"{indent}{identifier} = {value};"
-        elif isinstance(stmt, ReturnNode):
+        elif isinstance(stmt, GraineReturnNode):
             value = e(stmt.value)
             return f"{indent}return {value};"
         elif isinstance(stmt, GraineBlockNode):
@@ -86,13 +87,13 @@ def emit_javascript(*asts: GraineASTNode) -> str:
                 constructor = stmt.constructor
                 params = ", ".join(param.name for param in constructor.parameters)
                 body = s(constructor.body, indent + "    ")
-                methods.append(f"{indent}  constructor({params}) {{\n{body}\n  }}")
+                methods.append(f"{indent}  constructor({params}) {{\n{body}\n  {indent}}}")
             for method in stmt.methods:
                 func = method.function
                 params = ", ".join(param.name for param in func.parameters)
                 body = s(func.body, indent + "    ")
                 accessor_str = f"{method.accessor} " if method.accessor else ""
-                methods.append(f"{indent}  {accessor_str}{method.name}({params}) {{\n{body}\n  }}")
+                methods.append(f"{indent}  {accessor_str}{method.name}({params}) {{\n{body}\n  {indent}}}")
             methods_str = "\n".join(methods)
             return f"{indent}class {stmt.name} {{\n{methods_str}\n{indent}}}"
         elif isinstance(stmt, GraineForOfNode):
@@ -100,6 +101,14 @@ def emit_javascript(*asts: GraineASTNode) -> str:
             iterator = e(stmt.iterator)
             body = s(stmt.body, indent + "  ")
             return f"{indent}for (let {variable} of {iterator}) {{\n{body}\n{indent}}}"
+        elif isinstance(stmt, GraineIfNode):
+            condition = e(stmt.condition)
+            then_branch = s(stmt.then_branch, indent + "  ")
+            result = f"{indent}if ({condition}) {{\n{then_branch}\n{indent}}}"
+            if stmt.else_branch:
+                else_branch = s(stmt.else_branch, indent + "  ")
+                result += f" else {{\n{else_branch}\n{indent}}}"
+            return result
         else:
             raise NotImplementedError(f"Unsupported statement type: {type(stmt)}")
 

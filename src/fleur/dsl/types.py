@@ -7,36 +7,41 @@ from typing_extensions import TypeAlias, TypeVar
 if TYPE_CHECKING:
     from .ast import GraineArrayNode, GraineASTExpr, GraineBinaryOpNode
 
+PyBooleanCompat: TypeAlias = bool
 PyNumberCompat: TypeAlias = Union[int, float]
 PyStringCompat: TypeAlias = str
 PyArrayCompat: TypeAlias = list[Any]
-PyGraineCompat: TypeAlias = Union[PyNumberCompat, PyStringCompat, PyArrayCompat]
+PyGraineCompat: TypeAlias = Union[PyBooleanCompat, PyNumberCompat, PyStringCompat, PyArrayCompat]
 
 PyClassT = TypeVar("PyClassT", bound=type)
 PyCallableT = TypeVar("PyCallableT", bound=Callable[..., Any])
 
 
 class GraineType(enum.Enum):
-    UNDEFINED = "UNDEFINED"
-    NUMBER = "NUMBER"
-    STRING = "STRING"
-    ARRAY = "ARRAY"
-    FUNCTION = "FUNCTION"
-    CLASS = "CLASS"
+    UNDEFINED = "undefined"
+    BOOLEAN = "boolean"
+    NUMBER = "number"
+    STRING = "string"
+    ARRAY = "array"
+    FUNCTION = "function"
+    CLASS = "class"
 
 
 GraineUndefinedType: TypeAlias = Literal[GraineType.UNDEFINED]
+GraineBooleanType: TypeAlias = Literal[GraineType.BOOLEAN]
 GraineNumberType: TypeAlias = Literal[GraineType.NUMBER]
 GraineStringType: TypeAlias = Literal[GraineType.STRING]
 GraineArrayType: TypeAlias = Literal[GraineType.ARRAY]
 GraineFunctionType: TypeAlias = Literal[GraineType.FUNCTION]
 GraineClassType: TypeAlias = Literal[GraineType.CLASS]
-GraineBooleanLikeType: TypeAlias = Union[GraineNumberType, GraineStringType]
+GraineBooleanLikeType: TypeAlias = Union[GraineUndefinedType, GraineBooleanType, GraineNumberType, GraineStringType]
 
 GraineTypeS = TypeVar("GraineTypeS", bound="GraineType")
 GraineTypeT = TypeVar("GraineTypeT", bound="GraineType")
+GraineTypeU = TypeVar("GraineTypeU", bound="GraineType")
 GraineTypeS_co = TypeVar("GraineTypeS_co", bound="GraineType", covariant=True)
 GraineTypeT_co = TypeVar("GraineTypeT_co", bound="GraineType", covariant=True)
+GraineTypeU_co = TypeVar("GraineTypeU_co", bound="GraineType", covariant=True)
 
 GraineASTExprT = TypeVar("GraineASTExprT", bound="GraineASTExpr")
 GraineASTExprT_co = TypeVar("GraineASTExprT_co", bound="GraineASTExpr", covariant=True)
@@ -44,6 +49,11 @@ GraineASTExprT_co = TypeVar("GraineASTExprT_co", bound="GraineASTExpr", covarian
 
 class GraineObject(Generic[GraineASTExprT_co]):
     __graine_ast__: GraineASTExprT_co
+
+    def __eq__(  # pyright: ignore[reportIncompatibleMethodOverride]
+        self,
+        other: Union[PyGraineCompat, "GraineObject[GraineASTExpr]"],
+    ) -> "GraineObject[GraineBinaryOpNode[GraineBooleanType]]": ...
 
     @overload
     def __add__(
@@ -87,7 +97,13 @@ class GraineObject(Generic[GraineASTExprT_co]):
         self: "GraineObject[GraineASTExpr[Union[GraineStringType, GraineArrayType]]]",
     ) -> "GraineObject[GraineASTExpr[GraineNumberType]]": ...
 
+    def push(
+        self: "GraineObject[GraineArrayNode[GraineTypeT]]",
+        value: "GraineObject[GraineASTExpr[GraineTypeT]]",
+    ) -> None: ...
 
+
+GraineBoolean: TypeAlias = GraineObject["GraineASTExpr[GraineBooleanType]"]
 GraineNumber: TypeAlias = GraineObject["GraineASTExpr[GraineNumberType]"]
 GraineString: TypeAlias = GraineObject["GraineASTExpr[GraineStringType]"]
 GraineArray: TypeAlias = GraineObject["GraineASTExpr[GraineArrayType]"]
