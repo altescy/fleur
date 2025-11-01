@@ -23,6 +23,7 @@ from .ast import (
     GraineMethodNode,
     GraineNumberNode,
     GrainePropertyAccessNode,
+    GraineRecordNode,
     GraineReturnNode,
     GraineStringNode,
 )
@@ -67,6 +68,8 @@ def ensure_graine(value: list[str]) -> "GraineObject[GraineArrayNode[GraineStrin
 def ensure_graine(value: list[Union[int, float]]) -> "GraineObject[GraineArrayNode[GraineNumberType]]": ...
 @overload
 def ensure_graine(value: list[Any]) -> "GraineObject[GraineArrayNode[GraineType]]": ...
+@overload
+def ensure_graine(value: dict[str, Any]) -> "GraineObject[GraineRecordNode]": ...
 @overload
 def ensure_graine(value: GraineObjectT) -> GraineObjectT: ...
 

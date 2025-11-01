@@ -18,6 +18,7 @@ from .ast import (
     GraineLetNode,
     GraineNumberNode,
     GrainePropertyAccessNode,
+    GraineRecordNode,
     GraineReturnNode,
     GraineStringNode,
 )
@@ -32,6 +33,9 @@ def emit_javascript(*asts: GraineASTNode) -> str:
         elif isinstance(expr, GraineArrayNode):
             elements = ", ".join(e(elem) for elem in expr.elements)
             return f"[{elements}]"
+        elif isinstance(expr, GraineRecordNode):
+            fields = ", ".join(f"{key}: {e(value)}" for key, value in expr.fields.items())
+            return f"{{{fields}}}"
         elif isinstance(expr, GraineBinaryOpNode):
             left = e(expr.left)
             right = e(expr.right)

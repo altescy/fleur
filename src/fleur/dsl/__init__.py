@@ -14,6 +14,7 @@ class graine:
     Number: TypeAlias = types.GraineNumber
     String: TypeAlias = types.GraineString
     Array: TypeAlias = types.GraineArray
+    Record: TypeAlias = types.GraineRecord
 
     # Type constructors
     @jit.auto_let
@@ -54,6 +55,18 @@ class graine:
             ),
         )
 
+    @jit.auto_let
+    @staticmethod
+    def record(**fields: Any) -> types.GraineObject[ast.GraineRecordNode]:
+        return cast(
+            types.GraineObject[ast.GraineRecordNode],
+            jit._GraineBuilder(
+                ast=ast.GraineRecordNode(
+                    fields={key: jit.ensure_graine(val).__graine_ast__ for key, val in fields.items()}
+                )
+            ),
+        )
+
     @overload
     @staticmethod
     def from_python(value: types.PyBooleanCompat) -> types.GraineObject[ast.GraineBooleanNode]: ...  # pyright: ignore[reportOverlappingOverload]
@@ -76,6 +89,9 @@ class graine:
     @overload
     @staticmethod
     def from_python(value: list[Any]) -> types.GraineObject[ast.GraineArrayNode[types.GraineType]]: ...
+    @overload
+    @staticmethod
+    def from_python(value: dict[str, Any]) -> types.GraineObject[ast.GraineRecordNode]: ...
 
     @jit.auto_let
     @staticmethod
@@ -86,6 +102,8 @@ class graine:
             return graine.number(float(value))
         elif isinstance(value, list):
             return graine.array(value)
+        elif isinstance(value, dict):
+            return graine.record(**value)
         else:
             raise TypeError(f"Unsupported type for from_python: {type(value)}")
 

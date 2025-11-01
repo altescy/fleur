@@ -9,6 +9,7 @@ from .types import (
     GraineBooleanType,
     GraineClassType,
     GraineNumberType,
+    GraineRecordType,
     GraineStringType,
     GraineType,
     GraineUndefinedType,
@@ -49,6 +50,11 @@ class GraineStringNode(GraineASTExpr[GraineStringType]):
 @dataclasses.dataclass
 class GraineArrayNode(GraineASTExpr[GraineArrayType], Generic[_GraineTypeT_co]):
     elements: list[GraineASTExpr[_GraineTypeT_co]] = dataclasses.field(default_factory=list)
+
+
+@dataclasses.dataclass
+class GraineRecordNode(GraineASTExpr[GraineRecordType], Generic[_GraineTypeT_co]):
+    fields: dict[str, GraineASTExpr[_GraineTypeT_co]] = dataclasses.field(default_factory=dict)
 
 
 @dataclasses.dataclass

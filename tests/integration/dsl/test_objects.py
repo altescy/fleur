@@ -94,6 +94,68 @@ class TestGraineArrayIntegration:
         assert result == 3
 
 
+class TestGraineRecordIntegration:
+    """Integration tests for Record type."""
+
+    @staticmethod
+    def test_record_creation(jsctx: MiniRacer):
+        """Test creation of a Graine record."""
+        with parterre() as p:
+
+            @graine.func
+            def get_record():
+                return graine.record(name=graine.string("Alice"), age=graine.number(30))
+
+        js_code = p.germinate()
+        jsctx.eval(js_code)
+        result = jsctx.call("get_record")
+        assert result == {"name": "Alice", "age": 30}
+
+    @staticmethod
+    def test_record_property_access(jsctx: MiniRacer):
+        """Test property access on a Graine record."""
+        with parterre() as p:
+
+            @graine.func
+            def get_name():
+                rec = graine.record(name=graine.string("Bob"), age=graine.number(25))
+                return rec.name
+
+        js_code = p.germinate()
+        jsctx.eval(js_code)
+        result = jsctx.call("get_name")
+        assert result == "Bob"
+
+    @staticmethod
+    def test_record_property_access_by_indexing(jsctx: MiniRacer):
+        """Test property access on a Graine record."""
+        with parterre() as p:
+
+            @graine.func
+            def get_name():
+                rec = graine.record(name=graine.string("Bob"), age=graine.number(25))
+                return rec["name"]
+
+        js_code = p.germinate()
+        jsctx.eval(js_code)
+        result = jsctx.call("get_name")
+        assert result == "Bob"
+
+    @staticmethod
+    def test_record_from_python(jsctx: MiniRacer):
+        """Test creation of a Graine record from Python dict."""
+        with parterre() as p:
+
+            @graine.func
+            def get_record():
+                return graine.from_python({"x": 100, "y": 200})
+
+        js_code = p.germinate()
+        jsctx.eval(js_code)
+        result = jsctx.call("get_record")
+        assert result == {"x": 100, "y": 200}
+
+
 class TestGraineClassIntegration:
     """Integration tests for Graine classes."""
 
@@ -120,3 +182,37 @@ class TestGraineClassIntegration:
         jsctx.eval(js_code)
         result = jsctx.call("create_point_and_get_coordinates")
         assert result == [10, 20]
+
+    def test_class_with_getter_and_setter(self, jsctx: MiniRacer):
+        """Test Graine class with getter and setter."""
+
+        with parterre() as p:
+
+            @graine.cls
+            class Counter:
+                def __init__(self):
+                    self._count = graine.number(0)
+
+                @property
+                def count(self) -> types.GraineNumber:
+                    return self._count
+
+                @count.setter
+                def count(self, value: types.GraineNumber):
+                    self._count = value
+
+                def increment(self):
+                    self.count = self.count + graine.number(1)
+
+            @graine.func
+            def use_counter():
+                counter = Counter()
+                counter.count = graine.number(10)
+                counter.increment()
+                counter.increment()
+                return counter.count
+
+        js_code = p.germinate()
+        jsctx.eval(js_code)
+        result = jsctx.call("use_counter")
+        assert result == 12
