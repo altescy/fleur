@@ -20,17 +20,17 @@ class graine:
     @jit.auto_let
     @staticmethod
     def boolean(value: types.PyBooleanCompat) -> types.GraineObject[ast.GraineBooleanNode]:
-        return cast(types.GraineObject[ast.GraineBooleanNode], jit._GraineBuilder(ast.GraineBooleanNode(value=value)))
+        return jit.boolean(value)
 
     @jit.auto_let
     @staticmethod
     def number(value: types.PyNumberCompat) -> types.GraineObject[ast.GraineNumberNode]:
-        return cast(types.GraineObject[ast.GraineNumberNode], jit._GraineBuilder(ast.GraineNumberNode(value=value)))
+        return jit.number(value)
 
     @jit.auto_let
     @staticmethod
     def string(value: types.PyStringCompat) -> types.GraineObject[ast.GraineStringNode]:
-        return cast(types.GraineObject[ast.GraineStringNode], jit._GraineBuilder(ast.GraineStringNode(value=value)))
+        return jit.string(value)
 
     @overload
     def array(*elements: types.PyBooleanCompat) -> types.GraineObject[ast.GraineArrayNode[types.GraineBooleanType]]: ...  # pyright: ignore[reportOverlappingOverload]
@@ -48,24 +48,12 @@ class graine:
     @jit.auto_let
     @staticmethod
     def array(*elements: Any) -> types.GraineObject[ast.GraineArrayNode[types.GraineType]]:
-        return cast(
-            types.GraineObject[ast.GraineArrayNode[types.GraineType]],
-            jit._GraineBuilder(
-                ast=ast.GraineArrayNode(elements=[jit.ensure_graine(elem).__graine_ast__ for elem in elements])
-            ),
-        )
+        return jit.array(*elements)
 
     @jit.auto_let
     @staticmethod
-    def record(**fields: Any) -> types.GraineObject[ast.GraineRecordNode]:
-        return cast(
-            types.GraineObject[ast.GraineRecordNode],
-            jit._GraineBuilder(
-                ast=ast.GraineRecordNode(
-                    fields={key: jit.ensure_graine(val).__graine_ast__ for key, val in fields.items()}
-                )
-            ),
-        )
+    def record(**fields: Any) -> types.GraineObject[ast.GraineASTExpr[types.GraineRecordType]]:
+        return jit.record(**fields)
 
     @overload
     @staticmethod
@@ -93,19 +81,9 @@ class graine:
     @staticmethod
     def from_python(value: dict[str, Any]) -> types.GraineObject[ast.GraineRecordNode]: ...
 
-    @jit.auto_let
     @staticmethod
     def from_python(value: types.PyGraineCompat) -> types.GraineObject:
-        if isinstance(value, str):
-            return graine.string(value)
-        elif isinstance(value, (int, float)):
-            return graine.number(float(value))
-        elif isinstance(value, list):
-            return graine.array(value)
-        elif isinstance(value, dict):
-            return graine.record(**value)
-        else:
-            raise TypeError(f"Unsupported type for from_python: {type(value)}")
+        return jit.from_python(value)
 
     @staticmethod
     def func(fn: types.PyCallableT) -> types.PyCallableT:
@@ -129,7 +107,19 @@ class graine:
     instanceof: Final = staticmethod(stdlib.instanceof)
 
     # Standard library
-    math: Final = stdlib.math
+    math: Final = stdlib.Math
+    json: Final = stdlib.JSON
+
+    # Global Types
+    Document: TypeAlias = stdlib.Document
+    Element: TypeAlias = stdlib.Element
+    Event: TypeAlias = stdlib.Event
+    EventTarget: TypeAlias = stdlib.EventTarget
+    Node: TypeAlias = stdlib.Node
+    Object: TypeAlias = stdlib.Object
+
+    # Global Objects
+    document: Final = jit.as_interface("document")(Document)
 
 
 class parterre:

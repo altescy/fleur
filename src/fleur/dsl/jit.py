@@ -13,6 +13,8 @@ from .ast import (
     GraineASTExpr,
     GraineBinaryOpNode,
     GraineBlockNode,
+    GraineBooleanNode,
+    GraineBooleanType,
     GraineCallNode,
     GraineClassNode,
     GraineConstructionNode,
@@ -28,14 +30,20 @@ from .ast import (
     GraineStringNode,
 )
 from .types import (
+    GraineNumber,
     GraineNumberType,
     GraineObject,
     GraineObjectT,
+    GraineString,
     GraineStringType,
     GraineType,
     GraineTypeT,
+    PyBooleanCompat,
     PyCallableT,
     PyGraineCompat,
+    PyNumberCompat,
+    PyRecordCompat,
+    PyStringCompat,
 )
 
 _T = TypeVar("_T")
@@ -58,30 +66,6 @@ def require_block() -> GraineBlockNode:
     return _BLOCK.get()
 
 
-@overload
-def ensure_graine(value: Union[int, float]) -> "GraineObject[GraineNumberNode]": ...
-@overload
-def ensure_graine(value: str) -> "GraineObject[GraineStringNode]": ...
-@overload
-def ensure_graine(value: list[str]) -> "GraineObject[GraineArrayNode[GraineStringType]]": ...
-@overload
-def ensure_graine(value: list[Union[int, float]]) -> "GraineObject[GraineArrayNode[GraineNumberType]]": ...
-@overload
-def ensure_graine(value: list[Any]) -> "GraineObject[GraineArrayNode[GraineType]]": ...
-@overload
-def ensure_graine(value: dict[str, Any]) -> "GraineObject[GraineRecordNode]": ...
-@overload
-def ensure_graine(value: GraineObjectT) -> GraineObjectT: ...
-
-
-def ensure_graine(value: Union[PyGraineCompat, GraineObjectT]) -> Union["GraineObject", GraineObjectT]:
-    from .. import graine
-
-    if isinstance(value, _GraineBuilder):
-        return cast(GraineObjectT, value)
-    return graine.from_python(cast(PyGraineCompat, value))
-
-
 def auto_let(
     fn: Callable[_P, "GraineObject[GraineASTExpr[GraineTypeT]]"],
 ) -> Callable[_P, "GraineObject[GraineIdentifierNode[GraineTypeT]]"]:
@@ -102,9 +86,27 @@ def auto_let(
     return wrapper
 
 
-def as_identifier(obj: PyCallableT) -> PyCallableT:
-    identifier = GraineIdentifierNode(name=obj.__name__)
-    return cast(PyCallableT, _GraineBuilder(identifier))
+@overload
+def as_interface(obj_or_name: str) -> Callable[[PyCallableT], PyCallableT]: ...
+@overload
+def as_interface(obj_or_name: PyCallableT) -> PyCallableT: ...
+
+
+def as_interface(obj_or_name: Union[str, PyCallableT]) -> Union[PyCallableT, Callable[[PyCallableT], PyCallableT]]:
+    def decorator(fn: PyCallableT) -> PyCallableT:
+        assert isinstance(obj_or_name, str)
+        identifier = GraineIdentifierNode(name=obj_or_name)
+        if isinstance(obj_or_name, type):
+            return cast(PyCallableT, _GraineClassFacade(identifier))
+        return cast(PyCallableT, _GraineBuilder(identifier))
+
+    if isinstance(obj_or_name, str):
+        return decorator
+
+    obj = obj_or_name
+    obj_or_name = obj.__name__
+
+    return decorator(obj)
 
 
 def as_decorator(fn: Callable[Concatenate[PyCallableT, _P], _T]) -> Callable[_P, Callable[[PyCallableT], _T]]:
@@ -114,6 +116,105 @@ def as_decorator(fn: Callable[Concatenate[PyCallableT, _P], _T]) -> Callable[_P,
 #
 # Object System
 #
+
+
+@overload
+def from_python(value: PyBooleanCompat) -> GraineObject[GraineBooleanNode]: ...  # pyright: ignore[reportOverlappingOverload]
+@overload
+def from_python(value: PyStringCompat) -> GraineObject[GraineStringNode]: ...
+@overload
+def from_python(value: PyNumberCompat) -> GraineObject[GraineNumberNode]: ...
+@overload
+def from_python(
+    value: list[PyStringCompat],
+) -> GraineObject[GraineArrayNode[GraineStringType]]: ...
+@overload
+def from_python(
+    value: list[PyNumberCompat],
+) -> GraineObject[GraineArrayNode[GraineNumberType]]: ...
+@overload
+def from_python(value: list[Any]) -> GraineObject[GraineArrayNode[GraineType]]: ...
+@overload
+def from_python(value: dict[str, Any]) -> GraineObject[GraineRecordNode]: ...
+
+
+def boolean(value: PyBooleanCompat) -> GraineObject[GraineBooleanNode]:
+    return cast(GraineObject[GraineBooleanNode], _GraineBuilder(GraineBooleanNode(value=value)))
+
+
+def number(value: PyNumberCompat) -> GraineObject[GraineNumberNode]:
+    return cast(GraineObject[GraineNumberNode], _GraineBuilder(GraineNumberNode(value=value)))
+
+
+def string(value: PyStringCompat) -> GraineObject[GraineStringNode]:
+    return cast(GraineObject[GraineStringNode], _GraineBuilder(GraineStringNode(value=value)))
+
+
+@overload
+def array(*elements: PyBooleanCompat) -> GraineObject[GraineArrayNode[GraineBooleanType]]: ...  # pyright: ignore[reportOverlappingOverload]
+@overload
+def array(*elements: PyNumberCompat) -> GraineObject[GraineArrayNode[GraineNumberType]]: ...
+@overload
+def array(*elements: PyStringCompat) -> GraineObject[GraineArrayNode[GraineStringType]]: ...
+@overload
+def array(*elements: GraineNumber) -> GraineObject[GraineArrayNode[GraineNumberType]]: ...
+@overload
+def array(*elements: GraineString) -> GraineObject[GraineArrayNode[GraineStringType]]: ...
+@overload
+def array(*elements: Any) -> GraineObject[GraineArrayNode[GraineType]]: ...
+
+
+def array(*elements: Any) -> GraineObject[GraineArrayNode[GraineType]]:
+    return cast(
+        GraineObject[GraineArrayNode[GraineType]],
+        _GraineBuilder(ast=GraineArrayNode(elements=[ensure_graine(elem).__graine_ast__ for elem in elements])),
+    )
+
+
+def record(**fields: Any) -> GraineObject[GraineRecordNode]:
+    return cast(
+        GraineObject[GraineRecordNode],
+        _GraineBuilder(
+            ast=GraineRecordNode(fields={key: ensure_graine(val).__graine_ast__ for key, val in fields.items()})
+        ),
+    )
+
+
+@auto_let
+@staticmethod
+def from_python(value: PyGraineCompat) -> GraineObject:
+    if isinstance(value, str):
+        return string(value)
+    elif isinstance(value, (int, float)):
+        return number(float(value))
+    elif isinstance(value, list):
+        return array(value)
+    elif isinstance(value, dict):
+        return record(**value)
+    else:
+        raise TypeError(f"Unsupported type for from_python: {type(value)}")
+
+
+@overload
+def ensure_graine(value: PyNumberCompat) -> "GraineObject[GraineNumberNode]": ...
+@overload
+def ensure_graine(value: PyStringCompat) -> "GraineObject[GraineStringNode]": ...
+@overload
+def ensure_graine(value: list[PyStringCompat]) -> "GraineObject[GraineArrayNode[GraineStringType]]": ...
+@overload
+def ensure_graine(value: list[PyNumberCompat]) -> "GraineObject[GraineArrayNode[GraineNumberType]]": ...
+@overload
+def ensure_graine(value: list[Any]) -> "GraineObject[GraineArrayNode[GraineType]]": ...
+@overload
+def ensure_graine(value: PyRecordCompat) -> "GraineObject[GraineRecordNode]": ...
+@overload
+def ensure_graine(value: GraineObjectT) -> GraineObjectT: ...
+
+
+def ensure_graine(value: Union[PyGraineCompat, GraineObjectT]) -> Union["GraineObject", GraineObjectT]:
+    if isinstance(value, _GraineBuilder):
+        return cast(GraineObjectT, value)
+    return from_python(cast(PyGraineCompat, value))
 
 
 def _function_from_python(fn: Callable[..., Any]) -> GraineFunctionNode:
@@ -274,7 +375,7 @@ class _GraineBuilder:
 
 
 class _GraineClassFacade(_GraineBuilder):
-    def __init__(self, ast: GraineClassNode) -> None:
+    def __init__(self, ast: Union[GraineIdentifierNode, GraineClassNode]) -> None:
         self.__graine_ast__ = GraineIdentifierNode(name=ast.name)
 
     @auto_let

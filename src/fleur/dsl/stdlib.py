@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from typing import Final, Optional, Union, cast
+from typing import TYPE_CHECKING, Optional, Union, cast
 
 from .ast import (
     GraineASTExpr,
@@ -9,14 +9,15 @@ from .ast import (
     GraineForOfNode,
     GraineIdentifierNode,
     GraineIfNode,
-    GrainePropertyAccessNode,
     GraineReturnNode,
+    GraineUndefinedNode,
 )
-from .jit import _GraineBuilder, auto_let, ensure_graine, require_block, use_block
+from .jit import _GraineBuilder, as_interface, auto_let, require_block, use_block
 from .types import (
     GraineArrayType,
     GraineBooleanLikeType,
     GraineBooleanType,
+    GraineFunctionType,
     GraineNumberType,
     GraineObject,
     GraineStringType,
@@ -73,7 +74,6 @@ def instanceof(
     instance: GraineObject[GraineASTExpr[GraineTypeT]],
     cls: Union[type, GraineObject[GraineIdentifierNode]],
 ) -> GraineObject[GraineBinaryOpNode[GraineBooleanType]]:
-    assert isinstance(cls, _GraineBuilder)
     cls_ast = cls.__graine_ast__
     return cast(
         GraineObject[GraineBinaryOpNode[GraineBooleanType]],
@@ -123,20 +123,162 @@ def foreach(
     return decorator
 
 
-class math:
-    _MATH_MODULE: Final = GraineIdentifierNode(name="Math")
+class Object(GraineObject):
+    def __init__(self) -> None: ...
 
-    @auto_let
+    @staticmethod
+    def getPrototypeOf(obj: GraineObject, /) -> GraineObject: ...
+
+
+@as_interface
+class Math(GraineObject):
     @staticmethod
     def sqrt(
         value: Union[PyNumberCompat, GraineObject[GraineASTExpr[GraineNumberType]]],
-    ) -> GraineObject[GraineASTExpr[GraineNumberType]]:
-        value = ensure_graine(value)
-        call_node = GraineCallNode(
-            function=GrainePropertyAccessNode(
-                property_name="sqrt",
-                receiver=math._MATH_MODULE,
-            ),
-            arguments=[value.__graine_ast__],
-        )
-        return cast(GraineObject[GraineASTExpr[GraineNumberType]], _GraineBuilder(call_node))
+    ) -> GraineObject[GraineASTExpr[GraineNumberType]]: ...
+
+
+@as_interface
+class JSON(GraineObject):
+    @staticmethod
+    def parse(
+        text: Union[str, GraineObject[GraineASTExpr[GraineStringType]]],
+    ) -> GraineObject[GraineASTExpr[GraineType]]: ...
+
+    @staticmethod
+    def stringify(
+        value: GraineObject[GraineASTExpr[GraineType]],
+    ) -> GraineObject[GraineASTExpr[GraineStringType]]: ...
+
+
+class Event(_GraineBuilder):
+    __graine_ast__ = GraineIdentifierNode(name="Event")
+
+    if TYPE_CHECKING:
+
+        def __init__(self) -> None: ...
+
+        @property
+        def target(self) -> "EventTarget": ...
+
+        @property
+        def type(self) -> GraineObject[GraineASTExpr[GraineStringType]]: ...
+
+
+class EventTarget(_GraineBuilder):
+    def __init__(self) -> None:
+        self.__graine_ast__ = GraineIdentifierNode(name="EventTarget")
+
+    if TYPE_CHECKING:
+
+        def __init__(self) -> None: ...
+
+        def addEventListener(
+            self,
+            type: Union[str, GraineObject],
+            listener: GraineObject[GraineASTExpr[GraineFunctionType]],
+            options: Optional[GraineObject] = None,
+        ) -> GraineObject[GraineUndefinedNode]: ...
+
+        def dispatchEvent(
+            self,
+            event: Event,
+        ) -> GraineObject[GraineASTExpr[GraineBooleanType]]: ...
+
+        def removeEventListener(
+            self,
+            type: Union[str, GraineObject],
+            listener: GraineObject[GraineASTExpr[GraineFunctionType]],
+            options: Optional[GraineObject] = None,
+        ) -> GraineObject[GraineUndefinedNode]: ...
+
+
+class Node(EventTarget):
+    __graine_ast__ = GraineIdentifierNode(name="Node")
+
+    if TYPE_CHECKING:
+
+        @staticmethod
+        def setAttribute(
+            name: Union[str, GraineObject[GraineASTExpr[GraineStringType]]],
+            value: Union[str, GraineObject[GraineASTExpr[GraineStringType]]],
+        ) -> None: ...
+
+        @staticmethod
+        def getAttribute(
+            name: Union[str, GraineObject[GraineASTExpr[GraineStringType]]],
+        ) -> GraineObject[GraineASTExpr[GraineStringType]]: ...
+
+
+class Element(Node):
+    __graine_ast__ = GraineIdentifierNode(name="Element")
+
+    if TYPE_CHECKING:
+
+        def __init__(self) -> None: ...
+
+        @staticmethod
+        def appendChild(
+            child: "Node",
+        ) -> GraineObject[GraineASTExpr[GraineType]]: ...
+
+        @staticmethod
+        def replaceWith(*nodes: "Node") -> GraineObject[GraineUndefinedNode]: ...
+
+
+class CharacterData(Node):
+    __graine_ast__ = GraineIdentifierNode(name="CharacterData")
+
+    if TYPE_CHECKING:
+
+        def __init__(
+            self,
+            text: Union[
+                GraineObject[GraineASTExpr[GraineUndefinedType]],
+                GraineObject[GraineASTExpr[GraineStringType]],
+            ] = GraineObject[GraineUndefinedNode](),
+        ) -> None: ...
+
+        @property
+        def data(self) -> GraineObject[GraineASTExpr[GraineStringType]]: ...
+
+        @data.setter
+        def data(
+            self,
+            value: Union[str, GraineObject[GraineASTExpr[GraineStringType]]],
+        ) -> None: ...
+
+
+class Text(CharacterData):
+    __graine_ast__ = GraineIdentifierNode(name="Text")
+
+
+class Document(Node):
+    __graine_ast__ = GraineIdentifierNode(name="Document")
+
+    if TYPE_CHECKING:
+
+        def __init__(self) -> None: ...
+
+        @property
+        def activeElement(self) -> GraineObject[GraineASTExpr[GraineType]]: ...
+
+        @staticmethod
+        def createTextNode(
+            data: GraineObject[GraineASTExpr[GraineStringType]],
+        ) -> "Text": ...
+
+        @staticmethod
+        def getElementById(
+            element_id: Union[str, GraineObject[GraineASTExpr[GraineStringType]]],
+        ) -> GraineObject[GraineASTExpr[GraineType]]: ...
+
+        @staticmethod
+        def getElementsByClassName(
+            class_name: Union[str, GraineObject[GraineASTExpr[GraineStringType]]],
+        ) -> GraineObject[GraineASTExpr[GraineArrayType]]: ...
+
+        @staticmethod
+        def createElement(
+            tag_name: Union[str, GraineObject[GraineASTExpr[GraineStringType]]],
+        ) -> GraineObject[GraineASTExpr[GraineType]]: ...

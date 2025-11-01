@@ -29,7 +29,15 @@ def emit_javascript(*asts: GraineASTNode) -> str:
         if isinstance(expr, GraineNumberNode):
             return str(expr.value)
         elif isinstance(expr, GraineStringNode):
-            return f'"{expr.value}"'
+            # Escape backslashes, double quotes, and newlines
+            escaped = (
+                expr.value.replace("\\", "\\\\")
+                .replace('"', '\\"')
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t")
+            )
+            return f'"{escaped}"'
         elif isinstance(expr, GraineArrayNode):
             elements = ", ".join(e(elem) for elem in expr.elements)
             return f"[{elements}]"
