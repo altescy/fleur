@@ -18,11 +18,13 @@ class TestBlockManagement:
         """Test that use_block restores the previous block."""
         # This tests the context management behavior
         with jit.use_block() as block1:
-            block1.emit(
+            jit.emit_statement(
+                block1,
                 ast.GraineLetNode(identifier=ast.GraineIdentifierNode(name="x"), value=ast.GraineNumberNode(value=1.0))
             )
             with jit.use_block() as block2:
-                block2.emit(
+                jit.emit_statement(
+                    block2,
                     ast.GraineLetNode(
                         identifier=ast.GraineIdentifierNode(name="y"), value=ast.GraineNumberNode(value=2.0)
                     )

@@ -24,6 +24,7 @@ from typing_extensions import Concatenate, ParamSpec, TypeVar
 
 from .ast import (
     GraineArrayNode,
+    GraineASTStmt,
     GraineAssignNode,
     GraineBinaryOpNode,
     GraineBlockNode,
@@ -66,6 +67,7 @@ _T = TypeVar("_T")
 _P = ParamSpec("_P")
 
 _BLOCK = ContextVar[GraineBlockNode]("FLEUR_BLOCK", default=GraineBlockNode())
+_IDENTIFIER_COUNTER = ContextVar[int]("FLEUR_ID_COUNTER", default=0)
 
 
 @contextmanager
@@ -112,6 +114,46 @@ def require_block() -> GraineBlockNode:
         ) from e
 
 
+def emit_statement(block: GraineBlockNode, *statements: GraineASTStmt) -> None:
+    """
+    Emit statements to a block.
+
+    This function adds one or more statements to the given block.
+
+    Args:
+        block: The block to emit statements to
+        *statements: Statements to add to the block
+
+    Example:
+        block = GraineBlockNode()
+        emit_statement(block, GraineLetNode(...))
+    """
+    block.statements.extend(statements)
+
+
+def new_identifier(prefix: str = "_v_") -> GraineIdentifierNode:
+    """
+    Generate a unique identifier using a global counter.
+
+    This ensures that all identifiers are unique across the entire code generation
+    context, preventing variable name collisions even in nested scopes.
+
+    Args:
+        prefix: Prefix for the generated identifier name (default: "_v_")
+
+    Returns:
+        A new identifier node with a unique name
+
+    Example:
+        id1 = new_identifier()  # Creates "_v_0"
+        id2 = new_identifier()  # Creates "_v_1"
+    """
+    counter = _IDENTIFIER_COUNTER.get()
+    _IDENTIFIER_COUNTER.set(counter + 1)
+    name = f"{prefix}{counter}"
+    return GraineIdentifierNode(name=name)
+
+
 @overload
 def auto_let(fn: Callable[_P, GraineObjectT]) -> Callable[_P, GraineObjectT]: ...
 @overload
@@ -151,12 +193,12 @@ def auto_let(
 
         assert isinstance(result, HasGraineASTExpr)
 
-        identifier_node = block.new_identifier()
+        identifier_node = new_identifier()
         assignment_node = GraineLetNode(
             identifier=identifier_node,
             value=result.__graine_ast__,
         )
-        block.emit(assignment_node)
+        emit_statement(block, assignment_node)
 
         return cast(GraineObjectT, _GraineBuilder(identifier_node))
 
@@ -386,7 +428,7 @@ def _function_from_python(fn: Callable[..., Any]) -> GraineFunctionNode:
         result = fn(*param_asts)
 
     if result is not None:
-        body.emit(GraineReturnNode(value=result.__graine_ast__))
+        emit_statement(body, GraineReturnNode(value=result.__graine_ast__))
 
     return GraineFunctionNode(
         name=fn.__name__,
@@ -480,8 +522,9 @@ def _class_facade_from_python(cls: PyClassT, ast: GraineClassNode) -> PyClassT:
                 arguments=[arg.__graine_ast__ for arg in args],
             )
             block = require_block()
-            identifier = block.new_identifier()
-            block.emit(
+            identifier = new_identifier()
+            emit_statement(
+                block,
                 GraineLetNode(
                     identifier=identifier,
                     value=node,
@@ -530,7 +573,7 @@ class _GraineBuilder(Generic[GraineASTExprT_co]):
             ),
             value=value.__graine_ast__,
         )
-        block.emit(assignment_node)
+        emit_statement(block, assignment_node)
 
     @auto_let
     def __call__(self, *args: Union[PyGraineCompat, GraineObject]) -> "_GraineBuilder":
@@ -564,7 +607,7 @@ class _GraineBuilder(Generic[GraineASTExprT_co]):
             ),
             value=value.__graine_ast__,
         )
-        require_block().emit(assignment_node)
+        emit_statement(require_block(), assignment_node)
 
     @auto_let
     def __eq__(  # pyright: ignore[reportIncompatibleMethodOverride]

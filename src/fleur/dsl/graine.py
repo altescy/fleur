@@ -169,11 +169,11 @@ def from_python(value: types.PyGraineCompat) -> Class:
 
 def func(fn: types.PyCallableT) -> types.PyCallableT:
     func_ast = jit._function_from_python(fn)
-    jit.require_block().emit(func_ast)
+    jit.emit_statement(jit.require_block(), func_ast)
     return cast(types.PyCallableT, jit._GraineBuilder(ast.GraineIdentifierNode(name=func_ast.name)))
 
 
 def cls(cls_: types.PyClassT) -> types.PyClassT:
     class_ast = jit._class_ast_from_python(cls_)
-    jit.require_block().emit(class_ast)
+    jit.emit_statement(jit.require_block(), class_ast)
     return jit._class_facade_from_python(cls_, class_ast)

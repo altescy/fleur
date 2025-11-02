@@ -183,20 +183,27 @@ class TestStatementNodes:
         assert node.statements == []
 
     def test_block_node_emit(self):
-        """Test emitting statements to a block."""
+        """Test emitting statements to a block using emit_statement function."""
+        from fleur.dsl.jit import emit_statement
+
         block = ast.GraineBlockNode()
         stmt1 = ast.GraineLetNode(identifier=ast.GraineIdentifierNode(name="x"), value=ast.GraineNumberNode(value=1.0))
         stmt2 = ast.GraineLetNode(identifier=ast.GraineIdentifierNode(name="y"), value=ast.GraineNumberNode(value=2.0))
-        block.emit(stmt1, stmt2)
+        emit_statement(block, stmt1, stmt2)
         assert len(block.statements) == 2
 
     def test_block_new_identifier(self):
-        """Test generating new identifiers from a block."""
-        block = ast.GraineBlockNode()
-        id1 = block.new_identifier()
-        id2 = block.new_identifier()
-        assert id1.name == "_v_0"
-        assert id2.name == "_v_0"  # Counter is based on statement count, not calls
+        """Test generating new identifiers using new_identifier function."""
+        from fleur.dsl.jit import new_identifier
+
+        # new_identifier uses a global counter, so we need to call it within a context
+        # For this test, we just verify that two calls produce different identifiers
+        id1 = new_identifier()
+        id2 = new_identifier()
+        # With global counter, these should be sequential
+        assert id1.name.startswith("_v_")
+        assert id2.name.startswith("_v_")
+        assert id1.name != id2.name
 
     def test_function_node(self):
         """Test creating a function node."""

@@ -254,23 +254,6 @@ class GraineBlockNode(GraineASTStmt):
 
     statements: list[GraineASTStmt] = dataclasses.field(default_factory=list)
 
-    def emit(self, *stmt: GraineASTStmt) -> None:
-        """Add statements to this block."""
-        self.statements.extend(stmt)
-
-    def new_identifier(self, prefix: str = "_v_") -> GraineIdentifierNode:
-        """
-        Generate a unique identifier for intermediate values.
-
-        Args:
-            prefix: Prefix for the generated identifier name
-
-        Returns:
-            A new identifier node with a unique name
-        """
-        name = f"{prefix}{len(self.statements)}"
-        return GraineIdentifierNode(name=name)
-
 
 @dataclasses.dataclass
 class GraineFunctionNode(GraineASTStmt):

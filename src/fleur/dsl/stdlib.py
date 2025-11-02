@@ -13,7 +13,16 @@ from .ast import (
     GraineStringNode,
     GraineUndefinedNode,
 )
-from .jit import _GraineBuilder, as_interface, auto_let, ensure_graine, require_block, use_block
+from .jit import (
+    _GraineBuilder,
+    as_interface,
+    auto_let,
+    emit_statement,
+    ensure_graine,
+    new_identifier,
+    require_block,
+    use_block,
+)
 from .types import (
     GraineArray,
     GraineArrayType,
@@ -49,8 +58,9 @@ def case(
         with use_block() as inner:
             ret = func()
             if ret is not None:
-                inner.emit(GraineReturnNode(value=ret.__graine_ast__))
-        block.emit(
+                emit_statement(inner, GraineReturnNode(value=ret.__graine_ast__))
+        emit_statement(
+            block,
             GraineIfNode(
                 condition=condition.__graine_ast__,
                 then_branch=inner,
@@ -189,12 +199,13 @@ def foreach(
 ) -> Callable[[Callable[[GraineObjectT], None]], None]:
     def decorator(func: Callable[[GraineObjectT], None]) -> None:
         block = require_block()
-        var = _GraineBuilder(block.new_identifier())
+        var = _GraineBuilder(new_identifier())
 
         with use_block() as inner:
             func(cast(GraineObjectT, var))
 
-        block.emit(
+        emit_statement(
+            block,
             GraineForOfNode(
                 variable=var.__graine_ast__,
                 iterator=iterable.__graine_ast__,
