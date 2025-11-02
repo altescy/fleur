@@ -64,7 +64,7 @@ def case(
             GraineIfNode(
                 condition=condition.__graine_ast__,
                 then_branch=inner,
-            )
+            ),
         )
 
     return decorator
@@ -210,7 +210,7 @@ def foreach(
                 variable=var.__graine_ast__,
                 iterator=iterable.__graine_ast__,
                 body=inner,
-            )
+            ),
         )
 
     return decorator

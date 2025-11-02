@@ -20,14 +20,14 @@ class TestBlockManagement:
         with jit.use_block() as block1:
             jit.emit_statement(
                 block1,
-                ast.GraineLetNode(identifier=ast.GraineIdentifierNode(name="x"), value=ast.GraineNumberNode(value=1.0))
+                ast.GraineLetNode(identifier=ast.GraineIdentifierNode(name="x"), value=ast.GraineNumberNode(value=1.0)),
             )
             with jit.use_block() as block2:
                 jit.emit_statement(
                     block2,
                     ast.GraineLetNode(
                         identifier=ast.GraineIdentifierNode(name="y"), value=ast.GraineNumberNode(value=2.0)
-                    )
+                    ),
                 )
                 assert len(block2.statements) == 1
             # Back to outer block

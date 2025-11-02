@@ -24,8 +24,8 @@ from typing_extensions import Concatenate, ParamSpec, TypeVar
 
 from .ast import (
     GraineArrayNode,
-    GraineASTStmt,
     GraineAssignNode,
+    GraineASTStmt,
     GraineBinaryOpNode,
     GraineBlockNode,
     GraineBooleanNode,
@@ -528,7 +528,7 @@ def _class_facade_from_python(cls: PyClassT, ast: GraineClassNode) -> PyClassT:
                 GraineLetNode(
                     identifier=identifier,
                     value=node,
-                )
+                ),
             )
             self.__graine_ast__ = identifier
 
