@@ -68,7 +68,7 @@ GraineFunctionType: TypeAlias = Literal[GrainePrimitiveType.FUNCTION]
 GraineClassType: TypeAlias = Literal[GrainePrimitiveType.CLASS]
 GraineBooleanLikeType: TypeAlias = Union[GraineUndefinedType, GraineBooleanType, GraineNumberType, GraineStringType]
 
-GraineType: TypeAlias = Union[GrainePrimitiveType, "GraineObject"]
+GraineType: TypeAlias = Union[GrainePrimitiveType, "GraineObject[Any]"]
 
 GraineTypeS = TypeVar("GraineTypeS", bound="GraineType")
 GraineTypeT = TypeVar("GraineTypeT", bound="GraineType")
@@ -101,7 +101,7 @@ GraineObjectT_co = TypeVar("GraineObjectT_co", bound=GraineObject, covariant=Tru
 GraineObjectT_contra = TypeVar("GraineObjectT_contra", bound=GraineObject, contravariant=True)
 
 
-class GraineUndefined(GraineObject):
+class GraineUndefined(GraineObject["GraineASTExpr[GraineUndefinedType]"]):
     """Phantom type for JavaScript undefined value."""
 
     ...

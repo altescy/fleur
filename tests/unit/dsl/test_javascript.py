@@ -36,7 +36,7 @@ class TestLiteralEmission:
 
     def test_emit_empty_array(self):
         """Test emitting an empty array."""
-        node = ast.GraineArrayNode(elements=[])
+        node = ast.GraineArrayNode()
         code = emit_javascript(node)
         assert code == "[];"
 
@@ -54,7 +54,7 @@ class TestLiteralEmission:
 
     def test_emit_empty_record(self):
         """Test emitting an empty object."""
-        node = ast.GraineRecordNode(fields={})
+        node = ast.GraineRecordNode()
         code = emit_javascript(node)
         assert code == "{};"
 

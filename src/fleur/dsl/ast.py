@@ -27,7 +27,9 @@ from .types import (
     GraineUndefinedType,
 )
 
+_GraineTypeS = TypeVar("_GraineTypeS", bound=GraineType)
 _GraineTypeS_co = TypeVar("_GraineTypeS_co", bound=GraineType, covariant=True)
+_GraineTypeT = TypeVar("_GraineTypeT", bound=GraineType)
 _GraineTypeT_co = TypeVar("_GraineTypeT_co", bound=GraineType, covariant=True, default=GraineType)
 
 
@@ -168,17 +170,28 @@ class GraineIndexAccessNode(GraineASTExpr[_GraineTypeT_co]):
 
 
 @dataclasses.dataclass
-class GraineConditionalNode(GraineASTExpr[Union[_GraineTypeS_co, _GraineTypeT_co, GraineUndefinedType]]):
+class GraineConditionalNode(
+    GraineASTExpr[Union[_GraineTypeS, _GraineTypeT, GraineUndefinedType]],
+    Generic[_GraineTypeS, _GraineTypeT],
+):
     """
     Ternary conditional expression node.
 
     Represents JavaScript ternary operator: condition ? then_branch : else_branch.
     If else_branch is None, it defaults to undefined.
+
+    The result type is Union[S, T, Undefined] where:
+    - S is the type of then_branch
+    - T is the type of else_branch (defaults to GraineType if not specified)
+
+    Note: The Union type annotation is correct semantically but requires type: ignore
+    because pyright cannot verify that Union[S, T, Undefined] satisfies the GraineType bound
+    when S and T are type variables. The actual runtime values will always satisfy this constraint.
     """
 
     condition: GraineASTExpr[GraineBooleanLikeType]
-    then_branch: GraineASTExpr[_GraineTypeS_co]
-    else_branch: Optional[GraineASTExpr[_GraineTypeT_co]] = None
+    then_branch: GraineASTExpr[_GraineTypeS]
+    else_branch: Optional[GraineASTExpr[_GraineTypeT]] = None
 
 
 @dataclasses.dataclass
