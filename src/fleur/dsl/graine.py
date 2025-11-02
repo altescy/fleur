@@ -11,6 +11,7 @@ from .stdlib import (
     Node,
     Proxy,
     case,
+    cases,
     foreach,
     instanceof,
     typeof,
@@ -59,6 +60,7 @@ __all__ = [
     # Control flow
     "when",
     "case",
+    "cases",
     "foreach",
     # Special operations
     "typeof",

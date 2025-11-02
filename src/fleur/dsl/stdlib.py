@@ -216,6 +216,64 @@ def foreach(
     return decorator
 
 
+class cases:
+    def __init__(self) -> None:
+        self._ast: Optional[GraineIfNode] = None
+        self._last: Optional[GraineIfNode] = None
+
+    def __enter__(self) -> "cases":
+        self._ast = None
+        self._last = None
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        if self._ast is not None:
+            emit_statement(
+                require_block(),
+                self._ast,
+            )
+
+    def when(self, condition: Union[PyBooleanCompat, GraineBooleanLike]) -> Callable[[Callable], None]:
+        def decorator(func: Callable) -> None:
+            nonlocal condition
+
+            condition = ensure_graine(condition)
+            with use_block() as inner:
+                ret = func()
+                if ret is not None:
+                    emit_statement(inner, GraineReturnNode(value=ret.__graine_ast__))
+
+            new_if_node = GraineIfNode(
+                condition=condition.__graine_ast__,
+                then_branch=inner,
+                else_branch=None,
+            )
+
+            if self._last is None:
+                self._ast = new_if_node
+                self._last = new_if_node
+            else:
+                self._last.else_branch = new_if_node
+                self._last = new_if_node
+
+        return decorator
+
+    def otherwise(self, func: Callable) -> None:
+        with use_block() as inner:
+            ret = func()
+            if ret is not None:
+                emit_statement(inner, GraineReturnNode(value=ret.__graine_ast__))
+
+        if self._last is None:
+            self._ast = GraineIfNode(
+                condition=GraineIdentifierNode("true"),
+                then_branch=inner,
+                else_branch=None,
+            )
+        else:
+            self._last.else_branch = inner
+
+
 @as_interface
 class Math(GraineObject):
     @staticmethod

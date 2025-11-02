@@ -74,6 +74,172 @@ class TestCaseIntegration:
         assert jsctx.call("classify_number", 5) == "other"
 
 
+class TestCasesIntegration:
+    """Integration tests for cases() context manager."""
+
+    @staticmethod
+    def test_cases_multiple_conditions(jsctx: MiniRacer):
+        """Test cases() with multiple when conditions."""
+        with parterre() as p:
+
+            @graine.func
+            def classify_number(x: types.GraineNumber):
+                with graine.cases() as c:
+                    @c.when(x == 0)
+                    def zero():
+                        return graine.string("zero")
+
+                    @c.when(x == -5)
+                    def negative():
+                        return graine.string("negative")
+
+                    @c.when(x == 10)
+                    def positive():
+                        return graine.string("positive")
+
+                return graine.string("unreachable")
+
+        js_code = p.germinate()
+        jsctx.eval(js_code)
+        assert jsctx.call("classify_number", 0) == "zero"
+        assert jsctx.call("classify_number", -5) == "negative"
+        assert jsctx.call("classify_number", 10) == "positive"
+
+    @staticmethod
+    def test_cases_with_otherwise(jsctx: MiniRacer):
+        """Test cases() with otherwise clause."""
+        with parterre() as p:
+
+            @graine.func
+            def grade_score(score: types.GraineNumber):
+                with graine.cases() as c:
+                    @c.when(score == 95)
+                    def excellent():
+                        return graine.string("A")
+
+                    @c.when(score == 85)
+                    def good():
+                        return graine.string("B")
+
+                    @c.when(score == 75)
+                    def fair():
+                        return graine.string("C")
+
+                    @c.otherwise
+                    def failing():
+                        return graine.string("F")
+
+                return graine.string("unreachable")
+
+        js_code = p.germinate()
+        jsctx.eval(js_code)
+        assert jsctx.call("grade_score", 95) == "A"
+        assert jsctx.call("grade_score", 85) == "B"
+        assert jsctx.call("grade_score", 75) == "C"
+        assert jsctx.call("grade_score", 60) == "F"
+
+    @staticmethod
+    def test_cases_without_return(jsctx: MiniRacer):
+        """Test cases() for side effects without return values."""
+        with parterre() as p:
+
+            @graine.func
+            def classify_and_store(x: types.GraineNumber):
+                state = graine.record(result=graine.string("none"))
+
+                with graine.cases() as c:
+                    @c.when(x == 0)
+                    def zero():
+                        state.result = graine.string("zero")  # pyright: ignore[reportAttributeAccessIssue]
+
+                    @c.when(x == -1)
+                    def negative():
+                        state.result = graine.string("negative")  # pyright: ignore[reportAttributeAccessIssue]
+
+                    @c.otherwise
+                    def positive():
+                        state.result = graine.string("positive")  # pyright: ignore[reportAttributeAccessIssue]
+
+                return state.result  # pyright: ignore[reportAttributeAccessIssue]
+
+        js_code = p.germinate()
+        jsctx.eval(js_code)
+        assert jsctx.call("classify_and_store", 0) == "zero"
+        assert jsctx.call("classify_and_store", -1) == "negative"
+        assert jsctx.call("classify_and_store", 5) == "positive"
+
+    @staticmethod
+    def test_cases_with_python_boolean(jsctx: MiniRacer):
+        """Test cases() with Python boolean conditions."""
+        with parterre() as p:
+
+            @graine.func
+            def check_constant():
+                with graine.cases() as c:
+                    @c.when(False)
+                    def first():
+                        return graine.string("first")
+
+                    @c.when(True)
+                    def second():
+                        return graine.string("second")
+
+                return graine.string("unreachable")
+
+        js_code = p.germinate()
+        jsctx.eval(js_code)
+        assert jsctx.call("check_constant") == "second"
+
+    @staticmethod
+    def test_cases_only_otherwise(jsctx: MiniRacer):
+        """Test cases() with only otherwise clause."""
+        with parterre() as p:
+
+            @graine.func
+            def always_return():
+                with graine.cases() as c:
+                    @c.otherwise
+                    def default():
+                        return graine.string("default")
+
+                return graine.string("unreachable")
+
+        js_code = p.germinate()
+        jsctx.eval(js_code)
+        assert jsctx.call("always_return") == "default"
+
+    @staticmethod
+    def test_cases_fallthrough_behavior(jsctx: MiniRacer):
+        """Test that cases() evaluates conditions in order and stops at first match."""
+        with parterre() as p:
+
+            @graine.func
+            def test_order(x: types.GraineNumber):
+                state = graine.record(matched=graine.string("none"))
+
+                with graine.cases() as c:
+                    @c.when(x == 10)
+                    def first():
+                        state.matched = graine.string("first")  # pyright: ignore[reportAttributeAccessIssue]
+                        return graine.string("first")
+
+                    @c.when(x == 3)
+                    def second():
+                        state.matched = graine.string("second")  # pyright: ignore[reportAttributeAccessIssue]
+                        return graine.string("second")
+
+                return state.matched  # pyright: ignore[reportAttributeAccessIssue]
+
+        js_code = p.germinate()
+        jsctx.eval(js_code)
+        # When x=10, it matches first condition and should return "first"
+        assert jsctx.call("test_order", 10) == "first"
+        # When x=3, it doesn't match first but matches second
+        assert jsctx.call("test_order", 3) == "second"
+        # When x=-1, it matches neither
+        assert jsctx.call("test_order", -1) == "none"
+
+
 class TestForeachIntegration:
     """Integration tests for foreach() loop."""
 

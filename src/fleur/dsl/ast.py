@@ -318,4 +318,4 @@ class GraineIfNode(GraineASTStmt):
 
     condition: GraineASTExpr
     then_branch: GraineBlockNode = dataclasses.field(default_factory=GraineBlockNode)
-    else_branch: Optional[GraineBlockNode] = None
+    else_branch: Optional[Union[GraineBlockNode, "GraineIfNode"]] = None
