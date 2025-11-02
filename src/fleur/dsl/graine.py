@@ -23,6 +23,9 @@ from .types import (
     GraineBoolean as Boolean,
 )
 from .types import (
+    GraineFunction as Function,
+)
+from .types import (
     GraineNumber as Number,
 )
 from .types import (
@@ -42,6 +45,7 @@ __all__ = [
     "String",
     "Array",
     "Record",
+    "Function",
     "Class",
     # Type constructors
     "boolean",
@@ -170,6 +174,6 @@ def func(fn: types.PyCallableT) -> types.PyCallableT:
 
 
 def cls(cls_: types.PyClassT) -> types.PyClassT:
-    class_ast = jit._class_from_python(cls_)
+    class_ast = jit._class_ast_from_python(cls_)
     jit.require_block().emit(class_ast)
-    return cast(types.PyClassT, jit._GraineClassFacade(class_ast))
+    return jit._class_facade_from_python(cls_, class_ast)

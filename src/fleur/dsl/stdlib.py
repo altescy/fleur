@@ -10,6 +10,7 @@ from .ast import (
     GraineIdentifierNode,
     GraineIfNode,
     GraineReturnNode,
+    GraineStringNode,
     GraineUndefinedNode,
 )
 from .jit import _GraineBuilder, as_interface, auto_let, ensure_graine, require_block, use_block
@@ -91,10 +92,10 @@ def instanceof(
                 GraineBinaryOpNode(
                     op="===",
                     left=GraineCallNode(
-                        function=GraineIdentifierNode(name="typeof"),
+                        function=GraineIdentifierNode("typeof"),
                         arguments=[instance.__graine_ast__],
                     ),
-                    right=GraineIdentifierNode(name="boolean"),
+                    right=GraineStringNode("boolean"),
                 ),
             ),
         )
@@ -108,7 +109,7 @@ def instanceof(
                         function=GraineIdentifierNode(name="typeof"),
                         arguments=[instance.__graine_ast__],
                     ),
-                    right=GraineIdentifierNode(name="number"),
+                    right=GraineStringNode("number"),
                 ),
             ),
         )
@@ -122,7 +123,7 @@ def instanceof(
                         function=GraineIdentifierNode(name="typeof"),
                         arguments=[instance.__graine_ast__],
                     ),
-                    right=GraineIdentifierNode(name="string"),
+                    right=GraineIdentifierNode("string"),
                 ),
             ),
         )
@@ -136,7 +137,7 @@ def instanceof(
                         function=GraineIdentifierNode(name="typeof"),
                         arguments=[instance.__graine_ast__],
                     ),
-                    right=GraineIdentifierNode(name="undefined"),
+                    right=GraineStringNode("undefined"),
                 ),
             ),
         )
@@ -150,7 +151,7 @@ def instanceof(
                         function=GraineIdentifierNode(name="typeof"),
                         arguments=[instance.__graine_ast__],
                     ),
-                    right=GraineIdentifierNode(name="function"),
+                    right=GraineStringNode("function"),
                 ),
             ),
         )

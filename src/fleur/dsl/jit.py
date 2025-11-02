@@ -39,6 +39,7 @@ from .types import (
     HasGraineASTExpr,
     PyBooleanCompat,
     PyCallableT,
+    PyClassT,
     PyGraineCompat,
     PyNumberCompat,
     PyRecordCompat,
@@ -103,8 +104,6 @@ def as_interface(obj_or_name: Union[str, PyCallableT]) -> Union[PyCallableT, Cal
     def decorator(fn: PyCallableT) -> PyCallableT:
         assert isinstance(obj_or_name, str)
         identifier = GraineIdentifierNode(name=obj_or_name)
-        if isinstance(obj_or_name, type):
-            return cast(PyCallableT, _GraineClassFacade(identifier))
         return cast(PyCallableT, _GraineBuilder(identifier))
 
     if isinstance(obj_or_name, str):
@@ -266,7 +265,7 @@ def _function_from_python(fn: Callable[..., Any]) -> GraineFunctionNode:
     )
 
 
-def _class_from_python(cls: type) -> GraineClassNode:
+def _class_ast_from_python(cls: type) -> GraineClassNode:
     methods = []
     constructor_node: Optional[GraineFunctionNode] = None
     for attr_name in dir(cls):
@@ -312,6 +311,34 @@ def _class_from_python(cls: type) -> GraineClassNode:
         constructor=constructor_node,
         methods=methods,
     )
+
+
+def _class_facade_from_python(cls: PyClassT, ast: GraineClassNode) -> PyClassT:
+    original_class = cls
+
+    class _GraineClassFacade(_GraineBuilder):
+        __graine_ast__ = GraineIdentifierNode(name=ast.name)
+
+        def __class_getitem__(cls, item: Any) -> Any:
+            return original_class.__class_getitem__(item)
+
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            args = tuple(ensure_graine(arg) for arg in args)
+            node = GraineConstructionNode(
+                class_name=ast.name,
+                arguments=[arg.__graine_ast__ for arg in args],
+            )
+            block = require_block()
+            identifier = block.new_identifier()
+            block.emit(
+                GraineLetNode(
+                    identifier=identifier,
+                    value=node,
+                )
+            )
+            self.__graine_ast__ = identifier
+
+    return cast(PyClassT, _GraineClassFacade)
 
 
 class _GraineBuilder(Generic[GraineASTExprT_co]):
@@ -405,23 +432,3 @@ class _GraineBuilder(Generic[GraineASTExprT_co]):
             arguments=[self.__graine_ast__],
         )
         return _GraineBuilder(call_node)
-
-
-class _GraineClassFacade(_GraineBuilder[GraineIdentifierNode]):
-    def __init__(self, ast: Union[GraineIdentifierNode, GraineClassNode]) -> None:
-        self.__graine_ast__ = GraineIdentifierNode(name=ast.name)
-
-    @auto_let
-    def __call__(  # pyright: ignore[reportIncompatibleMethodOverride]
-        self,
-        *args: Union[PyGraineCompat, GraineObject],
-    ) -> GraineObject[GraineConstructionNode]:
-        args = tuple(ensure_graine(arg) for arg in args)
-        construction_node = GraineConstructionNode(
-            class_name=self.__graine_ast__.name,
-            arguments=[arg.__graine_ast__ for arg in args],
-        )
-        return cast(GraineObject[GraineConstructionNode], _GraineBuilder(construction_node))
-
-    def __getitem__(self, key: Any):  # pyright: ignore[reportIncompatibleMethodOverride]
-        return Any
