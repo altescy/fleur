@@ -122,6 +122,16 @@ class GraineNumber(GraineObject["GraineASTExpr[GraineNumberType]"]):
 
     def __eq__(self, other: Union[PyNumberCompat, "GraineNumber"]) -> GraineBoolean: ...  # pyright: ignore[reportIncompatibleMethodOverride]
 
+    def __ne__(self, other: Union[PyNumberCompat, "GraineNumber"]) -> GraineBoolean: ...  # pyright: ignore[reportIncompatibleMethodOverride]
+
+    def __lt__(self, other: Union[PyNumberCompat, "GraineNumber"]) -> GraineBoolean: ...
+
+    def __le__(self, other: Union[PyNumberCompat, "GraineNumber"]) -> GraineBoolean: ...
+
+    def __gt__(self, other: Union[PyNumberCompat, "GraineNumber"]) -> GraineBoolean: ...
+
+    def __ge__(self, other: Union[PyNumberCompat, "GraineNumber"]) -> GraineBoolean: ...
+
     def __add__(self, other: "GraineNumber") -> "GraineNumber": ...
 
 

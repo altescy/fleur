@@ -623,6 +623,71 @@ class _GraineBuilder(Generic[GraineASTExprT_co]):
         return _GraineBuilder(binary_op_node)
 
     @auto_let
+    def __ne__(  # pyright: ignore[reportIncompatibleMethodOverride]
+        self,
+        other: Union[PyGraineCompat, "GraineObject"],
+    ) -> "_GraineBuilder":
+        other = ensure_graine(other)
+        binary_op_node = GraineBinaryOpNode(
+            op="!==",
+            left=self.__graine_ast__,
+            right=other.__graine_ast__,
+        )
+        return _GraineBuilder(binary_op_node)
+
+    @auto_let
+    def __lt__(
+        self,
+        other: Union[PyGraineCompat, "GraineObject"],
+    ) -> "_GraineBuilder":
+        other = ensure_graine(other)
+        binary_op_node = GraineBinaryOpNode(
+            op="<",
+            left=self.__graine_ast__,
+            right=other.__graine_ast__,
+        )
+        return _GraineBuilder(binary_op_node)
+
+    @auto_let
+    def __le__(
+        self,
+        other: Union[PyGraineCompat, "GraineObject"],
+    ) -> "_GraineBuilder":
+        other = ensure_graine(other)
+        binary_op_node = GraineBinaryOpNode(
+            op="<=",
+            left=self.__graine_ast__,
+            right=other.__graine_ast__,
+        )
+        return _GraineBuilder(binary_op_node)
+
+    @auto_let
+    def __gt__(
+        self,
+        other: Union[PyGraineCompat, "GraineObject"],
+    ) -> "_GraineBuilder":
+        other = ensure_graine(other)
+        binary_op_node = GraineBinaryOpNode(
+            op=">",
+            left=self.__graine_ast__,
+            right=other.__graine_ast__,
+        )
+        return _GraineBuilder(binary_op_node)
+
+    @auto_let
+    def __ge__(
+        self,
+        other: Union[PyGraineCompat, "GraineObject"],
+    ) -> "_GraineBuilder":
+        other = ensure_graine(other)
+        binary_op_node = GraineBinaryOpNode(
+            op=">=",
+            left=self.__graine_ast__,
+            right=other.__graine_ast__,
+        )
+        return _GraineBuilder(binary_op_node)
+
+    @auto_let
     def __add__(
         self,
         other: Union[PyGraineCompat, "GraineObject"],
