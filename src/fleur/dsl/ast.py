@@ -82,7 +82,7 @@ class GrainePropertyAccessNode(GraineASTExpr[_GraineTypeT_co]):
 
 @dataclasses.dataclass
 class GraineIndexAccessNode(GraineASTExpr[_GraineTypeT_co]):
-    index: GraineASTExpr[GraineNumberType]
+    index: GraineASTExpr
     receiver: GraineASTExpr
 
 
@@ -158,6 +158,6 @@ class GraineForOfNode(GraineASTStmt):
 
 @dataclasses.dataclass
 class GraineIfNode(GraineASTStmt):
-    condition: GraineASTExpr[GraineBooleanLikeType]
+    condition: GraineASTExpr
     then_branch: GraineBlockNode = dataclasses.field(default_factory=GraineBlockNode)
     else_branch: Optional[GraineBlockNode] = None

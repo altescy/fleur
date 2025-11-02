@@ -92,7 +92,7 @@ def emit_javascript(*asts: GraineASTNode) -> str:
         elif isinstance(stmt, GraineFunctionNode):
             params = ", ".join(param.name for param in stmt.parameters)
             body = s(stmt.body, indent + "  ")
-            return f"{indent}function {stmt.name} ({params}) {{\n{body}\n{indent}}}"
+            return f"{indent}function {stmt.name}({params}) {{\n{body}\n{indent}}}"
         elif isinstance(stmt, GraineClassNode):
             methods = []
             if stmt.constructor:

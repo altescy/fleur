@@ -1,11 +1,17 @@
 import enum
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, Generic, Literal, Union, overload
+from typing import TYPE_CHECKING, Any, Generic, Literal, Protocol, Union, runtime_checkable
 
 from typing_extensions import TypeAlias, TypeVar
 
 if TYPE_CHECKING:
-    from .ast import GraineArrayNode, GraineASTExpr, GraineBinaryOpNode, GraineRecordNode
+    from .ast import GraineASTExpr
+
+
+@runtime_checkable
+class HasGraineASTExpr(Protocol):
+    __graine_ast__: "GraineASTExpr"
+
 
 PyBooleanCompat: TypeAlias = bool
 PyNumberCompat: TypeAlias = Union[int, float]
@@ -18,7 +24,7 @@ PyClassT = TypeVar("PyClassT", bound=type)
 PyCallableT = TypeVar("PyCallableT", bound=Callable[..., Any])
 
 
-class GraineType(enum.Enum):
+class GrainePrimitiveType(enum.Enum):
     UNDEFINED = "undefined"
     BOOLEAN = "boolean"
     NUMBER = "number"
@@ -29,15 +35,17 @@ class GraineType(enum.Enum):
     CLASS = "class"
 
 
-GraineUndefinedType: TypeAlias = Literal[GraineType.UNDEFINED]
-GraineBooleanType: TypeAlias = Literal[GraineType.BOOLEAN]
-GraineNumberType: TypeAlias = Literal[GraineType.NUMBER]
-GraineStringType: TypeAlias = Literal[GraineType.STRING]
-GraineArrayType: TypeAlias = Literal[GraineType.ARRAY]
-GraineRecordType: TypeAlias = Literal[GraineType.RECORD]
-GraineFunctionType: TypeAlias = Literal[GraineType.FUNCTION]
-GraineClassType: TypeAlias = Literal[GraineType.CLASS]
+GraineUndefinedType: TypeAlias = Literal[GrainePrimitiveType.UNDEFINED]
+GraineBooleanType: TypeAlias = Literal[GrainePrimitiveType.BOOLEAN]
+GraineNumberType: TypeAlias = Literal[GrainePrimitiveType.NUMBER]
+GraineStringType: TypeAlias = Literal[GrainePrimitiveType.STRING]
+GraineArrayType: TypeAlias = Literal[GrainePrimitiveType.ARRAY]
+GraineRecordType: TypeAlias = Literal[GrainePrimitiveType.RECORD]
+GraineFunctionType: TypeAlias = Literal[GrainePrimitiveType.FUNCTION]
+GraineClassType: TypeAlias = Literal[GrainePrimitiveType.CLASS]
 GraineBooleanLikeType: TypeAlias = Union[GraineUndefinedType, GraineBooleanType, GraineNumberType, GraineStringType]
+
+GraineType: TypeAlias = Union[GrainePrimitiveType, "GraineObject"]
 
 GraineTypeS = TypeVar("GraineTypeS", bound="GraineType")
 GraineTypeT = TypeVar("GraineTypeT", bound="GraineType")
@@ -47,88 +55,74 @@ GraineTypeT_co = TypeVar("GraineTypeT_co", bound="GraineType", covariant=True)
 GraineTypeU_co = TypeVar("GraineTypeU_co", bound="GraineType", covariant=True)
 
 GraineASTExprT = TypeVar("GraineASTExprT", bound="GraineASTExpr")
-GraineASTExprT_co = TypeVar("GraineASTExprT_co", bound="GraineASTExpr", covariant=True)
+GraineASTExprT_co = TypeVar("GraineASTExprT_co", bound="GraineASTExpr", covariant=True, default="GraineASTExpr")
 
 
 class GraineObject(Generic[GraineASTExprT_co]):
     __graine_ast__: GraineASTExprT_co
 
-    def __getattr__(
-        self: "GraineObject[GraineASTExpr[GraineRecordType]]",
-        name: str,
-    ) -> "GraineObject[GraineASTExpr]": ...
 
-    def __eq__(  # pyright: ignore[reportIncompatibleMethodOverride]
-        self,
-        other: Union[PyGraineCompat, "GraineObject[GraineASTExpr]"],
-    ) -> "GraineObject[GraineBinaryOpNode[GraineBooleanType]]": ...
+GraineObjectS = TypeVar("GraineObjectS", bound=GraineObject)
+GraineObjectT = TypeVar("GraineObjectT", bound=GraineObject)
+GraineObjectT_co = TypeVar("GraineObjectT_co", bound=GraineObject, covariant=True)
+GraineObjectT_contra = TypeVar("GraineObjectT_contra", bound=GraineObject, contravariant=True)
 
-    @overload
-    def __add__(
-        self: "GraineObject[GraineASTExpr[GraineNumberType]]",
-        other: Union[PyGraineCompat, "GraineObject[GraineASTExpr[GraineNumberType]]"],
-    ) -> "GraineObject[GraineBinaryOpNode[GraineNumberType]]": ...
-    @overload
-    def __add__(
-        self: "GraineObject[GraineASTExpr[GraineStringType]]",
-        other: Union[PyGraineCompat, "GraineObject[GraineASTExpr[GraineStringType]]"],
-    ) -> "GraineObject[GraineBinaryOpNode[GraineStringType]]": ...
 
-    def __add__(
-        self,
-        other: Union[PyGraineCompat, "GraineObject[GraineASTExpr]"],
-    ) -> "GraineObject[GraineBinaryOpNode]": ...
+class GraineUndefined(GraineObject): ...
 
-    @overload
-    def __getitem__(
-        self: "GraineObject[GraineASTExpr[GraineStringType]]",
-        index: Union[PyNumberCompat, "GraineObject[GraineASTExpr[GraineNumberType]]"],
-    ) -> "GraineObject[GraineASTExpr[GraineStringType]]": ...
-    @overload
-    def __getitem__(
-        self: "GraineObject[GraineArrayNode[GraineTypeT]]",
-        index: Union[PyNumberCompat, "GraineObject[GraineASTExpr[GraineNumberType]]"],
-    ) -> "GraineObject[GraineASTExpr[GraineTypeT]]": ...
-    @overload
-    def __getitem__(
-        self: "GraineObject[GraineASTExpr[GraineArrayType]]",
-        index: Union[PyNumberCompat, "GraineObject[GraineASTExpr[GraineNumberType]]"],
-    ) -> "GraineObject[GraineASTExpr[GraineType]]": ...
-    @overload
-    def __getitem__(
-        self: "GraineObject[GraineRecordNode[GraineTypeT]]",
-        index: Union[PyStringCompat, "GraineObject[GraineASTExpr[GraineStringType]]"],
-    ) -> "GraineObject[GraineASTExpr[GraineTypeT]]": ...
-    @overload
-    def __getitem__(
-        self: "GraineObject[GraineASTExpr[GraineRecordType]]",
-        index: Union[PyStringCompat, "GraineObject[GraineASTExpr[GraineStringType]]"],
-    ) -> "GraineObject[GraineASTExpr[GraineType]]": ...
 
-    def __getitem__(
-        self: "GraineObject[GraineASTExpr[Union[GraineArrayType, GraineRecordType, GraineStringType]]]",
-        index: Union[
-            PyNumberCompat,
-            PyStringCompat,
-            "GraineObject[GraineASTExpr[Union[GraineNumberType, GraineStringType]]]",
-        ],
-    ) -> "GraineObject[GraineASTExpr]": ...
+class GraineBoolean(GraineObject["GraineASTExpr[GraineBooleanType]"]): ...
 
-    @property
-    def length(
-        self: "GraineObject[GraineASTExpr[Union[GraineStringType, GraineArrayType]]]",
-    ) -> "GraineObject[GraineASTExpr[GraineNumberType]]": ...
 
-    def push(
-        self: "GraineObject[GraineArrayNode[GraineTypeT]]",
-        value: "GraineObject[GraineASTExpr[GraineTypeT]]",
+class GraineNumber(GraineObject["GraineASTExpr[GraineNumberType]"]):
+    def __eq__(self, other: Union[PyNumberCompat, "GraineNumber"]) -> GraineBoolean: ...  # pyright: ignore[reportIncompatibleMethodOverride]
+
+    def __add__(self, other: "GraineNumber") -> "GraineNumber": ...
+
+
+class GraineString(GraineObject["GraineASTExpr[GraineStringType]"]):
+    def __eq__(self, other: Union[PyStringCompat, "GraineString"]) -> GraineBoolean: ...  # pyright: ignore[reportIncompatibleMethodOverride]
+
+    def __add__(self, other: "GraineString") -> "GraineString": ...
+
+    def __getitem__(self, index: Union[PyNumberCompat, GraineNumber]) -> "GraineString": ...
+
+    def length(self) -> GraineNumber: ...
+
+
+class GraineArray(GraineObject["GraineASTExpr[GraineArrayType]"], Generic[GraineObjectT_co]):
+    def __getitem__(self, index: GraineNumber) -> GraineObjectT_co: ...
+
+    def __setitem__(
+        self: "GraineArray[GraineObjectT]",
+        index: GraineNumber,
+        value: GraineObjectT,
     ) -> None: ...
 
+    def pop(self) -> GraineObjectT_co: ...
 
-GraineBoolean: TypeAlias = GraineObject["GraineASTExpr[GraineBooleanType]"]
-GraineNumber: TypeAlias = GraineObject["GraineASTExpr[GraineNumberType]"]
-GraineString: TypeAlias = GraineObject["GraineASTExpr[GraineStringType]"]
-GraineArray: TypeAlias = GraineObject["GraineASTExpr[GraineArrayType]"]
-GraineRecord: TypeAlias = GraineObject["GraineASTExpr[GraineRecordType]"]
+    def push(self: "GraineArray[GraineObjectT]", value: GraineObjectT) -> None: ...
 
-GraineObjectT = TypeVar("GraineObjectT", bound=GraineObject)
+    @property
+    def length(self) -> GraineNumber: ...
+
+
+class GraineRecord(GraineObject["GraineASTExpr[GraineRecordType]"], Generic[GraineObjectT_co]):
+    def __getattr__(self, key: Union[PyStringCompat, GraineString]) -> GraineObjectT_co: ...
+
+    def __getitem__(self, key: Union[PyStringCompat, GraineString]) -> GraineObjectT_co: ...
+
+    def __setitem__(
+        self: "GraineRecord[GraineObjectT]",
+        key: GraineString,
+        value: GraineObjectT,
+    ) -> None: ...
+
+    def items(self) -> GraineArray: ...
+
+
+class GraineFunction(GraineObject["GraineASTExpr[GraineFunctionType]"]):
+    def __call__(self, *args: GraineObject) -> GraineObject: ...
+
+
+GraineBooleanLike: TypeAlias = Union[GraineUndefined, GraineBoolean, GraineNumber, GraineString]

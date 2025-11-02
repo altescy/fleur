@@ -12,28 +12,38 @@ from .ast import (
     GraineReturnNode,
     GraineUndefinedNode,
 )
-from .jit import _GraineBuilder, as_interface, auto_let, require_block, use_block
+from .jit import _GraineBuilder, as_interface, auto_let, ensure_graine, require_block, use_block
 from .types import (
+    GraineArray,
     GraineArrayType,
-    GraineBooleanLikeType,
+    GraineBoolean,
+    GraineBooleanLike,
     GraineBooleanType,
+    GraineFunction,
     GraineFunctionType,
+    GraineNumber,
     GraineNumberType,
     GraineObject,
+    GraineObjectS,
+    GraineObjectT,
+    GraineRecord,
+    GraineRecordType,
+    GraineString,
     GraineStringType,
     GraineType,
-    GraineTypeS_co,
-    GraineTypeT,
-    GraineTypeT_co,
     GraineUndefinedType,
+    PyBooleanCompat,
     PyNumberCompat,
 )
 
 
 def case(
-    condition: GraineObject[GraineASTExpr[GraineBooleanLikeType]],
+    condition: Union[PyBooleanCompat, GraineBooleanLike],
 ) -> Callable[[Callable], None]:
     def decorator(func: Callable) -> None:
+        nonlocal condition
+
+        condition = ensure_graine(condition)
         block = require_block()
         with use_block() as inner:
             ret = func()
@@ -51,14 +61,14 @@ def case(
 
 @auto_let
 def when(
-    condition: GraineObject[GraineASTExpr[GraineBooleanLikeType]],
+    condition: GraineBooleanLike,
     /,
     *,
-    then: GraineObject[GraineASTExpr[GraineTypeS_co]],
-    otherwise: Optional[GraineObject[GraineASTExpr[GraineTypeT_co]]] = None,
-) -> GraineObject[GraineConditionalNode[Union[GraineTypeS_co, GraineTypeT_co, GraineUndefinedType]]]:
+    then: GraineObjectS,
+    otherwise: Optional[GraineObjectT] = None,
+) -> Union[GraineObjectS, GraineObjectT]:
     return cast(
-        GraineObject[GraineConditionalNode[Union[GraineTypeS_co, GraineTypeT_co, GraineUndefinedType]]],
+        Union[GraineObjectS, GraineObjectT],
         _GraineBuilder(
             GraineConditionalNode(
                 condition=condition.__graine_ast__,
@@ -71,12 +81,89 @@ def when(
 
 @auto_let
 def instanceof(
-    instance: GraineObject[GraineASTExpr[GraineTypeT]],
-    cls: Union[type, GraineObject[GraineIdentifierNode]],
-) -> GraineObject[GraineBinaryOpNode[GraineBooleanType]]:
-    cls_ast = cls.__graine_ast__
+    instance: GraineObject,
+    cls: type[GraineObject],
+) -> GraineBoolean:
+    if isinstance(cls, type) and issubclass(cls, GraineBoolean):
+        return cast(
+            GraineBoolean,
+            _GraineBuilder(
+                GraineBinaryOpNode(
+                    op="===",
+                    left=GraineCallNode(
+                        function=GraineIdentifierNode(name="typeof"),
+                        arguments=[instance.__graine_ast__],
+                    ),
+                    right=GraineIdentifierNode(name="boolean"),
+                ),
+            ),
+        )
+    if isinstance(cls, type) and issubclass(cls, GraineNumber):
+        return cast(
+            GraineBoolean,
+            _GraineBuilder(
+                GraineBinaryOpNode(
+                    op="===",
+                    left=GraineCallNode(
+                        function=GraineIdentifierNode(name="typeof"),
+                        arguments=[instance.__graine_ast__],
+                    ),
+                    right=GraineIdentifierNode(name="number"),
+                ),
+            ),
+        )
+    if isinstance(cls, type) and issubclass(cls, GraineString):
+        return cast(
+            GraineBoolean,
+            _GraineBuilder(
+                GraineBinaryOpNode(
+                    op="===",
+                    left=GraineCallNode(
+                        function=GraineIdentifierNode(name="typeof"),
+                        arguments=[instance.__graine_ast__],
+                    ),
+                    right=GraineIdentifierNode(name="string"),
+                ),
+            ),
+        )
+    if isinstance(cls, type) and issubclass(cls, GraineUndefinedNode):
+        return cast(
+            GraineBoolean,
+            _GraineBuilder(
+                GraineBinaryOpNode(
+                    op="===",
+                    left=GraineCallNode(
+                        function=GraineIdentifierNode(name="typeof"),
+                        arguments=[instance.__graine_ast__],
+                    ),
+                    right=GraineIdentifierNode(name="undefined"),
+                ),
+            ),
+        )
+    if isinstance(cls, type) and issubclass(cls, GraineFunction):
+        return cast(
+            GraineBoolean,
+            _GraineBuilder(
+                GraineBinaryOpNode(
+                    op="===",
+                    left=GraineCallNode(
+                        function=GraineIdentifierNode(name="typeof"),
+                        arguments=[instance.__graine_ast__],
+                    ),
+                    right=GraineIdentifierNode(name="function"),
+                ),
+            ),
+        )
+    if isinstance(cls, type) and issubclass(cls, GraineArray):
+        cls_ast = GraineIdentifierNode(name="Array")
+    elif isinstance(cls, type) and issubclass(cls, GraineRecord):
+        cls_ast = GraineIdentifierNode(name="Object")
+    else:
+        cls_ast = getattr(cls, "__graine_ast__", None)
+        if cls_ast is None:
+            raise TypeError(f"Cannot use instanceof with non-Graine class {cls}")
     return cast(
-        GraineObject[GraineBinaryOpNode[GraineBooleanType]],
+        GraineBoolean,
         _GraineBuilder(
             GraineBinaryOpNode(
                 op="instanceof",
@@ -88,29 +175,23 @@ def instanceof(
 
 
 @auto_let
-def typeof(
-    instance: GraineObject[GraineASTExpr[GraineTypeT]],
-) -> GraineObject[GraineASTExpr[GraineStringType]]:
+def typeof(instance: GraineObject) -> GraineString:
     typeof_node = GraineCallNode(
         function=GraineIdentifierNode(name="typeof"),
         arguments=[instance.__graine_ast__],
     )
-    return cast(
-        GraineObject[GraineASTExpr[GraineStringType]],
-        _GraineBuilder(typeof_node),
-    )
+    return cast(GraineString, _GraineBuilder(typeof_node))
 
 
 def foreach(
-    iterable: GraineObject[GraineASTExpr[GraineArrayType]],
-    /,
-) -> Callable[[Callable[[GraineObject[GraineASTExpr[GraineType]]], None]], None]:
-    def decorator(func: Callable[[GraineObject[GraineASTExpr[GraineTypeT]]], None]) -> None:
+    iterable: GraineArray[GraineObjectT],
+) -> Callable[[Callable[[GraineObjectT], None]], None]:
+    def decorator(func: Callable[[GraineObjectT], None]) -> None:
         block = require_block()
-        var = cast(GraineObject, _GraineBuilder(block.new_identifier()))
+        var = _GraineBuilder(block.new_identifier())
 
         with use_block() as inner:
-            func(var)
+            func(cast(GraineObjectT, var))
 
         block.emit(
             GraineForOfNode(
@@ -121,13 +202,6 @@ def foreach(
         )
 
     return decorator
-
-
-class Object(GraineObject):
-    def __init__(self) -> None: ...
-
-    @staticmethod
-    def getPrototypeOf(obj: GraineObject, /) -> GraineObject: ...
 
 
 @as_interface
@@ -151,12 +225,22 @@ class JSON(GraineObject):
     ) -> GraineObject[GraineASTExpr[GraineStringType]]: ...
 
 
-class Event(_GraineBuilder):
+class Proxy(_GraineBuilder, GraineObject[GraineIdentifierNode]):
+    __graine_ast__ = GraineIdentifierNode(name="Proxy")
+
+    def __init__(
+        self,
+        target: GraineObject[GraineASTExpr[GraineType]],
+        handler: GraineObject[GraineASTExpr[GraineRecordType]],
+    ) -> None: ...
+
+
+class Event(_GraineBuilder, GraineObject[GraineIdentifierNode]):
     __graine_ast__ = GraineIdentifierNode(name="Event")
 
-    if TYPE_CHECKING:
+    def __init__(self) -> None: ...
 
-        def __init__(self) -> None: ...
+    if TYPE_CHECKING:
 
         @property
         def target(self) -> "EventTarget": ...
@@ -165,13 +249,15 @@ class Event(_GraineBuilder):
         def type(self) -> GraineObject[GraineASTExpr[GraineStringType]]: ...
 
 
-class EventTarget(_GraineBuilder):
-    def __init__(self) -> None:
-        self.__graine_ast__ = GraineIdentifierNode(name="EventTarget")
+class EventTarget(
+    _GraineBuilder[GraineIdentifierNode],
+    GraineObject[GraineIdentifierNode],
+):
+    __graine_ast__ = GraineIdentifierNode(name="EventTarget")
+
+    def __init__(self) -> None: ...
 
     if TYPE_CHECKING:
-
-        def __init__(self) -> None: ...
 
         def addEventListener(
             self,
@@ -200,8 +286,8 @@ class Node(EventTarget):
 
         @staticmethod
         def setAttribute(
-            name: Union[str, GraineObject[GraineASTExpr[GraineStringType]]],
-            value: Union[str, GraineObject[GraineASTExpr[GraineStringType]]],
+            name: GraineObject[GraineASTExpr[GraineStringType]],
+            value: GraineObject,
         ) -> None: ...
 
         @staticmethod
@@ -209,13 +295,30 @@ class Node(EventTarget):
             name: Union[str, GraineObject[GraineASTExpr[GraineStringType]]],
         ) -> GraineObject[GraineASTExpr[GraineStringType]]: ...
 
+        @staticmethod
+        def removeAttribute(
+            name: Union[str, GraineObject[GraineASTExpr[GraineStringType]]],
+        ) -> GraineObject[GraineASTExpr[GraineUndefinedType]]: ...
+
+        @property
+        def parentNode(self) -> "Node": ...
+
+        @property
+        def firstChild(self) -> "Node": ...
+
+        @property
+        def lastChild(self) -> "Node": ...
+
+        @property
+        def childNodes(self) -> GraineArray: ...
+
 
 class Element(Node):
     __graine_ast__ = GraineIdentifierNode(name="Element")
 
-    if TYPE_CHECKING:
+    def __init__(self) -> None: ...
 
-        def __init__(self) -> None: ...
+    if TYPE_CHECKING:
 
         @staticmethod
         def appendChild(
@@ -229,15 +332,15 @@ class Element(Node):
 class CharacterData(Node):
     __graine_ast__ = GraineIdentifierNode(name="CharacterData")
 
-    if TYPE_CHECKING:
+    def __init__(
+        self,
+        text: Union[
+            GraineObject[GraineASTExpr[GraineUndefinedType]],
+            GraineObject[GraineASTExpr[GraineStringType]],
+        ] = GraineObject[GraineUndefinedNode](),
+    ) -> None: ...
 
-        def __init__(
-            self,
-            text: Union[
-                GraineObject[GraineASTExpr[GraineUndefinedType]],
-                GraineObject[GraineASTExpr[GraineStringType]],
-            ] = GraineObject[GraineUndefinedNode](),
-        ) -> None: ...
+    if TYPE_CHECKING:
 
         @property
         def data(self) -> GraineObject[GraineASTExpr[GraineStringType]]: ...
@@ -256,9 +359,9 @@ class Text(CharacterData):
 class Document(Node):
     __graine_ast__ = GraineIdentifierNode(name="Document")
 
-    if TYPE_CHECKING:
+    def __init__(self) -> None: ...
 
-        def __init__(self) -> None: ...
+    if TYPE_CHECKING:
 
         @property
         def activeElement(self) -> GraineObject[GraineASTExpr[GraineType]]: ...
@@ -270,15 +373,15 @@ class Document(Node):
 
         @staticmethod
         def getElementById(
-            element_id: Union[str, GraineObject[GraineASTExpr[GraineStringType]]],
+            element_id: GraineObject[GraineASTExpr[GraineStringType]],
         ) -> GraineObject[GraineASTExpr[GraineType]]: ...
 
         @staticmethod
         def getElementsByClassName(
-            class_name: Union[str, GraineObject[GraineASTExpr[GraineStringType]]],
+            class_name: GraineObject[GraineASTExpr[GraineStringType]],
         ) -> GraineObject[GraineASTExpr[GraineArrayType]]: ...
 
         @staticmethod
         def createElement(
-            tag_name: Union[str, GraineObject[GraineASTExpr[GraineStringType]]],
-        ) -> GraineObject[GraineASTExpr[GraineType]]: ...
+            tag_name: GraineObject[GraineASTExpr[GraineStringType]],
+        ) -> Element: ...

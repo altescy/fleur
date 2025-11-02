@@ -282,7 +282,7 @@ class TestDocumentIntegration:
 
             @graine.func
             def create_div():
-                elem = graine.document.createElement("div")
+                elem = graine.document.createElement(graine.string("div"))
                 return graine.typeof(elem)
 
         js_code = p.germinate()
@@ -312,9 +312,9 @@ class TestDocumentIntegration:
 
             @graine.func
             def test_attributes():
-                elem = graine.document.createElement("div")
-                elem.setAttribute("id", "myDiv")  # pyright: ignore[reportAttributeAccessIssue]
-                return elem.getAttribute("id")  # pyright: ignore[reportAttributeAccessIssue]
+                elem = graine.document.createElement(graine.string("div"))
+                elem.setAttribute(graine.string("id"), graine.string("myDiv"))
+                return elem.getAttribute(graine.string("id"))
 
         js_code = p.germinate()
         jsctx.eval(js_code)
@@ -328,10 +328,10 @@ class TestDocumentIntegration:
 
             @graine.func
             def test_append():
-                parent = graine.document.createElement("div")
-                child = graine.document.createElement("span")
-                parent.appendChild(child)  # pyright: ignore[reportAttributeAccessIssue]
-                return parent.childNodes.length  # pyright: ignore[reportAttributeAccessIssue]
+                parent = graine.document.createElement(graine.string("div"))
+                child = graine.document.createElement(graine.string("span"))
+                parent.appendChild(child)
+                return parent.childNodes.length
 
         js_code = p.germinate()
         jsctx.eval(js_code)
