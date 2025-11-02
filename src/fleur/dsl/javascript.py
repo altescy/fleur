@@ -14,6 +14,7 @@ from .ast import (
     GraineASTStmt,
     GraineBinaryOpNode,
     GraineBlockNode,
+    GraineBooleanNode,
     GraineCallNode,
     GraineClassNode,
     GraineConditionalNode,
@@ -58,7 +59,9 @@ def emit_javascript(*asts: GraineASTNode) -> str:
 
     def e(expr: GraineASTExpr) -> str:
         """Emit an expression node as JavaScript."""
-        if isinstance(expr, GraineNumberNode):
+        if isinstance(expr, GraineBooleanNode):
+            return "true" if expr.value else "false"
+        elif isinstance(expr, GraineNumberNode):
             return str(expr.value)
         elif isinstance(expr, GraineStringNode):
             # Escape backslashes, double quotes, and newlines
@@ -151,8 +154,12 @@ def emit_javascript(*asts: GraineASTNode) -> str:
             then_branch = s(stmt.then_branch, indent + "  ")
             result = f"{indent}if ({condition}) {{\n{then_branch}\n{indent}}}"
             if stmt.else_branch:
-                else_branch = s(stmt.else_branch, indent + "  ")
-                result += f" else {{\n{else_branch}\n{indent}}}"
+                if isinstance(stmt.else_branch, GraineIfNode):
+                    else_branch = s(stmt.else_branch, indent)
+                    result += f" else {else_branch[len(indent) :]}"
+                else:
+                    else_branch = s(stmt.else_branch, indent + "  ")
+                    result += f" else {{\n{else_branch}\n{indent}}}"
             return result
         else:
             raise GraineASTError(format_unsupported_ast_error(type(stmt)))
