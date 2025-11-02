@@ -1,3 +1,18 @@
+"""
+Just-In-Time compilation and builder layer for Graine DSL.
+
+This module provides the bridge between Python code execution and AST construction.
+It uses the Proxy pattern to intercept Python operations and convert them into
+Graine AST nodes.
+
+Key components:
+- _GraineBuilder: Proxy class that intercepts Python operations
+- auto_let: Decorator for automatic let-binding creation
+- use_block/require_block: Context management for statement emission
+- ensure_graine: Conversion between Python and Graine values
+- _function_from_python/_class_from_python: Introspection and conversion utilities
+"""
+
 import inspect
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -27,6 +42,7 @@ from .ast import (
     GraineReturnNode,
     GraineStringNode,
 )
+from .errors import GraineBlockError, GraineTypeError, format_type_error
 from .types import (
     GraineArray,
     GraineASTExprT_co,
@@ -54,6 +70,22 @@ _BLOCK = ContextVar[GraineBlockNode]("FLEUR_BLOCK", default=GraineBlockNode())
 
 @contextmanager
 def use_block() -> Iterator[GraineBlockNode]:
+    """
+    Context manager for creating a new statement block.
+
+    This creates a new GraineBlockNode and sets it as the current block
+    for statement emission. When the context exits, the previous block
+    is restored.
+
+    Yields:
+        A new GraineBlockNode for collecting statements
+
+    Example:
+        with use_block() as block:
+            # Statements emitted here go into 'block'
+            ...
+        # block now contains all emitted statements
+    """
     block = GraineBlockNode()
     token = _BLOCK.set(block)
     try:
@@ -63,7 +95,21 @@ def use_block() -> Iterator[GraineBlockNode]:
 
 
 def require_block() -> GraineBlockNode:
-    return _BLOCK.get()
+    """
+    Get the current statement block.
+
+    Returns:
+        The current GraineBlockNode for statement emission
+
+    Raises:
+        GraineBlockError: If no block context is active
+    """
+    try:
+        return _BLOCK.get()
+    except LookupError as e:
+        raise GraineBlockError(
+            "No active block context. Make sure you're inside a 'with parterre()' or 'use_block()' context."
+        ) from e
 
 
 @overload
@@ -75,6 +121,29 @@ def auto_let(fn: Callable[_P, "_GraineBuilder"]) -> Callable[_P, "_GraineBuilder
 def auto_let(
     fn: Callable[_P, Union[GraineObjectT, "_GraineBuilder"]],
 ) -> Callable[_P, Union[GraineObjectT, "_GraineBuilder"]]:
+    """
+    Decorator that automatically creates let-bindings for expression results.
+
+    This ensures proper evaluation order by assigning the result of a complex
+    expression to an intermediate variable before use. This prevents issues
+    with side effects and ensures the generated JavaScript behaves correctly.
+
+    Args:
+        fn: Function that returns a Graine object or builder
+
+    Returns:
+        Wrapped function that emits a let statement and returns an identifier
+
+    Example:
+        @auto_let
+        def add(a, b):
+            return _GraineBuilder(GraineBinaryOpNode("+", a, b))
+
+        # Generates:
+        # let _v_0 = (a + b);
+        # Returns: identifier referencing _v_0
+    """
+
     @wraps(fn)
     def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> "GraineObjectT":
         result = fn(*args, **kwargs)
@@ -101,6 +170,28 @@ def as_interface(obj_or_name: PyCallableT) -> PyCallableT: ...
 
 
 def as_interface(obj_or_name: Union[str, PyCallableT]) -> Union[PyCallableT, Callable[[PyCallableT], PyCallableT]]:
+    """
+    Decorator to mark a class as a JavaScript interface.
+
+    This creates a Graine facade for existing JavaScript objects (like Math,
+    Document, etc.) without generating class definitions. The class is replaced
+    with a builder that references the JavaScript identifier.
+
+    Args:
+        obj_or_name: Either a class or a string name for the JavaScript object
+
+    Returns:
+        Decorated class or decorator function
+
+    Example:
+        @as_interface
+        class Math:
+            @staticmethod
+            def sqrt(x): ...
+
+        # Math references the JavaScript 'Math' object directly
+    """
+
     def decorator(fn: PyCallableT) -> PyCallableT:
         assert isinstance(obj_or_name, str)
         identifier = GraineIdentifierNode(name=obj_or_name)
@@ -153,16 +244,19 @@ def from_python(value: dict[str, Any]) -> GraineRecord: ...
 
 
 def from_python(value: PyGraineCompat) -> GraineObject:
-    if isinstance(value, str):
+    if isinstance(value, bool):
+        return boolean(value)
+    elif isinstance(value, str):
         return string(value)
     elif isinstance(value, (int, float)):
         return number(float(value))
     elif isinstance(value, list):
-        return array(value)
+        return array(*value)
     elif isinstance(value, dict):
         return record(**value)
     else:
-        raise TypeError(f"Unsupported type for from_python: {type(value)}")
+        supported = "bool, int, float, str, list, dict"
+        raise GraineTypeError(format_type_error(value, supported))
 
 
 def boolean(value: PyBooleanCompat) -> GraineBoolean:
@@ -236,12 +330,48 @@ def ensure_graine(value: GraineObjectT) -> GraineObjectT: ...
 
 
 def ensure_graine(value: Any) -> GraineObject:
+    """
+    Convert a value to a Graine object if it isn't already.
+
+    This is used to handle mixed Python/Graine values in operations,
+    automatically converting Python primitives to Graine equivalents.
+
+    Args:
+        value: Either a Graine object or a Python primitive
+
+    Returns:
+        A Graine object (either the original or a converted version)
+
+    Example:
+        ensure_graine(42)  # Returns GraineNumber
+        ensure_graine(graine.number(42))  # Returns as-is
+    """
     if isinstance(value, (GraineObject, _GraineBuilder)):
         return cast(GraineObject, value)
     return from_python(cast(PyGraineCompat, value))
 
 
 def _function_from_python(fn: Callable[..., Any]) -> GraineFunctionNode:
+    """
+    Convert a Python function to a Graine function AST node.
+
+    This introspects the Python function signature and body, executing it
+    with proxy arguments to build the AST. Special handling is provided
+    for 'self' parameters in methods.
+
+    Args:
+        fn: Python function to convert
+
+    Returns:
+        GraineFunctionNode representing the function
+
+    Example:
+        def add(a, b):
+            return a + b
+
+        node = _function_from_python(add)
+        # Generates function AST with return statement
+    """
     sig = inspect.signature(fn)
     parameters = [GraineIdentifierNode(name=param.name) for param in sig.parameters.values()]
 
@@ -266,6 +396,27 @@ def _function_from_python(fn: Callable[..., Any]) -> GraineFunctionNode:
 
 
 def _class_ast_from_python(cls: type) -> GraineClassNode:
+    """
+    Convert a Python class to a Graine class AST node.
+
+    This introspects the class definition, converting __init__ to a constructor,
+    methods to class methods, and properties to getters/setters.
+
+    Args:
+        cls: Python class to convert
+
+    Returns:
+        GraineClassNode representing the class
+
+    Example:
+        class Point:
+            def __init__(self, x, y):
+                self.x = x
+                self.y = y
+
+        node = _class_ast_from_python(Point)
+        # Generates class with constructor
+    """
     methods = []
     constructor_node: Optional[GraineFunctionNode] = None
     for attr_name in dir(cls):
@@ -342,6 +493,21 @@ def _class_facade_from_python(cls: PyClassT, ast: GraineClassNode) -> PyClassT:
 
 
 class _GraineBuilder(Generic[GraineASTExprT_co]):
+    """
+    Proxy class that intercepts Python operations and builds AST nodes.
+
+    This is the core of the JIT system. It wraps an AST node and intercepts
+    magic methods (__getattr__, __call__, __add__, etc.) to build complex
+    AST expressions from natural Python syntax.
+
+    The __graine_ast__ attribute holds the actual AST node being built.
+
+    Example:
+        builder = _GraineBuilder(GraineNumberNode(42))
+        result = builder + 10  # Creates BinaryOpNode
+        func = builder.method()  # Creates CallNode
+    """
+
     def __init__(self, ast: GraineASTExprT_co) -> None:
         self.__graine_ast__ = ast
 

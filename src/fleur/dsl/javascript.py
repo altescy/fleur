@@ -1,3 +1,11 @@
+"""
+JavaScript code emitter for Graine AST.
+
+This module traverses Graine AST nodes and generates clean, readable JavaScript code.
+It handles proper indentation, escaping, and formatting to produce idiomatic JavaScript
+that is functionally equivalent to the original Graine code.
+"""
+
 from .ast import (
     GraineArrayNode,
     GraineAssignNode,
@@ -22,10 +30,34 @@ from .ast import (
     GraineReturnNode,
     GraineStringNode,
 )
+from .errors import GraineASTError, format_unsupported_ast_error
 
 
 def emit_javascript(*asts: GraineASTNode) -> str:
+    """
+    Generate JavaScript code from Graine AST nodes.
+
+    This function traverses the AST and emits formatted JavaScript code.
+    It handles both expression and statement nodes, maintaining proper
+    indentation and syntax.
+
+    Args:
+        *asts: One or more AST nodes to emit as JavaScript
+
+    Returns:
+        A string containing the generated JavaScript code
+
+    Raises:
+        NotImplementedError: If an unsupported AST node type is encountered
+
+    Example:
+        node = GraineNumberNode(value=42)
+        code = emit_javascript(node)
+        # Returns: "42;"
+    """
+
     def e(expr: GraineASTExpr) -> str:
+        """Emit an expression node as JavaScript."""
         if isinstance(expr, GraineNumberNode):
             return str(expr.value)
         elif isinstance(expr, GraineStringNode):
@@ -73,9 +105,10 @@ def emit_javascript(*asts: GraineASTNode) -> str:
             arguments = ", ".join(e(arg) for arg in expr.arguments)
             return f"new {expr.class_name}({arguments})"
         else:
-            raise NotImplementedError(f"Unsupported expression type: {type(expr)}")
+            raise GraineASTError(format_unsupported_ast_error(type(expr)))
 
     def s(stmt: GraineASTStmt, indent: str = "") -> str:
+        """Emit a statement node as JavaScript with proper indentation."""
         if isinstance(stmt, GraineLetNode):
             identifier = e(stmt.identifier)
             value = e(stmt.value)
@@ -122,7 +155,7 @@ def emit_javascript(*asts: GraineASTNode) -> str:
                 result += f" else {{\n{else_branch}\n{indent}}}"
             return result
         else:
-            raise NotImplementedError(f"Unsupported statement type: {type(stmt)}")
+            raise GraineASTError(format_unsupported_ast_error(type(stmt)))
 
     lines = []
     for ast in asts:
