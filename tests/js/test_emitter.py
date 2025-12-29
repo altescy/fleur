@@ -9,6 +9,119 @@ class TestES2022Emitter:
         "ast, expected",
         [
             pytest.param(
+                ast.ExpressionStatement(
+                    expression=ast.NumberLiteral(value=42),
+                ),
+                "42;",
+                id="expression statement",
+            ),
+            pytest.param(
+                ast.ExpressionStatement(
+                    expression=ast.ArrayLiteral(
+                        elements=(
+                            ast.NumberLiteral(value=1),
+                            ast.NumberLiteral(value=2),
+                            ast.NumberLiteral(value=3),
+                        ),
+                    ),
+                ),
+                "[1,2,3];",
+                id="array literal expression statement",
+            ),
+            pytest.param(
+                ast.ExpressionStatement(
+                    ast.ObjectLiteral(
+                        properties={
+                            "name": ast.StringLiteral(value="Alice"),
+                            "age": ast.NumberLiteral(value=30),
+                        },
+                    ),
+                ),
+                '{"name":"Alice","age":30};',
+                id="object literal statement",
+            ),
+            pytest.param(
+                ast.ExpressionStatement(
+                    expression=ast.UnaryExpression(
+                        operator=ast.UnaryOperator.NEGATE,
+                        operand=ast.NumberLiteral(value=5),
+                    ),
+                ),
+                "-5;",
+                id="unary expression statement",
+            ),
+            pytest.param(
+                ast.ExpressionStatement(
+                    expression=ast.BinaryExpression(
+                        operator=ast.BinaryOperator.MULTIPLY,
+                        left=ast.NumberLiteral(value=6),
+                        right=ast.NumberLiteral(value=7),
+                    ),
+                ),
+                "6*7;",
+                id="binary expression statement",
+            ),
+            pytest.param(
+                ast.ExpressionStatement(
+                    expression=ast.CallExpression(
+                        callee=ast.Identifier(name="greet"),
+                        arguments=(ast.StringLiteral(value="World"),),
+                    )
+                ),
+                'greet("World");',
+                id="call expression statement",
+            ),
+            pytest.param(
+                ast.ExpressionStatement(
+                    expression=ast.PropertyAccessExpression(
+                        object=ast.Identifier(name="console"),
+                        property="log",
+                    ),
+                ),
+                "console.log;",
+                id="property access expression statement",
+            ),
+            pytest.param(
+                ast.ExpressionStatement(
+                    expression=ast.FunctionExpression(
+                        parameters=(),
+                        body=ast.BlockStatement(statements=()),
+                    ),
+                ),
+                "function(){};",
+                id="function expression statement",
+            ),
+            pytest.param(
+                ast.ExpressionStatement(
+                    expression=ast.FunctionExpression(
+                        parameters=(
+                            ast.Identifier(name="x"),
+                            ast.Identifier(name="y"),
+                        ),
+                        body=ast.BlockStatement(
+                            statements=(
+                                ast.ReturnStatement(
+                                    argument=ast.BinaryExpression(
+                                        operator=ast.BinaryOperator.ADD,
+                                        left=ast.Identifier(name="x"),
+                                        right=ast.Identifier(name="y"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+                "function(x,y){return x+y;};",
+                id="function expression statement",
+            ),
+            pytest.param(
+                ast.ReturnStatement(
+                    argument=ast.StringLiteral(value="Hello, World!"),
+                ),
+                'return "Hello, World!";',
+                id="return statement with argument",
+            ),
+            pytest.param(
                 ast.BreakStatement(),
                 "break;",
                 id="break statement",

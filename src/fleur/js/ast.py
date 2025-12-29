@@ -93,6 +93,13 @@ class UndefinedLiteral(Expression[Undefined]):
 
 
 @dataclasses.dataclass(frozen=True)
+class ArrayLiteral(Expression[Array[_JSTypeT_co]], Generic[_JSTypeT_co]):
+    """Represents an array literal in the AST."""
+
+    elements: tuple[Expression[_JSTypeT_co], ...]
+
+
+@dataclasses.dataclass(frozen=True)
 class ObjectLiteral(Expression[Object[JSType]]):
     """Represents an object literal in the AST."""
 
@@ -105,6 +112,7 @@ LiteralNode = Union[
     BooleanLiteral,
     NullLiteral,
     UndefinedLiteral,
+    ArrayLiteral,
     ObjectLiteral,
 ]
 
@@ -175,6 +183,14 @@ class AssignmentExpression(Expression[_JSTypeT], Generic[_JSTypeT]):
 
     target: Expression[_JSTypeT]
     value: Expression[_JSTypeT]
+
+
+@dataclasses.dataclass(frozen=True)
+class FunctionExpression(Expression[Function[_JSTypeT_co]], Generic[_JSTypeT_co]):
+    """Represents a function expression in the AST."""
+
+    parameters: tuple[Identifier[JSType], ...]
+    body: "BlockStatement"
 
 
 # ==== Statements =====

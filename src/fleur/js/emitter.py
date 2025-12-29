@@ -57,12 +57,16 @@ class ES2022Emitter:
             return "null"
         if isinstance(node, ast.UndefinedLiteral):
             return "undefined"
+        if isinstance(node, ast.ArrayLiteral):
+            elements = [self._emit_expression(elem) for elem in node.elements]
+            elements_str = f",{self._space}".join(elements)
+            return f"[{elements_str}]"
         if isinstance(node, ast.ObjectLiteral):
             props = []
             for key, value in node.properties.items():
                 prop_str = f'"{key}":{self._space}{self._emit_expression(value)}'
                 props.append(prop_str)
-            props_str = ", ".join(props)
+            props_str = f",{self._space}".join(props)
             return f"{{{props_str}}}"
         raise NotImplementedError(f"Unsupported literal node: {type(node)!r}")
 
@@ -90,6 +94,11 @@ class ES2022Emitter:
         prop = node.property
         return f"{obj}.{prop}"
 
+    def _emit_function_expression(self, node: ast.FunctionExpression) -> str:
+        params = f",{self._space}".join(self._emit_identifier_expression(param) for param in node.parameters)
+        body = self(node.body)
+        return f"function({params}){self._space}{body}"
+
     def _emit_expression(self, node: ast.Expression[ast.JSType]) -> str:
         if isinstance(node, ast.LiteralNode):
             return self._emit_literal_expression(node)
@@ -103,6 +112,8 @@ class ES2022Emitter:
             return self._emit_call_expression(node)
         if isinstance(node, ast.PropertyAccessExpression):
             return self._emit_property_access_expression(node)
+        if isinstance(node, ast.FunctionExpression):
+            return self._emit_function_expression(node)
         raise NotImplementedError(f"Unsupported expression node: {type(node)!r}")
 
     # Emit Statements
