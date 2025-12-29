@@ -28,7 +28,7 @@ clean: clean-pyc clean-build
 .PHONY: clean-pyc
 clean-pyc:
 	rm -rf .pytest_cache
-	rm -rf .mypy_cache
+	rm -rf .ruff_cache
 	find . -name '*.pyc' -exec rm -f {} +
 	find . -name '*.pyo' -exec rm -f {} +
 	find . -name '*~' -exec rm -f {} +
