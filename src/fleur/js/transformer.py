@@ -198,11 +198,11 @@ class PyASTTransformer(ast.NodeTransformer):
 
         ->
 
-        with __fleur_get_current_builder__().new_context() as __fleur_temp_consequent__:
+        with __fleur_get_current_builder__().context() as __fleur_temp_consequent__:
             transformed_stmt1
             transformed_stmt2
 
-        with __fleur_get_current_builder__().new_context() as __fleur_temp_alternate__:
+        with __fleur_get_current_builder__().context() as __fleur_temp_alternate__:
             __fleur_set_current_builder__(__fleur_builder__)
             transformed_stmt3
 
@@ -228,7 +228,7 @@ class PyASTTransformer(ast.NodeTransformer):
                                 args=[],
                                 keywords=[],
                             ),
-                            attr="new_context",
+                            attr="context",
                             ctx=ast.Load(),
                         ),
                         args=[],
@@ -277,7 +277,7 @@ class PyASTTransformer(ast.NodeTransformer):
                                     args=[],
                                     keywords=[],
                                 ),
-                                attr="new_context",
+                                attr="context",
                                 ctx=ast.Load(),
                             ),
                             args=[],

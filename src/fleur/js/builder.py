@@ -378,6 +378,7 @@ class Function(ExpressionBuilder[ast.Function], Generic[_P, _R]):
     if TYPE_CHECKING:
 
         def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _R: ...
+        def toString(self) -> String: ...
 
 
 class StatementBuilder:
@@ -393,7 +394,7 @@ class StatementBuilder:
         return ast.BlockStatement(statements=self.statements)
 
     @contextmanager
-    def new_context(self) -> Iterator["StatementBuilder"]:
+    def context(self) -> Iterator["StatementBuilder"]:
         new_builder = StatementBuilder()
         token = _CURRENT_BUILDER.set(new_builder)
         try:
