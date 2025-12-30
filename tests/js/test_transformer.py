@@ -6,11 +6,11 @@ import ast
 import inspect
 import textwrap
 
-from fleur.js.transformer import BuilderTransformer
+from fleur.js.transformer import PyASTTransformer
 
 
-class TestBuilderTransformer:
-    """Test cases for BuilderTransformer"""
+class TestPyASTTransformer:
+    """Test cases for PyASTTransformer"""
 
     @staticmethod
     def test_return_with_value():
@@ -23,7 +23,7 @@ class TestBuilderTransformer:
         tree = ast.parse(source)
         func_def = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef))
 
-        transformer = BuilderTransformer({"n"})
+        transformer = PyASTTransformer({"n"})
         func_def.body = [transformer.visit(stmt) for stmt in func_def.body]
         ast.fix_missing_locations(func_def)
 
@@ -44,7 +44,7 @@ class TestBuilderTransformer:
         tree = ast.parse(source)
         func_def = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef))
 
-        transformer = BuilderTransformer(set())
+        transformer = PyASTTransformer(set())
         func_def.body = [transformer.visit(stmt) for stmt in func_def.body]
         ast.fix_missing_locations(func_def)
 
@@ -64,7 +64,7 @@ class TestBuilderTransformer:
         tree = ast.parse(source)
         func_def = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef))
 
-        transformer = BuilderTransformer({"n"})
+        transformer = PyASTTransformer({"n"})
         func_def.body = [transformer.visit(stmt) for stmt in func_def.body]
         ast.fix_missing_locations(func_def)
 
@@ -84,7 +84,7 @@ class TestBuilderTransformer:
         tree = ast.parse(source)
         func_def = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef))
 
-        transformer = BuilderTransformer({"n"})
+        transformer = PyASTTransformer({"n"})
         func_def.body = [transformer.visit(stmt) for stmt in func_def.body]
         ast.fix_missing_locations(func_def)
 
@@ -106,7 +106,7 @@ class TestBuilderTransformer:
         tree = ast.parse(source)
         func_def = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef))
 
-        transformer = BuilderTransformer({"n"})
+        transformer = PyASTTransformer({"n"})
         func_def.body = [transformer.visit(stmt) for stmt in func_def.body]
         ast.fix_missing_locations(func_def)
 
@@ -129,7 +129,7 @@ class TestBuilderTransformer:
         tree = ast.parse(source)
         func_def = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef))
 
-        transformer = BuilderTransformer({"n"})
+        transformer = PyASTTransformer({"n"})
         func_def.body = [transformer.visit(stmt) for stmt in func_def.body]
         ast.fix_missing_locations(func_def)
 
@@ -150,7 +150,7 @@ class TestBuilderTransformer:
         tree = ast.parse(source)
         func_def = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef))
 
-        transformer = BuilderTransformer({"n"})
+        transformer = PyASTTransformer({"n"})
         func_def.body = [transformer.visit(stmt) for stmt in func_def.body]
         ast.fix_missing_locations(func_def)
 
@@ -174,7 +174,7 @@ class TestBuilderTransformer:
         tree = ast.parse(source)
         func_def = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef))
 
-        transformer = BuilderTransformer({"n"})
+        transformer = PyASTTransformer({"n"})
         func_def.body = [transformer.visit(stmt) for stmt in func_def.body]
         ast.fix_missing_locations(func_def)
 

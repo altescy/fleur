@@ -19,7 +19,7 @@ _TRANSFORMED_MARKER: Final = "__fleur_transformed__"
 _SET_CURRENT_BUILDER: Final = "__fleur_set_current_builder__"
 
 
-class BuilderTransformer(ast.NodeTransformer):
+class PyASTTransformer(ast.NodeTransformer):
     """
     Transform Python AST to use builder API calls.
 
@@ -263,7 +263,7 @@ def transform_function_body(fn: Any, param_names: set[str]) -> str:
         raise ValueError(f"Could not find function definition for {fn.__name__}")
 
     # Transform the function body
-    transformer = BuilderTransformer(param_names)
+    transformer = PyASTTransformer(param_names)
     func_def.body = [transformer.visit(stmt) for stmt in func_def.body]
 
     # Fix missing locations
@@ -311,7 +311,7 @@ def create_transformed_function(fn: Any, param_names: set[str], builder_module: 
     func_def.decorator_list = []
 
     # Transform the function body
-    transformer = BuilderTransformer(param_names)
+    transformer = PyASTTransformer(param_names)
     new_body: list[ast.stmt] = []
     for stmt in func_def.body:
         # Remember the current temp_functions count
