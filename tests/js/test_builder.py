@@ -19,7 +19,7 @@ class TestStatementBuilder:
 
             @builder.function
             def add(a: builder.Number, b: builder.Number) -> builder.Number:
-                return builder.ret(a + b)
+                return a + b
 
             code = ES2022Emitter("minify")(*builder.collect_statements())
             assert code == "function add(a,b){return (a+b);}"
@@ -30,13 +30,40 @@ class TestStatementBuilder:
 
             @builder.function
             def factorial(n: builder.Number) -> builder.Number:
-                return builder.ret(
-                    builder.conditional(
-                        n <= builder.Number(1),
-                        builder.Number(1),
-                        n * factorial(n - builder.Number(1)),
-                    )
+                return builder.conditional(
+                    n <= builder.Number(1),
+                    builder.Number(1),
+                    n * factorial(n - builder.Number(1)),
                 )
 
             code = ES2022Emitter("minify")(*builder.collect_statements())
             assert code == "function factorial(n){return ((n<=1)?1:(n*factorial((n-1))));}"
+
+    @staticmethod
+    def test_function_with_variables():
+        """Test function with transform=True and variable declarations"""
+        with builder.use_context():
+
+            @builder.function
+            def calculate(n: builder.Number) -> builder.Number:
+                x = n + builder.Number(1)
+                y = x * builder.Number(2)
+                return y
+
+            code = ES2022Emitter("minify")(*builder.collect_statements())
+            assert code == "function calculate(n){let x=(n+1);let y=(x*2);return y;}"
+
+    @staticmethod
+    def test_function_with_if_statement():
+        """Test function with if statement"""
+        with builder.use_context():
+
+            @builder.function
+            def check_positive(n: builder.Number) -> builder.String:
+                if n > builder.Number(0):
+                    return builder.String("Positive")
+                else:
+                    return builder.String("Non-positive")
+
+            code = ES2022Emitter("minify")(*builder.collect_statements())
+            assert code == 'function check_positive(n){if((0<n)){return "Positive";}else{return "Non-positive";}}'

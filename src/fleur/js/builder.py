@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Final, Generic, Optional, TypeVar, Union, cast
 from typing_extensions import ParamSpec
 
 from . import ast
+from .transformer import _BUILDER_VAR, create_transformed_function
 
 _JSTypeT = TypeVar("_JSTypeT", bound=ast.JSType)
 
@@ -360,31 +361,54 @@ class StatementBuilder:
         self._statements.append(if_statement)
 
     @overload
-    def function(self, fn: Callable[_P, _R]) -> Function[_P, _R]: ...
+    def function(self, fn: Callable[_P, _R], *, transform: bool = ...) -> Function[_P, _R]: ...
     @overload
-    def function(self, fn: Callable[..., None]) -> Function[..., Undefined]: ...
-    def function(self, fn: Callable) -> Function:
+    def function(self, fn: Callable[..., None], *, transform: bool = ...) -> Function[..., Undefined]: ...
+    def function(self, fn: Callable, *, transform: bool = False) -> Function:
         parameters = tuple(ast.Identifier(name=param.name) for param in inspect.signature(fn).parameters.values())
         body_builder = StatementBuilder()
 
         # Create placeholder Function object for recursive calls
         func_placeholder = cast(Function, ExpressionBuilder(ast.Identifier(name=fn.__name__)))
 
-        # Handle recursive functions by updating closure cells
-        # If the function references itself (has itself as a free variable),
-        # we need to populate the closure cell with a placeholder
-        if fn.__code__.co_freevars and fn.__closure__:
-            for i, var_name in enumerate(fn.__code__.co_freevars):
-                if var_name == fn.__name__:
-                    # Update the closure cell to allow recursive calls
-                    fn.__closure__[i].cell_contents = func_placeholder
+        # If transform=True, use AST transformation to allow natural Python syntax
+        if transform:
+            param_names = {param.name for param in inspect.signature(fn).parameters.values()}
+            # Pass body_builder as the builder instance for the transformed function
+            transformed_fn = create_transformed_function(fn, param_names, body_builder)
 
-        def _build_body() -> None:
-            _CURRENT_BUILDER.set(body_builder)
-            fn(*(ExpressionBuilder(param) for param in parameters))  # pyright: ignore[reportCallIssue]
+            # Handle recursive functions by updating closure cells
+            if transformed_fn.__code__.co_freevars and transformed_fn.__closure__:
+                for i, var_name in enumerate(transformed_fn.__code__.co_freevars):
+                    if var_name == fn.__name__:
+                        transformed_fn.__closure__[i].cell_contents = func_placeholder
 
-        ctx = contextvars.copy_context()
-        ctx.run(_build_body)
+            def _build_body() -> None:
+                _CURRENT_BUILDER.set(body_builder)
+                # Update __fleur_builder__ in the transformed function's globals
+                # to point to the correct builder instance
+                transformed_fn.__globals__[_BUILDER_VAR] = body_builder
+                # Make the function name refer to the Function object for recursive calls
+                transformed_fn.__globals__[fn.__name__] = func_placeholder
+                transformed_fn(*(ExpressionBuilder(param) for param in parameters))  # pyright: ignore[reportCallIssue]
+
+            ctx = contextvars.copy_context()
+            ctx.run(_build_body)
+        else:
+            # Original behavior: no transformation
+            # Handle recursive functions by updating closure cells
+            if fn.__code__.co_freevars and fn.__closure__:
+                for i, var_name in enumerate(fn.__code__.co_freevars):
+                    if var_name == fn.__name__:
+                        # Update the closure cell to allow recursive calls
+                        fn.__closure__[i].cell_contents = func_placeholder
+
+            def _build_body() -> None:
+                _CURRENT_BUILDER.set(body_builder)
+                fn(*(ExpressionBuilder(param) for param in parameters))  # pyright: ignore[reportCallIssue]
+
+            ctx = contextvars.copy_context()
+            ctx.run(_build_body)
 
         function_declaration = ast.FunctionDeclarationStatement(
             name=fn.__name__,
@@ -482,15 +506,48 @@ def if_then_else(
 
 
 @overload
-def function(fn: Callable[_P, _R], *, builder: Optional[StatementBuilder] = ...) -> Function[_P, _R]: ...
-@overload
-def function(fn: Callable[..., None], *, builder: Optional[StatementBuilder] = ...) -> Function[..., Undefined]: ...
 def function(
-    fn: Callable,
+    fn: Callable[_P, _R], *, builder: Optional[StatementBuilder] = ..., transform: bool = ...
+) -> Function[_P, _R]: ...
+@overload
+def function(
+    fn: Callable[..., None], *, builder: Optional[StatementBuilder] = ..., transform: bool = ...
+) -> Function[..., Undefined]: ...
+@overload
+def function(
+    *, builder: Optional[StatementBuilder] = ..., transform: bool = ...
+) -> Callable[[Callable[_P, _R]], Function[_P, _R]]: ...
+def function(
+    fn: Optional[Callable] = None,
     *,
     builder: Optional[StatementBuilder] = None,
-) -> Function:
-    return (builder or _CURRENT_BUILDER.get()).function(fn)
+    transform: bool = True,
+) -> Union[Function, Callable[[Callable], Function]]:
+    """
+    Decorator to define a JavaScript function.
+
+    Can be used with or without arguments:
+    - @builder.function: uses default settings
+    - @builder.function(transform=True): enables AST transformation
+
+    Args:
+        fn: The function to decorate (auto-provided when used as @builder.function)
+        builder: Optional builder instance (defaults to current context)
+        transform: If True, transforms Python syntax to builder API calls
+
+    Returns:
+        Function object or decorator function
+    """
+    if fn is None:
+        # Called with arguments: @builder.function(transform=True)
+        # Return a decorator
+        def decorator(f: Callable) -> Function:
+            return (builder or _CURRENT_BUILDER.get()).function(f, transform=transform)
+
+        return decorator
+    else:
+        # Called without arguments: @builder.function
+        return (builder or _CURRENT_BUILDER.get()).function(fn, transform=transform)
 
 
 def conditional(
