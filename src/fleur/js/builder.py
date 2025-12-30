@@ -350,7 +350,9 @@ class StatementBuilder:
         self,
         condition: ExpressionBuilder[ast.Boolean],
         consequent: Callable[["StatementBuilder"], Optional[Union[ExpressionBuilder, ast.BlockStatement]]],
-        alternate: Optional[Callable[["StatementBuilder"], Optional[Union[ExpressionBuilder, ast.BlockStatement]]]] = None,
+        alternate: Optional[
+            Callable[["StatementBuilder"], Optional[Union[ExpressionBuilder, ast.BlockStatement]]]
+        ] = None,
     ) -> None:
         consequent_builder = StatementBuilder()
         result = consequent(consequent_builder)
