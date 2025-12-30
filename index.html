@@ -1,0 +1,496 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>Elm-ish Vanilla UI (Subcomponents)</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      padding: 16px;
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .card {
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 12px;
+      margin: 10px 0;
+    }
+
+    button {
+      padding: 6px 10px;
+    }
+
+    input {
+      padding: 6px 8px;
+    }
+
+    ul {
+      padding-left: 18px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app"></div>
+
+  <script>
+    /**********************
+     * Core Elm-ish types *
+     **********************/
+
+    // Cmd is a function that receives dispatch and performs effects, possibly dispatching messages.
+    const Cmd = {
+      none: () => (/* dispatch */) => { },
+      batch: (cmds) => (dispatch) => {for (const c of cmds) c(dispatch);},
+      map: (tagger, cmd) => (dispatch) => cmd((msg) => dispatch(tagger(msg))),
+      // Useful helpers:
+      ofMsg: (msg) => (dispatch) => dispatch(msg),
+      timeout: (ms, msg) => (dispatch) => {const id = setTimeout(() => dispatch(msg), ms); return () => clearTimeout(id);},
+      // Promise task:
+      task: (promiseFactory, onOk, onErr) => (dispatch) => {
+        let cancelled = false;
+        promiseFactory()
+          .then((v) => {if (!cancelled) dispatch(onOk(v));})
+          .catch((e) => {if (!cancelled) dispatch(onErr(e));});
+        return () => {cancelled = true;};
+      },
+    };
+
+    // Sub is a function that registers external events and returns an unsubscribe function.
+    const Sub = {
+      none: () => () => { },
+      batch: (subs) => () => {
+        const unsubs = subs.map((s) => s());
+        return () => {for (const u of unsubs) u();};
+      },
+      map: (tagger, sub) => () => sub((msg) => runtimeDispatch(tagger(msg))), // see runtimeDispatch below
+    };
+
+    // h: create DOM node
+    const h = (tag, props = {}, ...children) => {
+      const el = document.createElement(tag);
+
+      if (props.key != null) el.__key = props.key;
+
+      el.__handlers = {};
+
+      for (const [k, v] of Object.entries(props)) {
+        if (k === "key") continue;
+
+        if (k.startsWith("on") && typeof v === "function") {
+          const type = k.slice(2).toLowerCase();
+          el.__handlers[type] = v;
+        } else if (k === "class") {
+          el.className = v;
+        } else if (k === "style" && typeof v === "object" && v) {
+          Object.assign(el.style, v);
+        } else if (k === "value") {
+          el.value = v ?? "";
+        } else if (v != null && v !== false) {
+          el.setAttribute(k, String(v));
+        }
+      }
+
+      for (const c of children.flat()) {
+        if (c == null || c === false) continue;
+        el.appendChild(c instanceof Node ? c : document.createTextNode(String(c)));
+      }
+
+      return el;
+    };
+
+    const sameNode = (a, b) => {
+      if (a.nodeType !== b.nodeType) return false;
+      if (a.nodeType === Node.TEXT_NODE) return true;
+      if (a.tagName !== b.tagName) return false;
+      return a.__key === b.__key;
+    };
+
+    const ensureListener = (el, type) => {
+      if (!el.__listenerInstalled) el.__listenerInstalled = {};
+
+      if (!el.__listenerInstalled[type]) {
+        el.addEventListener(type, (event) => {
+          const handler = el.__handlers?.[type];
+          if (handler) handler(event);
+        });
+        el.__listenerInstalled[type] = true;
+      }
+    };
+
+    const mountTree = (node) => {
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+      // install handlers on this node
+      const handlers = node.__handlers || {};
+      for (const type of Object.keys(handlers)) {
+        ensureListener(node, type);
+      }
+
+      // recurse
+      for (const child of node.childNodes) {
+        mountTree(child);
+      }
+    };
+
+
+    const patchProps = (el, newEl) => {
+      // attributes（value 제외）は今まで通り
+      for (const attr of [...el.attributes]) {
+        if (attr.name === "value") continue;
+        if (!newEl.hasAttribute(attr.name)) {
+          el.removeAttribute(attr.name);
+        }
+      }
+
+      for (const attr of [...newEl.attributes]) {
+        if (attr.name === "value") continue;
+        if (el.getAttribute(attr.name) !== attr.value) {
+          el.setAttribute(attr.name, attr.value);
+        }
+      }
+
+      if ("value" in newEl && el.value !== newEl.value) {
+        el.value = newEl.value;
+      }
+
+      const newHandlers = newEl.__handlers || {};
+      el.__handlers = el.__handlers || {};
+
+      for (const type of Object.keys(newHandlers)) {
+        el.__handlers[type] = newHandlers[type];
+        ensureListener(el, type);
+      }
+
+      // remove handlers no longer present
+      for (const type of Object.keys(el.__handlers)) {
+        if (!(type in newHandlers)) {
+          delete el.__handlers[type];
+        }
+      }
+    };
+
+    const patchChildren = (parent, newParent) => {
+      const oldChildren = [...parent.childNodes];
+      const newChildren = [...newParent.childNodes];
+
+      const keyed = new Map();
+      for (const c of oldChildren) {
+        if (c.__key != null) keyed.set(c.__key, c);
+      }
+
+      const used = new Set();
+      let i = 0;
+
+      for (const newC of newChildren) {
+        let oldC = null;
+
+        if (newC.__key != null) {
+          oldC = keyed.get(newC.__key) || null;
+        } else {
+          oldC = oldChildren[i] || null;
+        }
+
+        if (oldC && sameNode(oldC, newC)) {
+          patch(oldC, newC);
+
+          const current = parent.childNodes[i];
+          if (current !== oldC) {
+            parent.insertBefore(oldC, current || null);
+          }
+
+          used.add(oldC);
+        } else {
+          parent.insertBefore(newC, parent.childNodes[i] || null);
+          used.add(newC);
+        }
+
+        i++;
+      }
+
+      for (const c of oldChildren) {
+        if (!used.has(c)) {
+          parent.removeChild(c);
+        }
+      }
+    };
+
+    const patch = (oldNode, newNode) => {
+      if (!sameNode(oldNode, newNode)) {
+        oldNode.replaceWith(newNode);
+
+        mountTree(newNode);
+
+        return newNode;
+      }
+
+      if (oldNode.nodeType === Node.TEXT_NODE) {
+        if (oldNode.textContent !== newNode.textContent) {
+          oldNode.textContent = newNode.textContent;
+        }
+        return oldNode;
+      }
+
+      patchProps(oldNode, newNode);
+      patchChildren(oldNode, newNode);
+      return oldNode;
+    };
+
+    /****************
+     * App runtime  *
+     ****************/
+
+    // NOTE: We'll stash runtimeDispatch globally only to support Sub.map with minimal plumbing.
+    // In a more polished implementation, you'd thread dispatch into subscriptions cleanly.
+    let runtimeDispatch = () => { };
+
+    const program = ({init, update, view, subscriptions = () => Sub.none}) => (mountEl) => {
+      let model;
+      let root = document.createComment("root");
+      let unsubscribe = () => { };
+      let cancelEffects = [];
+
+      const setRoot = (node) => {
+        root.replaceWith(node);
+        root = node;
+      };
+
+      const runCmd = (cmd) => {
+        // cmd may return a cleanup function (optional)
+        const cleanup = cmd(dispatch);
+        if (typeof cleanup === "function") cancelEffects.push(cleanup);
+      };
+
+      const refreshSubs = () => {
+        // tear down previous
+        try {unsubscribe();} catch (_) { }
+        // set up new
+        const subFactory = subscriptions(model);
+        // subFactory can be:
+        //   () => unsubscribe
+        // or a function expecting dispatch: to keep minimal we allow both.
+        if (subFactory.length === 1) {
+          unsubscribe = subFactory(dispatch) || (() => { });
+        } else {
+          unsubscribe = subFactory() || (() => { });
+        }
+      };
+
+      const render = () => {
+        const newNode = view(model, dispatch);
+        root = patch(root, newNode);
+      };
+
+      const dispatch = (msg) => {
+        const [nextModel, cmd] = update(model, msg);
+        model = nextModel;
+        render();
+        refreshSubs();
+        if (cmd) runCmd(cmd);
+      };
+
+      runtimeDispatch = dispatch;
+
+      // boot
+      const [m0, c0] = init();
+      model = m0;
+      mountEl.appendChild(root);
+      render();
+      refreshSubs();
+      if (c0) runCmd(c0);
+
+      return () => {
+        try {unsubscribe();} catch (_) { }
+        for (const c of cancelEffects) {try {c();} catch (_) { } }
+      };
+    };
+
+    /*****************************
+     * Subcomponent composition  *
+     *****************************/
+
+    // Key idea:
+    // Child: { init, update, view } with ChildModel, ChildMsg.
+    // Parent holds childModel and wraps childMsg into parentMsg via tagger.
+    //
+    // Utilities:
+    const liftUpdate = (childUpdate, getChildModel, setChildModel, tagger) =>
+      (parentModel, parentMsg, unwrap) => {
+        // unwrap: ParentMsg -> ChildMsg | null
+        const childMsg = unwrap(parentMsg);
+        if (childMsg == null) return [parentModel, Cmd.none()];
+
+        const [nextChildModel, childCmd] = childUpdate(getChildModel(parentModel), childMsg);
+
+        const nextParentModel = setChildModel(parentModel, nextChildModel);
+        const nextCmd = childCmd ? Cmd.map(tagger, childCmd) : Cmd.none();
+        return [nextParentModel, nextCmd];
+      };
+
+    const mapDispatch = (tagger, dispatch) => (childMsg) => dispatch(tagger(childMsg));
+
+    /********************
+     * Example: Counter *
+     ********************/
+
+    // Child component: Counter
+    const Counter = (() => {
+      // Model
+      const init = () => [{count: 0}, Cmd.none()];
+
+      // Msg
+      const Msg = {
+        Inc: () => ({type: "Inc"}),
+        Dec: () => ({type: "Dec"}),
+        Set: (n) => ({type: "Set", n}),
+      };
+
+      // update
+      const update = (model, msg) => {
+        switch (msg.type) {
+          case "Inc": return [{...model, count: model.count + 1}, Cmd.none()];
+          case "Dec": return [{...model, count: model.count - 1}, Cmd.none()];
+          case "Set": return [{...model, count: msg.n}, Cmd.none()];
+          default: return [model, Cmd.none()];
+        }
+      };
+
+      // view
+      const view = (model, dispatch) => {
+        return h("div", {class: "card"},
+          h("div", {class: "row"},
+            h("strong", {}, "Counter"),
+            h("span", {}, `count = ${model.count}`)
+          ),
+          h("div", {class: "row", style: {marginTop: "8px"}},
+            h("button", {onclick: () => dispatch(Msg.Dec())}, "-"),
+            h("button", {onclick: () => dispatch(Msg.Inc())}, "+"),
+            h("button", {onclick: () => dispatch(Msg.Set(0))}, "reset"),
+          )
+        );
+      };
+
+      return {init, update, view, Msg};
+    })();
+
+    /*****************
+     * Example: List *
+     *****************/
+
+    const List = (() => {
+      const init = () => [{text: "", items: []}, Cmd.none()];
+
+      const Msg = {
+        Input: (text) => ({type: "Input", text}),
+        Add: () => ({type: "Add"}),
+        Remove: (index) => ({type: "Remove", index}),
+      };
+
+      const update = (model, msg) => {
+        switch (msg.type) {
+          case "Input":
+            return [{...model, text: msg.text}, Cmd.none()];
+          case "Add": {
+            const t = model.text.trim();
+            if (!t) return [model, Cmd.none()];
+            return [{...model, text: "", items: [...model.items, t]}, Cmd.none()];
+          }
+          case "Remove":
+            return [{...model, items: model.items.filter((_, i) => i !== msg.index)}, Cmd.none()];
+          default:
+            return [model, Cmd.none()];
+        }
+      };
+
+      const view = (model, dispatch) => {
+        return h("div", {class: "card"},
+          h("div", {class: "row"}, h("strong", {}, "List")),
+          h("div", {class: "row", style: {marginTop: "8px"}},
+            h("input", {
+              value: model.text,
+              oninput: (e) => dispatch(Msg.Input(e.target.value)),
+              placeholder: "type and add",
+            }),
+            h("button", {onclick: () => dispatch(Msg.Add())}, "Add")
+          ),
+          h("ul", {},
+            model.items.map((it, i) =>
+              h("li", {},
+                it, " ",
+                h("button", {onclick: () => dispatch(Msg.Remove(i))}, "Remove")
+              )
+            )
+          )
+        );
+      };
+
+      return {init, update, view, Msg};
+    })();
+
+    /***********************
+     * Parent App: compose *
+     ***********************/
+
+    const App = (() => {
+      // Parent model holds children models
+      const init = () => {
+        const [counterModel, counterCmd] = Counter.init();
+        const [listModel, listCmd] = List.init();
+
+        const model = {counter: counterModel, list: listModel};
+
+        const cmd = Cmd.batch([
+          Cmd.map((m) => ({type: "Counter", msg: m}), counterCmd),
+          Cmd.map((m) => ({type: "List", msg: m}), listCmd),
+        ]);
+
+        return [model, cmd];
+      };
+
+      // Parent msg is a tagged union of child messages (+ can have its own)
+      const Msg = {
+        Counter: (msg) => ({type: "Counter", msg}),
+        List: (msg) => ({type: "List", msg}),
+      };
+
+      // Parent update delegates based on tag
+      const update = (model, msg) => {
+        switch (msg.type) {
+          case "Counter": {
+            const [nextChild, childCmd] = Counter.update(model.counter, msg.msg);
+            return [{...model, counter: nextChild}, childCmd ? Cmd.map(Msg.Counter, childCmd) : Cmd.none()];
+          }
+          case "List": {
+            const [nextChild, childCmd] = List.update(model.list, msg.msg);
+            return [{...model, list: nextChild}, childCmd ? Cmd.map(Msg.List, childCmd) : Cmd.none()];
+          }
+          default:
+            return [model, Cmd.none()];
+        }
+      };
+
+      // Parent view maps dispatch into children
+      const view = (model, dispatch) => {
+        return h("div", {},
+          h("h2", {}, "Elm-ish Subcomponents (vanilla)"),
+          Counter.view(model.counter, mapDispatch(Msg.Counter, dispatch)),
+          List.view(model.list, mapDispatch(Msg.List, dispatch)),
+        );
+      };
+
+      return {init, update, view};
+    })();
+
+    // mount
+    program(App)(document.getElementById("app"));
+  </script>
+</body>
+
+</html>
