@@ -94,10 +94,30 @@ class ES2022Emitter:
         prop = node.property
         return f"{obj}.{prop}"
 
+    def _emit_key_access_expression(self, node: ast.KeyAccessExpression[ast._JSTypeT]) -> str:
+        obj = self._emit_expression(node.object)
+        key = self._emit_expression(node.key)
+        return f"{obj}[{key}]"
+
     def _emit_function_expression(self, node: ast.FunctionExpression) -> str:
         params = f",{self._space}".join(self._emit_identifier_expression(param) for param in node.parameters)
         body = self(node.body)
         return f"function({params}){self._space}{body}"
+
+    def _emit_parenthesized_expression(self, node: ast.ParenthesizedExpression[ast._JSTypeT]) -> str:
+        expr = self._emit_expression(node.expression)
+        return f"({expr})"
+
+    def _emit_assignment_expression(self, node: ast.AssignmentExpression[ast._JSTypeT]) -> str:
+        target = self._emit_expression(node.target)
+        value = self._emit_expression(node.value)
+        return f"{target}{self._space}={self._space}{value}"
+
+    def _emit_conditional_expression(self, node: ast.ConditionalExpression[ast._JSTypeT]) -> str:
+        condition = self._emit_expression(node.condition)
+        consequent = self._emit_expression(node.consequent)
+        alternate = self._emit_expression(node.alternate)
+        return f"{condition}{self._space}?{self._space}{consequent}{self._space}:{self._space}{alternate}"
 
     def _emit_expression(self, node: ast.Expression[ast.JSType]) -> str:
         if isinstance(node, ast.LiteralNode):
@@ -112,8 +132,16 @@ class ES2022Emitter:
             return self._emit_call_expression(node)
         if isinstance(node, ast.PropertyAccessExpression):
             return self._emit_property_access_expression(node)
+        if isinstance(node, ast.KeyAccessExpression):
+            return self._emit_key_access_expression(node)
         if isinstance(node, ast.FunctionExpression):
             return self._emit_function_expression(node)
+        if isinstance(node, ast.ParenthesizedExpression):
+            return self._emit_parenthesized_expression(node)
+        if isinstance(node, ast.AssignmentExpression):
+            return self._emit_assignment_expression(node)
+        if isinstance(node, ast.ConditionalExpression):
+            return self._emit_conditional_expression(node)
         raise NotImplementedError(f"Unsupported expression node: {type(node)!r}")
 
     # Emit Statements
@@ -142,10 +170,10 @@ class ES2022Emitter:
     def _emit_if_statement(self, node: ast.IfStatement) -> list[str]:
         condition = self._emit_expression(node.condition)
         consequent = self(node.consequent)
-        lines = [f"if{self._space}({condition}){self._space}{consequent}"]
+        statement = f"if{self._space}({condition}){self._space}{consequent}"
         if node.alternate:
-            lines.append(f"else{self._space}{self(node.alternate)}")
-        return lines
+            statement = f"{statement}{self._space}else{self._space}{self(node.alternate)}"
+        return [statement]
 
     def _emit_for_statement(self, node: ast.ForStatement) -> list[str]:
         init = self(node.initializer).rstrip(";") if node.initializer else ""

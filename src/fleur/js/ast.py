@@ -100,10 +100,10 @@ class ArrayLiteral(Expression[Array[_JSTypeT_co]], Generic[_JSTypeT_co]):
 
 
 @dataclasses.dataclass(frozen=True)
-class ObjectLiteral(Expression[Object[JSType]]):
+class ObjectLiteral(Expression[Object[_JSTypeT_co]], Generic[_JSTypeT_co]):
     """Represents an object literal in the AST."""
 
-    properties: Mapping[str, Expression[JSType]]
+    properties: Mapping[str, Expression[_JSTypeT_co]]
 
 
 LiteralNode = Union[
@@ -173,8 +173,16 @@ class CallExpression(Expression[_JSTypeT], Generic[_JSTypeT]):
 class PropertyAccessExpression(Expression[_JSTypeT], Generic[_JSTypeT]):
     """Represents a property access expression in the AST."""
 
-    object: Expression[Object[JSType]]
+    object: Expression[JSType]
     property: str
+
+
+@dataclasses.dataclass(frozen=True)
+class KeyAccessExpression(Expression[_JSTypeT], Generic[_JSTypeT]):
+    """Represents a key access expression in the AST."""
+
+    object: Expression[Object[_JSTypeT]]
+    key: Expression[String]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -191,6 +199,22 @@ class FunctionExpression(Expression[Function[_JSTypeT_co]], Generic[_JSTypeT_co]
 
     parameters: tuple[Identifier[JSType], ...]
     body: "BlockStatement"
+
+
+@dataclasses.dataclass(frozen=True)
+class ParenthesizedExpression(Expression[_JSTypeT], Generic[_JSTypeT]):
+    """Represents a parenthesized expression in the AST."""
+
+    expression: Expression[_JSTypeT]
+
+
+@dataclasses.dataclass(frozen=True)
+class ConditionalExpression(Expression[_JSTypeT], Generic[_JSTypeT]):
+    """Represents a conditional (ternary) expression in the AST."""
+
+    condition: Expression[Boolean]
+    consequent: Expression[_JSTypeT]
+    alternate: Expression[_JSTypeT]
 
 
 # ==== Statements =====
