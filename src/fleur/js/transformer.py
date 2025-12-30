@@ -9,11 +9,8 @@ import ast
 import dataclasses
 import inspect
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Final, Optional, TypeVar
-
-if TYPE_CHECKING:
-    from .builder import StatementBuilder
-
+from contextlib import suppress
+from typing import Final, Optional, TypeVar
 
 _CallableT = TypeVar("_CallableT", bound=Callable)
 
@@ -201,15 +198,15 @@ class PyASTTransformer(ast.NodeTransformer):
 
         ->
 
-        with __fleur_builder__.new_context() as __fleur_temp_consequent__:
+        with __fleur_get_current_builder__().new_context() as __fleur_temp_consequent__:
             transformed_stmt1
             transformed_stmt2
 
-        with __fleur_builder__.new_context() as __fleur_temp_alternate__:
+        with __fleur_get_current_builder__().new_context() as __fleur_temp_alternate__:
             __fleur_set_current_builder__(__fleur_builder__)
             transformed_stmt3
 
-        __fleur_builder__.if_then_else(condition, __fleur_temp_consequent__.block, __fleur_temp_alternate__.block)
+        __fleur_get_current_builder__().if_then_else(condition, __fleur_temp_consequent__.block, __fleur_temp_alternate__.block)
         """
         condition = self.visit(node.test)
         current_frame = self.scope_stack[-1].copy()
@@ -379,7 +376,7 @@ def transform_function_body(fn: Callable, param_names: set[str]) -> str:
     return ast.unparse(func_def)
 
 
-def create_transformed_function(fn: _CallableT, param_names: set[str], builder: "StatementBuilder") -> _CallableT:
+def create_transformed_function(fn: _CallableT, param_names: set[str]) -> _CallableT:
     """
     Create a new function with transformed body that uses builder API calls.
 
@@ -414,6 +411,20 @@ def create_transformed_function(fn: _CallableT, param_names: set[str], builder: 
     # Remove decorators to avoid infinite recursion
     func_def.decorator_list = []
 
+    # Remove type annotations to avoid NameError during exec
+    # (JavaScript doesn't have types, so annotations are not needed)
+    func_def.returns = None
+    for arg in func_def.args.args:
+        arg.annotation = None
+    for arg in func_def.args.posonlyargs:
+        arg.annotation = None
+    for arg in func_def.args.kwonlyargs:
+        arg.annotation = None
+    if func_def.args.vararg:
+        func_def.args.vararg.annotation = None
+    if func_def.args.kwarg:
+        func_def.args.kwarg.annotation = None
+
     # Transform the function body
     transformer = PyASTTransformer(param_names)
     new_body: list[ast.stmt] = []
@@ -438,17 +449,27 @@ def create_transformed_function(fn: _CallableT, param_names: set[str], builder: 
     # Import _CURRENT_BUILDER from builder module's globals
     from .builder import _CURRENT_BUILDER
 
-    namespace = {
+    globalns = {
         _GET_CURRENT_BUILDER: _CURRENT_BUILDER.get,
         _SET_CURRENT_BUILDER: _CURRENT_BUILDER.set,
     }
-    namespace.update(fn.__globals__)
+    globalns.update(fn.__globals__)
+
+    # correct local namespace of the function
+    localns = {}
+    if fn.__closure__:
+        for var, cell in zip(fn.__code__.co_freevars, fn.__closure__):
+            # Skip empty cells (e.g., for recursive functions where the function
+            # references itself but hasn't been defined yet)
+            with suppress(ValueError):
+                localns[var] = cell.cell_contents
 
     # Execute to define the function
-    exec(code, namespace)
+    exec(code, globalns, localns)
 
     # Get the transformed function and mark it
-    transformed_fn = namespace[fn.__name__]
+    transformed_fn = localns[fn.__name__]
+    transformed_fn.__globals__.update(localns)
     setattr(transformed_fn, _TRANSFORMED_MARKER, True)
 
     # Return the transformed function

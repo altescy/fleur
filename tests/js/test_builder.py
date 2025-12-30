@@ -17,7 +17,7 @@ class TestStatementBuilder:
     def test_function_declaration_statement():
         with builder.use_context():
 
-            @builder.function
+            @builder.define
             def add(a: builder.Number, b: builder.Number) -> builder.Number:
                 return a + b
 
@@ -28,7 +28,7 @@ class TestStatementBuilder:
     def test_recursive_function_declaration_statement():
         with builder.use_context():
 
-            @builder.function
+            @builder.define
             def factorial(n: builder.Number) -> builder.Number:
                 return builder.conditional(
                     n <= builder.Number(1),
@@ -44,7 +44,7 @@ class TestStatementBuilder:
         """Test function with transform=True and variable declarations"""
         with builder.use_context():
 
-            @builder.function
+            @builder.define
             def calculate(n: builder.Number) -> builder.Number:
                 x = n + builder.Number(1)
                 y = x * builder.Number(2)
@@ -58,7 +58,7 @@ class TestStatementBuilder:
         """Test function with if statement"""
         with builder.use_context():
 
-            @builder.function
+            @builder.define
             def check_positive(n: builder.Number) -> builder.String:
                 if n > builder.Number(0):
                     return builder.String("Positive")
@@ -73,7 +73,7 @@ class TestStatementBuilder:
         """Test function with multiple variable declarations in different scopes"""
         with builder.use_context():
 
-            @builder.function
+            @builder.define
             def complex_function(n: builder.Number) -> builder.Number:
                 a = n + builder.Number(1)
 
@@ -87,4 +87,28 @@ class TestStatementBuilder:
             code = ES2022Emitter("minify")(*builder.collect_statements())
             assert (
                 code == "function complex_function(n){let a=(n+1);if((10<a)){let b=(a*2);}else{let b=(a-2);}return b;}"
+            )
+
+    @staticmethod
+    def test_function_and_record():
+        with builder.use_context():
+
+            class Message(builder.Record):
+                text: builder.String
+
+            @builder.const
+            class Foo(builder.Record):
+                @staticmethod
+                @builder.function
+                def send(msg: builder.String) -> Message:
+                    return Message(text=builder.String("Sent: ") + msg)
+
+            @builder.define
+            def run() -> Message:
+                return Foo.send(builder.String("Hello"))
+
+            code = ES2022Emitter("minify")(*builder.collect_statements())
+            assert (
+                code
+                == 'const Foo={"send":(function(msg){return {"text":("Sent: "+msg)};})};function run(){return Foo.send("Hello");}'
             )

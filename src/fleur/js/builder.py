@@ -1,8 +1,8 @@
 import contextvars
 import inspect
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Final, Generic, Optional, TypeVar, Union, cast, final, overload
+from typing import TYPE_CHECKING, ClassVar, Final, Generic, Optional, TypeVar, Union, cast, final, overload
 
 from typing_extensions import ParamSpec
 
@@ -238,10 +238,27 @@ class Array(ExpressionBuilder[ast.Array], Generic[_ExpressionBuilderT_co]):
 
 
 class Record(ExpressionBuilder[ast.Object], Generic[_ExpressionBuilderT_co]):
+    __fleur_js_funcs__: ClassVar[Mapping[str, "Function"]] = {}
+
+    def __init_subclass__(cls) -> None:
+        super().__init_subclass__()
+
+        cls.__fleur_js_funcs__ = {}
+        for attr_name, attr_value in cls.__dict__.items():
+            if isinstance(attr_value, staticmethod):
+                attr_value = (
+                    attr_value.__func__ if isinstance(attr_value.__func__, Function) else Function(attr_value.__func__)
+                )
+            if isinstance(attr_value, Function):
+                cls.__fleur_js_funcs__[attr_name] = attr_value
+
     def __init__(self, **value: _ExpressionBuilderT_co) -> None:
         super().__init__(
             ast.ObjectLiteral(
-                properties={key: val.__fleur_js_ast__ for key, val in value.items()},
+                properties={
+                    **{key: val.__fleur_js_ast__ for key, val in self.__fleur_js_funcs__.items()},
+                    **{key: val.__fleur_js_ast__ for key, val in value.items()},
+                }
             )
         )
 
@@ -250,13 +267,66 @@ class Record(ExpressionBuilder[ast.Object], Generic[_ExpressionBuilderT_co]):
         def __getitem__(self, key: String) -> _ExpressionBuilderT_co: ...
 
 
+_RecordT = TypeVar("_RecordT", bound=Record)
+
+
 _P = ParamSpec("_P")
 _R = TypeVar("_R", bound=ExpressionBuilder)
 
 
-class Function(ExpressionBuilder, Generic[_P, _R]):
-    def __init__(self, func: Callable[_P, _R]) -> None:
-        super().__init__(ast.Identifier(name=func.__name__))
+class Function(ExpressionBuilder[ast.Function], Generic[_P, _R]):
+    def __init__(self, fn: Callable[_P, _R], *, transform: bool = True) -> None:
+        parameters = tuple(ast.Identifier(name=param.name) for param in inspect.signature(fn).parameters.values())
+        body_builder = StatementBuilder()
+
+        # Create placeholder Function object for recursive calls
+        func_placeholder = cast(Function, ExpressionBuilder(ast.Identifier(name=fn.__name__)))
+
+        def _set_placeholder(target: Callable) -> None:
+            if target.__code__.co_freevars and target.__closure__:
+                for i, var_name in enumerate(target.__code__.co_freevars):
+                    if var_name == fn.__name__:
+                        target.__closure__[i].cell_contents = func_placeholder
+
+        # If transform=True, use AST transformation to allow natural Python syntax
+        if transform:
+            param_names = {param.name for param in inspect.signature(fn).parameters.values()}
+            # Pass body_builder as the builder instance for the transformed function
+            transformed_fn = create_transformed_function(fn, param_names)
+
+            _set_placeholder(transformed_fn)
+
+            def _build_body() -> None:
+                _CURRENT_BUILDER.set(body_builder)
+                # Update __fleur_builder__ in the transformed function's globals
+                # to point to the correct builder instance
+                transformed_fn.__globals__[_GET_CURRENT_BUILDER] = _CURRENT_BUILDER.get
+                # Make the function name refer to the Function object for recursive calls
+                transformed_fn.__globals__[fn.__name__] = func_placeholder
+                transformed_fn(*(ExpressionBuilder(param) for param in parameters))  # pyright: ignore[reportCallIssue]
+
+            ctx = contextvars.copy_context()
+            ctx.run(_build_body)
+        else:
+            # Original behavior: no transformation
+            # Handle recursive functions by updating closure cells
+            _set_placeholder(fn)
+
+            def _build_body() -> None:
+                _CURRENT_BUILDER.set(body_builder)
+                fn(*(ExpressionBuilder(param) for param in parameters))  # pyright: ignore[reportCallIssue]
+
+            ctx = contextvars.copy_context()
+            ctx.run(_build_body)
+
+        super().__init__(
+            ast.ParenthesizedExpression(
+                ast.FunctionExpression(
+                    parameters=parameters,
+                    body=body_builder.block,
+                )
+            )
+        )
 
     if TYPE_CHECKING:
 
@@ -287,9 +357,12 @@ class StatementBuilder:
     def _declare_variable(
         self,
         kind: ast.VariableDeclarationKind,
-        name: str,
+        name: Union[str, type[_RecordT]],
         value: Optional[ExpressionBuilder] = None,
-    ) -> ExpressionBuilder:
+    ) -> Union[ExpressionBuilder, _RecordT]:
+        if isinstance(name, type) and issubclass(name, Record):
+            value = name()
+            name = name.__name__
         if value is None:
             value = Undefined()
         declaration = ast.VariableDeclarationStatement(
@@ -304,21 +377,33 @@ class StatementBuilder:
     def let(self, name: str) -> ExpressionBuilder: ...
     @overload
     def let(self, name: str, value: _ExpressionBuilderT) -> _ExpressionBuilderT: ...
-    def let(self, name: str, value: Optional[ExpressionBuilder] = None) -> ExpressionBuilder:
+    @overload
+    def let(self, name: type[_RecordT]) -> _RecordT: ...
+    def let(
+        self, name: Union[str, type[_RecordT]], value: Optional[ExpressionBuilder] = None
+    ) -> Union[ExpressionBuilder, _RecordT]:
         return self._declare_variable(ast.VariableDeclarationKind.LET, name, value)
 
     @overload
     def const(self, name: str) -> ExpressionBuilder: ...
     @overload
     def const(self, name: str, value: _ExpressionBuilderT) -> _ExpressionBuilderT: ...
-    def const(self, name: str, value: Optional[ExpressionBuilder] = None) -> ExpressionBuilder:
+    @overload
+    def const(self, name: type[_RecordT]) -> _RecordT: ...
+    def const(
+        self, name: Union[str, type[_RecordT]], value: Optional[ExpressionBuilder] = None
+    ) -> Union[ExpressionBuilder, _RecordT]:
         return self._declare_variable(ast.VariableDeclarationKind.CONST, name, value)
 
     @overload
     def var(self, name: str) -> ExpressionBuilder: ...
     @overload
     def var(self, name: str, value: _ExpressionBuilderT) -> _ExpressionBuilderT: ...
-    def var(self, name: str, value: Optional[ExpressionBuilder] = None) -> ExpressionBuilder:
+    @overload
+    def var(self, name: type[_RecordT]) -> _RecordT: ...
+    def var(
+        self, name: Union[str, type[_RecordT]], value: Optional[ExpressionBuilder] = None
+    ) -> Union[ExpressionBuilder, _RecordT]:
         return self._declare_variable(ast.VariableDeclarationKind.VAR, name, value)
 
     def assign(
@@ -358,19 +443,15 @@ class StatementBuilder:
         result = consequent(consequent_builder)
         # If the callable returns a BlockStatement, use it directly
         # Otherwise, use the builder's block
-        if isinstance(result, ast.BlockStatement):
-            consequent_block = result
-        else:
-            consequent_block = consequent_builder.block
+        consequent_block = result if isinstance(result, ast.BlockStatement) else consequent_builder.block
 
         alternate_block: Optional[ast.BlockStatement] = None
         if alternate is not None:
             alternate_builder = StatementBuilder()
             alternate_result = alternate(alternate_builder)
-            if isinstance(alternate_result, ast.BlockStatement):
-                alternate_block = alternate_result
-            else:
-                alternate_block = alternate_builder.block
+            alternate_block = (
+                alternate_result if isinstance(alternate_result, ast.BlockStatement) else alternate_builder.block
+            )
 
         if_statement = ast.IfStatement(
             condition=condition.__fleur_js_ast__,
@@ -384,58 +465,19 @@ class StatementBuilder:
     @overload
     def function(self, fn: Callable[..., None], *, transform: bool = ...) -> Function[..., Undefined]: ...
     def function(self, fn: Callable, *, transform: bool = False) -> Function:
-        parameters = tuple(ast.Identifier(name=param.name) for param in inspect.signature(fn).parameters.values())
-        body_builder = StatementBuilder()
-
-        # Create placeholder Function object for recursive calls
-        func_placeholder = cast(Function, ExpressionBuilder(ast.Identifier(name=fn.__name__)))
-
-        # If transform=True, use AST transformation to allow natural Python syntax
-        if transform:
-            param_names = {param.name for param in inspect.signature(fn).parameters.values()}
-            # Pass body_builder as the builder instance for the transformed function
-            transformed_fn = create_transformed_function(fn, param_names, body_builder)
-
-            # Handle recursive functions by updating closure cells
-            if transformed_fn.__code__.co_freevars and transformed_fn.__closure__:
-                for i, var_name in enumerate(transformed_fn.__code__.co_freevars):
-                    if var_name == fn.__name__:
-                        transformed_fn.__closure__[i].cell_contents = func_placeholder
-
-            def _build_body() -> None:
-                _CURRENT_BUILDER.set(body_builder)
-                # Update __fleur_builder__ in the transformed function's globals
-                # to point to the correct builder instance
-                transformed_fn.__globals__[_GET_CURRENT_BUILDER] = _CURRENT_BUILDER.get
-                # Make the function name refer to the Function object for recursive calls
-                transformed_fn.__globals__[fn.__name__] = func_placeholder
-                transformed_fn(*(ExpressionBuilder(param) for param in parameters))  # pyright: ignore[reportCallIssue]
-
-            ctx = contextvars.copy_context()
-            ctx.run(_build_body)
-        else:
-            # Original behavior: no transformation
-            # Handle recursive functions by updating closure cells
-            if fn.__code__.co_freevars and fn.__closure__:
-                for i, var_name in enumerate(fn.__code__.co_freevars):
-                    if var_name == fn.__name__:
-                        # Update the closure cell to allow recursive calls
-                        fn.__closure__[i].cell_contents = func_placeholder
-
-            def _build_body() -> None:
-                _CURRENT_BUILDER.set(body_builder)
-                fn(*(ExpressionBuilder(param) for param in parameters))  # pyright: ignore[reportCallIssue]
-
-            ctx = contextvars.copy_context()
-            ctx.run(_build_body)
+        js_function_ast = Function(fn, transform=transform).__fleur_js_ast__
+        assert isinstance(js_function_ast, ast.ParenthesizedExpression)
+        js_function_ast = js_function_ast.expression
+        assert isinstance(js_function_ast, ast.FunctionExpression)
 
         function_declaration = ast.FunctionDeclarationStatement(
             name=fn.__name__,
-            parameters=parameters,
-            body=body_builder.block,
+            parameters=js_function_ast.parameters,
+            body=js_function_ast.body,
         )
         self._statements.append(function_declaration)
-        return func_placeholder
+
+        return cast(Function, ExpressionBuilder(ast.Identifier(name=fn.__name__)))
 
 
 _GLOBAL_BUILDER: Final[StatementBuilder] = StatementBuilder()
@@ -458,8 +500,10 @@ def use_context(builder: Optional[StatementBuilder] = None) -> Iterator[Statemen
 def let(name: str) -> ExpressionBuilder: ...
 @overload
 def let(name: str, value: _ExpressionBuilderT) -> _ExpressionBuilderT: ...
+@overload
+def let(name: type[_RecordT]) -> _RecordT: ...
 def let(
-    name: str,
+    name: Union[str, type[_RecordT]],
     value: Optional[ExpressionBuilder] = None,
     *,
     builder: Optional[StatementBuilder] = None,
@@ -471,12 +515,14 @@ def let(
 def const(name: str) -> ExpressionBuilder: ...
 @overload
 def const(name: str, value: _ExpressionBuilderT) -> _ExpressionBuilderT: ...
+@overload
+def const(name: type[_RecordT]) -> _RecordT: ...
 def const(
-    name: str,
+    name: Union[str, type[_RecordT]],
     value: Optional[ExpressionBuilder] = None,
     *,
     builder: Optional[StatementBuilder] = None,
-) -> ExpressionBuilder:
+) -> Union[ExpressionBuilder, _RecordT]:
     return (builder or _CURRENT_BUILDER.get()).const(name, value)  # pyright: ignore[reportArgumentType]
 
 
@@ -484,12 +530,14 @@ def const(
 def var(name: str) -> ExpressionBuilder: ...
 @overload
 def var(name: str, value: _ExpressionBuilderT) -> _ExpressionBuilderT: ...
+@overload
+def var(name: type[_RecordT]) -> _RecordT: ...
 def var(
-    name: str,
+    name: Union[str, type[_RecordT]],
     value: Optional[ExpressionBuilder] = None,
     *,
     builder: Optional[StatementBuilder] = None,
-) -> ExpressionBuilder:
+) -> Union[ExpressionBuilder, _RecordT]:
     return (builder or _CURRENT_BUILDER.get()).var(name, value)  # pyright: ignore[reportArgumentType]
 
 
@@ -524,24 +572,28 @@ def if_then_else(
     (builder or _CURRENT_BUILDER.get()).if_then_else(condition, consequent, alternate)
 
 
+_RecordT = TypeVar("_RecordT", bound=Record)
+_RecordU = TypeVar("_RecordU", bound=Record)
+
+
 @overload
-def function(
+def define(
     fn: Callable[_P, _R], *, builder: Optional[StatementBuilder] = ..., transform: bool = ...
 ) -> Function[_P, _R]: ...
 @overload
-def function(
+def define(
     fn: Callable[..., None], *, builder: Optional[StatementBuilder] = ..., transform: bool = ...
 ) -> Function[..., Undefined]: ...
 @overload
-def function(
+def define(
     *, builder: Optional[StatementBuilder] = ..., transform: bool = ...
 ) -> Callable[[Callable[_P, _R]], Function[_P, _R]]: ...
-def function(
+def define(
     fn: Optional[Callable] = None,
     *,
     builder: Optional[StatementBuilder] = None,
     transform: bool = True,
-) -> Union[Function, Callable[[Callable], Function]]:
+) -> Union[Function, _RecordT, Callable[[Union[Callable, type[_RecordT]]], Union[Function, _RecordT]]]:
     """
     Decorator to define a JavaScript function.
 
@@ -557,16 +609,37 @@ def function(
     Returns:
         Function object or decorator function
     """
+
+    def decorator(f: Callable) -> Function:
+        if isinstance(f, Callable):
+            return (builder or _CURRENT_BUILDER.get()).function(f, transform=transform)
+
     if fn is None:
         # Called with arguments: @builder.function(transform=True)
         # Return a decorator
+        return decorator
+    # Called without arguments: @builder.function
+    return decorator(fn)
+
+
+@overload
+def function(fn: Callable[_P, _R], *, transform: bool = ...) -> Function[_P, _R]: ...
+@overload
+def function(fn: Callable[..., None], *, transform: bool = ...) -> Function[..., Undefined]: ...
+@overload
+def function(*, transform: bool = ...) -> Callable[[Callable[_P, _R]], Function[_P, _R]]: ...
+def function(
+    fn: Optional[Callable] = None, *, transform: bool = True
+) -> Union[Function, Callable[[Callable], Function]]:
+    """Decorator to define a function expression."""
+    if fn is None:
+
         def decorator(f: Callable) -> Function:
-            return (builder or _CURRENT_BUILDER.get()).function(f, transform=transform)
+            return Function(f, transform=transform)
 
         return decorator
-    else:
-        # Called without arguments: @builder.function
-        return (builder or _CURRENT_BUILDER.get()).function(fn, transform=transform)
+
+    return Function(fn, transform=transform)
 
 
 def conditional(
