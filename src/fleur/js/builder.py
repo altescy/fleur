@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Final, Generic, Optional, TypeVar, Union, cast
 from typing_extensions import ParamSpec
 
 from . import ast
-from .transformer import _BUILDER_VAR, create_transformed_function
+from .transformer import _GET_CURRENT_BUILDER, create_transformed_function
 
 _JSTypeT = TypeVar("_JSTypeT", bound=ast.JSType)
 
@@ -275,6 +275,15 @@ class StatementBuilder:
     def block(self) -> ast.BlockStatement:
         return ast.BlockStatement(statements=self.statements)
 
+    @contextmanager
+    def new_context(self) -> Iterator["StatementBuilder"]:
+        new_builder = StatementBuilder()
+        token = _CURRENT_BUILDER.set(new_builder)
+        try:
+            yield new_builder
+        finally:
+            _CURRENT_BUILDER.reset(token)
+
     def _declare_variable(
         self,
         kind: ast.VariableDeclarationKind,
@@ -340,18 +349,26 @@ class StatementBuilder:
     def if_then_else(
         self,
         condition: ExpressionBuilder[ast.Boolean],
-        consequent: Callable[["StatementBuilder"], Optional[ExpressionBuilder]],
-        alternate: Optional[Callable[["StatementBuilder"], Optional[ExpressionBuilder]]] = None,
+        consequent: Callable[["StatementBuilder"], Optional[Union[ExpressionBuilder, ast.BlockStatement]]],
+        alternate: Optional[Callable[["StatementBuilder"], Optional[Union[ExpressionBuilder, ast.BlockStatement]]]] = None,
     ) -> None:
         consequent_builder = StatementBuilder()
-        consequent(consequent_builder)
-        consequent_block = consequent_builder.block
+        result = consequent(consequent_builder)
+        # If the callable returns a BlockStatement, use it directly
+        # Otherwise, use the builder's block
+        if isinstance(result, ast.BlockStatement):
+            consequent_block = result
+        else:
+            consequent_block = consequent_builder.block
 
         alternate_block: Optional[ast.BlockStatement] = None
         if alternate is not None:
             alternate_builder = StatementBuilder()
-            alternate(alternate_builder)
-            alternate_block = alternate_builder.block
+            alternate_result = alternate(alternate_builder)
+            if isinstance(alternate_result, ast.BlockStatement):
+                alternate_block = alternate_result
+            else:
+                alternate_block = alternate_builder.block
 
         if_statement = ast.IfStatement(
             condition=condition.__fleur_js_ast__,
@@ -387,7 +404,7 @@ class StatementBuilder:
                 _CURRENT_BUILDER.set(body_builder)
                 # Update __fleur_builder__ in the transformed function's globals
                 # to point to the correct builder instance
-                transformed_fn.__globals__[_BUILDER_VAR] = body_builder
+                transformed_fn.__globals__[_GET_CURRENT_BUILDER] = _CURRENT_BUILDER.get
                 # Make the function name refer to the Function object for recursive calls
                 transformed_fn.__globals__[fn.__name__] = func_placeholder
                 transformed_fn(*(ExpressionBuilder(param) for param in parameters))  # pyright: ignore[reportCallIssue]
@@ -497,8 +514,8 @@ def ret(
 
 def if_then_else(
     condition: ExpressionBuilder[ast.Boolean],
-    consequent: Callable[[StatementBuilder], Optional[ExpressionBuilder]],
-    alternate: Optional[Callable[[StatementBuilder], Optional[ExpressionBuilder]]] = None,
+    consequent: Callable[[StatementBuilder], Optional[Union[ExpressionBuilder, ast.BlockStatement]]],
+    alternate: Optional[Callable[[StatementBuilder], Optional[Union[ExpressionBuilder, ast.BlockStatement]]]] = None,
     *,
     builder: Optional[StatementBuilder] = None,
 ) -> None:

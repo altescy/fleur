@@ -67,3 +67,24 @@ class TestStatementBuilder:
 
             code = ES2022Emitter("minify")(*builder.collect_statements())
             assert code == 'function check_positive(n){if((0<n)){return "Positive";}else{return "Non-positive";}}'
+
+    @staticmethod
+    def test_function_with_multiple_scopes():
+        """Test function with multiple variable declarations in different scopes"""
+        with builder.use_context():
+
+            @builder.function
+            def complex_function(n: builder.Number) -> builder.Number:
+                a = n + builder.Number(1)
+
+                if a > builder.Number(10):
+                    b = a * builder.Number(2)
+                else:
+                    b = a - builder.Number(2)
+
+                return b
+
+            code = ES2022Emitter("minify")(*builder.collect_statements())
+            assert (
+                code == "function complex_function(n){let a=(n+1);if((10<a)){let b=(a*2);}else{let b=(a-2);}return b;}"
+            )
