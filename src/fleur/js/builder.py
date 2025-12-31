@@ -121,8 +121,22 @@ _ExpressionBuilderT_co = TypeVar("_ExpressionBuilderT_co", bound=ExpressionBuild
 _ExpressionBuilderU = TypeVar("_ExpressionBuilderU", bound=ExpressionBuilder)
 
 
+class _GlobalMeta(type):
+    __fleur_global_name__: ClassVar[str]
+
+    def __getattr__(cls, name: str) -> "ExpressionBuilder":
+        return ExpressionBuilder(
+            ast.PropertyAccessExpression(
+                object=ast.Identifier(name=cls.__fleur_global_name__),
+                property=name,
+            )
+        )
+
+
 @final
-class Number(ExpressionBuilder[ast.Number]):
+class Number(ExpressionBuilder[ast.Number], metaclass=_GlobalMeta):
+    __fleur_global_name__: Final[str] = "Number"
+
     def __init__(self, value: Union[int, float, ast.Expression[ast.Number], "Number"]) -> None:
         if isinstance(value, (int, float)):
             value = ast.NumberLiteral(value=value)
@@ -152,7 +166,9 @@ class Number(ExpressionBuilder[ast.Number]):
 
 
 @final
-class String(ExpressionBuilder[ast.String]):
+class String(ExpressionBuilder[ast.String], metaclass=_GlobalMeta):
+    __fleur_global_name__: Final[str] = "String"
+
     def __init__(self, value: Union[str, ast.Expression[ast.String], "String"]) -> None:
         if isinstance(value, str):
             value = ast.StringLiteral(value=value)
@@ -187,7 +203,9 @@ class String(ExpressionBuilder[ast.String]):
 
 
 @final
-class Boolean(ExpressionBuilder[ast.Boolean]):
+class Boolean(ExpressionBuilder[ast.Boolean], metaclass=_GlobalMeta):
+    __fleur_global_name__: Final[str] = "Boolean"
+
     def __init__(self, value: Union[bool, ast.Expression[ast.Boolean], "Boolean"]) -> None:
         if isinstance(value, bool):
             value = ast.BooleanLiteral(value=value)
@@ -229,7 +247,9 @@ class Undefined(ExpressionBuilder[ast.Undefined]):
 
 
 @final
-class Array(ExpressionBuilder[ast.Array], Generic[_ExpressionBuilderT_co]):
+class Array(ExpressionBuilder[ast.Array], Generic[_ExpressionBuilderT_co], metaclass=_GlobalMeta):
+    __fleur_global_name__: Final[str] = "Array"
+
     def __init__(self, *value: _ExpressionBuilderT_co) -> None:
         self._builders: Sequence[_ExpressionBuilderT_co] = value
         self.__fleur_js_ast__ = ast.ArrayLiteral(elements=tuple(builder.__fleur_js_ast__ for builder in self._builders))
@@ -535,6 +555,10 @@ _CURRENT_BUILDER: Final[contextvars.ContextVar[StatementBuilder]] = contextvars.
 )
 
 
+def collect_statements(builder: Optional[StatementBuilder] = None) -> tuple[ast.Statement, ...]:
+    return (builder or _CURRENT_BUILDER.get()).statements
+
+
 @contextmanager
 def use_context(builder: Optional[StatementBuilder] = None) -> Iterator[StatementBuilder]:
     token = _CURRENT_BUILDER.set(builder or StatementBuilder())
@@ -620,10 +644,6 @@ def if_then_else(
     (builder or _CURRENT_BUILDER.get()).if_then_else(condition, consequent, alternate)
 
 
-_RecordT = TypeVar("_RecordT", bound=Record)
-_RecordU = TypeVar("_RecordU", bound=Record)
-
-
 @overload
 def define(
     fn: Callable[_P, _R], *, builder: Optional[StatementBuilder] = ..., transform: bool = ...
@@ -707,7 +727,3 @@ def conditional(
             )
         ),
     )
-
-
-def collect_statements(builder: Optional[StatementBuilder] = None) -> tuple[ast.Statement, ...]:
-    return (builder or _CURRENT_BUILDER.get()).statements

@@ -395,7 +395,15 @@ def create_transformed_function(fn: _CallableT, param_names: set[str]) -> _Calla
         return fn
 
     # Get function source code
-    source = textwrap.dedent(inspect.getsource(fn))
+    # If source code cannot be obtained (e.g., for lambda expressions),
+    # return the original function without transformation
+    try:
+        source = textwrap.dedent(inspect.getsource(fn))
+    except (OSError, TypeError):
+        # Cannot get source code (lambda, built-in, etc.)
+        # Mark as transformed to avoid infinite recursion and return as-is
+        setattr(fn, _TRANSFORMED_MARKER, True)
+        return fn
 
     # Parse to AST
     tree = ast.parse(source)
