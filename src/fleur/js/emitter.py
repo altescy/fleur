@@ -119,6 +119,10 @@ class ES2022Emitter:
         alternate = self._emit_expression(node.alternate)
         return f"{condition}{self._space}?{self._space}{consequent}{self._space}:{self._space}{alternate}"
 
+    def _emit_typeof_expression(self, node: ast.TypeOfExpression) -> str:
+        expr = self._emit_expression(node.expression)
+        return f"typeof {expr}"
+
     def _emit_expression(self, node: ast.Expression[ast.JSType]) -> str:
         if isinstance(node, ast.LiteralNode):
             return self._emit_literal_expression(node)
@@ -142,6 +146,8 @@ class ES2022Emitter:
             return self._emit_assignment_expression(node)
         if isinstance(node, ast.ConditionalExpression):
             return self._emit_conditional_expression(node)
+        if isinstance(node, ast.TypeOfExpression):
+            return self._emit_typeof_expression(node)
         raise NotImplementedError(f"Unsupported expression node: {type(node)!r}")
 
     # Emit Statements

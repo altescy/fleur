@@ -13,6 +13,7 @@ from .builder import (
     conditional,
     const,
     define,
+    for_of,
     function,
     if_then_else,
     let,
@@ -20,7 +21,7 @@ from .builder import (
     use_context,
     var,
 )
-from .builtins import NULL, UNDEFINED, Math
+from .builtins import FALSE, NULL, TRUE, UNDEFINED, Math
 from .emitter import ES2022Emitter
 
 __all__ = [
@@ -39,6 +40,7 @@ __all__ = [
     "conditional",
     "const",
     "define",
+    "for_of",
     "function",
     "if_then_else",
     "let",
@@ -46,7 +48,9 @@ __all__ = [
     "use_context",
     "var",
     # builtins
+    "FALSE",
     "NULL",
+    "TRUE",
     "UNDEFINED",
     "Math",
     # emitter

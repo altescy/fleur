@@ -4,6 +4,8 @@ from .builder import Array, Boolean, ExpressionBuilder, Function, Null, Number, 
 
 NULL: Final[Null] = Null()
 UNDEFINED: Final[Undefined] = Undefined()
+TRUE: Final[Boolean] = Boolean(True)
+FALSE: Final[Boolean] = Boolean(False)
 
 
 @final

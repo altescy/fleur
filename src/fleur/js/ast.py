@@ -217,6 +217,13 @@ class ConditionalExpression(Expression[_JSTypeT], Generic[_JSTypeT]):
     alternate: Expression[_JSTypeT]
 
 
+@dataclasses.dataclass(frozen=True)
+class TypeOfExpression(Expression[String]):
+    """Represents a typeof expression in the AST."""
+
+    expression: Expression[JSType]
+
+
 # ==== Statements =====
 
 

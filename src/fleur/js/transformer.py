@@ -32,12 +32,16 @@ def _is_statement_decorator(decorator_node: ast.expr, globalns: dict) -> bool:
     from .builder import emitter
 
     with suppress(Exception):
+        # For call expressions like @js.for_of(arr), check the function being called
+        if isinstance(decorator_node, ast.Call):
+            decorator_node = decorator_node.func
+        
         # Try to resolve the decorator to an actual object
         if isinstance(decorator_node, ast.Name):
             # Simple name: @function
             decorator_obj = globalns.get(decorator_node.id)
         elif isinstance(decorator_node, ast.Attribute):
-            # Attribute access: @builder.function
+            # Attribute access: @builder.function or @js.for_of
             if isinstance(decorator_node.value, ast.Name):
                 module_obj = globalns.get(decorator_node.value.id)
                 if module_obj is not None:
@@ -48,7 +52,7 @@ def _is_statement_decorator(decorator_node: ast.expr, globalns: dict) -> bool:
                 # More complex expressions, give up
                 decorator_obj = None
         else:
-            # Other expressions (calls, etc.), give up
+            # Other expressions, give up
             decorator_obj = None
 
         # Check if the decorator has the marker

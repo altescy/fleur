@@ -1,8 +1,9 @@
 import contextvars
 import inspect
+from collections import defaultdict
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, ClassVar, Final, Generic, Optional, TypeVar, Union, cast, final, overload
+from typing import TYPE_CHECKING, ClassVar, Final, Generic, Optional, Protocol, TypeVar, Union, cast, final, overload
 
 from typing_extensions import ParamSpec
 
@@ -10,6 +11,7 @@ from . import ast
 from .transformer import _GET_CURRENT_BUILDER, create_transformed_function
 
 _JSTypeT = TypeVar("_JSTypeT", bound=ast.JSType)
+_JSTypeT_co = TypeVar("_JSTypeT_co", bound=ast.JSType, covariant=True)
 
 
 def _binary_operation(
@@ -121,6 +123,12 @@ _ExpressionBuilderT_co = TypeVar("_ExpressionBuilderT_co", bound=ExpressionBuild
 _ExpressionBuilderU = TypeVar("_ExpressionBuilderU", bound=ExpressionBuilder)
 
 
+class IIterator(Protocol[_ExpressionBuilderT_co]):
+    __fleur_js_ast__: ast.Expression
+
+    def __iterator_of__(self) -> _ExpressionBuilderT_co: ...
+
+
 class _GlobalMeta(type):
     __fleur_global_name__: ClassVar[str]
 
@@ -201,6 +209,8 @@ class String(ExpressionBuilder[ast.String], metaclass=_GlobalMeta):
         @property
         def length(self) -> "Number": ...
 
+        def __iterator_of__(self) -> "String": ...
+
 
 @final
 class Boolean(ExpressionBuilder[ast.Boolean], metaclass=_GlobalMeta):
@@ -249,6 +259,7 @@ class Undefined(ExpressionBuilder[ast.Undefined]):
 @final
 class Array(ExpressionBuilder[ast.Array], Generic[_ExpressionBuilderT_co], metaclass=_GlobalMeta):
     __fleur_global_name__: Final[str] = "Array"
+    __fleur_js_ast__: ast.Expression[ast.Array]
 
     def __init__(self, *value: _ExpressionBuilderT_co) -> None:
         self._builders: Sequence[_ExpressionBuilderT_co] = value
@@ -300,6 +311,8 @@ class Array(ExpressionBuilder[ast.Array], Generic[_ExpressionBuilderT_co], metac
         ) -> "Array[_ExpressionBuilderT_co]": ...
         def unshift(self: "Array[_ExpressionBuilderT]", *items: _ExpressionBuilderT) -> Number: ...
 
+        def __iterator_of__(self) -> _ExpressionBuilderT_co: ...
+
 
 class Record(ExpressionBuilder[ast.Object], Generic[_ExpressionBuilderT_co]):
     __fleur_js_funcs__: ClassVar[Mapping[str, "Function"]] = {}
@@ -341,56 +354,63 @@ _P = ParamSpec("_P")
 _R = TypeVar("_R", bound=ExpressionBuilder)
 
 
+def _build_statements_from_function(
+    fn: Callable, transform: bool = True
+) -> tuple[tuple[ast.Identifier, ...], ast.BlockStatement]:
+    parameters = tuple(ast.Identifier(name=param.name) for param in inspect.signature(fn).parameters.values())
+    body_builder = StatementBuilder()
+
+    # Create placeholder Function object for recursive calls
+    func_placeholder = cast(Function, ExpressionBuilder(ast.Identifier(name=fn.__name__)))
+
+    def _set_placeholder(target: Callable) -> None:
+        if target.__code__.co_freevars and target.__closure__:
+            for i, var_name in enumerate(target.__code__.co_freevars):
+                if var_name == fn.__name__:
+                    target.__closure__[i].cell_contents = func_placeholder
+
+    # If transform=True, use AST transformation to allow natural Python syntax
+    if transform:
+        param_names = {param.name for param in inspect.signature(fn).parameters.values()}
+        # Pass body_builder as the builder instance for the transformed function
+        transformed_fn = create_transformed_function(fn, param_names)
+
+        _set_placeholder(transformed_fn)
+
+        def _build_body() -> None:
+            _CURRENT_BUILDER.set(body_builder)
+            # Update __fleur_builder__ in the transformed function's globals
+            # to point to the correct builder instance
+            transformed_fn.__globals__[_GET_CURRENT_BUILDER] = _CURRENT_BUILDER.get
+            # Make the function name refer to the Function object for recursive calls
+            transformed_fn.__globals__[fn.__name__] = func_placeholder
+            transformed_fn(*(ExpressionBuilder(param) for param in parameters))  # pyright: ignore[reportCallIssue]
+
+        ctx = contextvars.copy_context()
+        ctx.run(_build_body)
+    else:
+        # Original behavior: no transformation
+        # Handle recursive functions by updating closure cells
+        _set_placeholder(fn)
+
+        def _build_body() -> None:
+            _CURRENT_BUILDER.set(body_builder)
+            fn(*(ExpressionBuilder(param) for param in parameters))  # pyright: ignore[reportCallIssue]
+
+        ctx = contextvars.copy_context()
+        ctx.run(_build_body)
+
+    return parameters, body_builder.block
+
+
 class Function(ExpressionBuilder[ast.Function], Generic[_P, _R]):
     def __init__(self, fn: Callable[_P, _R], *, transform: bool = True) -> None:
-        parameters = tuple(ast.Identifier(name=param.name) for param in inspect.signature(fn).parameters.values())
-        body_builder = StatementBuilder()
-
-        # Create placeholder Function object for recursive calls
-        func_placeholder = cast(Function, ExpressionBuilder(ast.Identifier(name=fn.__name__)))
-
-        def _set_placeholder(target: Callable) -> None:
-            if target.__code__.co_freevars and target.__closure__:
-                for i, var_name in enumerate(target.__code__.co_freevars):
-                    if var_name == fn.__name__:
-                        target.__closure__[i].cell_contents = func_placeholder
-
-        # If transform=True, use AST transformation to allow natural Python syntax
-        if transform:
-            param_names = {param.name for param in inspect.signature(fn).parameters.values()}
-            # Pass body_builder as the builder instance for the transformed function
-            transformed_fn = create_transformed_function(fn, param_names)
-
-            _set_placeholder(transformed_fn)
-
-            def _build_body() -> None:
-                _CURRENT_BUILDER.set(body_builder)
-                # Update __fleur_builder__ in the transformed function's globals
-                # to point to the correct builder instance
-                transformed_fn.__globals__[_GET_CURRENT_BUILDER] = _CURRENT_BUILDER.get
-                # Make the function name refer to the Function object for recursive calls
-                transformed_fn.__globals__[fn.__name__] = func_placeholder
-                transformed_fn(*(ExpressionBuilder(param) for param in parameters))  # pyright: ignore[reportCallIssue]
-
-            ctx = contextvars.copy_context()
-            ctx.run(_build_body)
-        else:
-            # Original behavior: no transformation
-            # Handle recursive functions by updating closure cells
-            _set_placeholder(fn)
-
-            def _build_body() -> None:
-                _CURRENT_BUILDER.set(body_builder)
-                fn(*(ExpressionBuilder(param) for param in parameters))  # pyright: ignore[reportCallIssue]
-
-            ctx = contextvars.copy_context()
-            ctx.run(_build_body)
-
+        parameters, body = _build_statements_from_function(fn, transform=transform)
         super().__init__(
             ast.ParenthesizedExpression(
                 ast.FunctionExpression(
                     parameters=parameters,
-                    body=body_builder.block,
+                    body=body,
                 )
             )
         )
@@ -537,6 +557,20 @@ class StatementBuilder:
         )
         self._statements.append(if_statement)
 
+    def for_of(
+        self, iterable: IIterator[_ExpressionBuilderT]
+    ) -> Callable[[Callable[[_ExpressionBuilderT], None]], None]:
+        def decorator(body: Callable[[_ExpressionBuilderT], None]) -> None:
+            parameters, block = _build_statements_from_function(body)
+            statement = ast.ForOfStatement(
+                iterator=parameters[0],
+                iterable=iterable.__fleur_js_ast__,
+                body=block,
+            )
+            self._statements.append(statement)
+
+        return decorator
+
     @overload
     def function(self, fn: Callable[_P, _R], *, transform: bool = ...) -> Function[_P, _R]: ...
     @overload
@@ -679,6 +713,15 @@ def if_then_else(
     builder: Optional[StatementBuilder] = None,
 ) -> None:
     (builder or _CURRENT_BUILDER.get()).if_then_else(condition, consequent, alternate)
+
+
+@emitter
+def for_of(
+    iterator: IIterator[_ExpressionBuilderT],
+    *,
+    builder: Optional[StatementBuilder] = None,
+) -> Callable[[Callable[[_ExpressionBuilderT], None]], None]:
+    return (builder or _CURRENT_BUILDER.get()).for_of(iterator)
 
 
 @overload
