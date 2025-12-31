@@ -1,9 +1,32 @@
-from typing import TYPE_CHECKING, Final, final
+from typing import TYPE_CHECKING, Final, Union, final
 
-from .builder import Null, Number, Undefined, _GlobalMeta
+from .builder import Array, Boolean, ExpressionBuilder, Function, Null, Number, Record, String, Undefined, _GlobalMeta
 
 NULL: Final[Null] = Null()
 UNDEFINED: Final[Undefined] = Undefined()
+
+
+@final
+class JSON(metaclass=_GlobalMeta):
+    """Provides access to JavaScript's JSON object methods."""
+
+    __fleur_global_name__: Final[str] = "JSON"
+
+    if TYPE_CHECKING:
+        # Static methods
+        @staticmethod
+        def isRawJSON(value: ExpressionBuilder) -> Boolean: ...
+        @staticmethod
+        def parse(
+            text: String,
+            reviver: Union[Function, Null, Undefined] = ...,
+        ) -> Union[Boolean, Number, String, Null, Undefined, Array, Record]: ...
+        @staticmethod
+        def stringify(
+            value: Union[Boolean, Number, String, Null, Undefined, Array, Record],
+            replacer: Union[Function, Array, Null, Undefined] = ...,
+            space: Union[String, Number, Null, Undefined] = ...,
+        ) -> String: ...
 
 
 @final

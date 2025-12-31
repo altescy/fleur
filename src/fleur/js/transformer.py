@@ -37,6 +37,7 @@ class PyASTTransformer(ast.NodeTransformer):
     Transformations:
     - Variable assignments (x = value) -> builder.let("x", value)
     - Reassignments -> builder.assign(x, value)
+    - Expression statements (expr) -> builder.expr(expr)
     - Return statements -> builder.ret(expr)
     - If statements -> builder.if_then_else(...)
     """
@@ -138,6 +139,33 @@ class PyASTTransformer(ast.NodeTransformer):
                 lineno=node.lineno,
                 col_offset=node.col_offset,
             )
+
+    def visit_Expr(self, node: ast.Expr) -> ast.AST:
+        """
+        Transform expression statements.
+
+        expression -> __fleur_builder__.expr(expression)
+
+        This is useful for expressions that have side effects, such as function calls.
+        """
+        value = self.visit(node.value)
+        return ast.Expr(
+            value=ast.Call(
+                func=ast.Attribute(
+                    value=ast.Call(
+                        func=ast.Name(id=_GET_CURRENT_BUILDER, ctx=ast.Load()),
+                        args=[],
+                        keywords=[],
+                    ),
+                    attr="expr",
+                    ctx=ast.Load(),
+                ),
+                args=[value],
+                keywords=[],
+            ),
+            lineno=node.lineno,
+            col_offset=node.col_offset,
+        )
 
     def visit_Return(self, node: ast.Return) -> ast.AST:
         """

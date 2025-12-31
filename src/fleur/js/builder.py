@@ -487,6 +487,15 @@ class StatementBuilder:
         )
         self._statements.append(assignment)
 
+    def expr(self, expression: ExpressionBuilder) -> None:
+        """
+        Add an expression as a statement.
+
+        This is useful for expressions that have side effects, such as function calls.
+        """
+        expr_statement = ast.ExpressionStatement(expression=expression.__fleur_js_ast__)
+        self._statements.append(expr_statement)
+
     @overload
     def ret(self) -> None: ...
     @overload
@@ -620,6 +629,15 @@ def assign(
     builder: Optional[StatementBuilder] = None,
 ) -> None:
     (builder or _CURRENT_BUILDER.get()).assign(target, value)
+
+
+def expr(expression: ExpressionBuilder, *, builder: Optional[StatementBuilder] = None) -> None:
+    """
+    Add an expression as a statement.
+
+    This is useful for expressions that have side effects, such as function calls.
+    """
+    (builder or _CURRENT_BUILDER.get()).expr(expression)
 
 
 @overload
