@@ -708,6 +708,10 @@ def define(
     return decorator(fn)
 
 
+# Mark statement-registering decorators to avoid infinite recursion during transformation
+define.__fleur_statement_decorator__ = True  # type: ignore[attr-defined]
+
+
 @overload
 def function(fn: Callable[_P, _R], *, transform: bool = ...) -> Function[_P, _R]: ...
 @overload
@@ -726,6 +730,10 @@ def function(
         return decorator
 
     return Function(fn, transform=transform)
+
+
+# Mark statement-registering decorators to avoid infinite recursion during transformation
+function.__fleur_statement_decorator__ = True  # type: ignore[attr-defined]
 
 
 def conditional(

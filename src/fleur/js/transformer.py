@@ -10,7 +10,7 @@ import dataclasses
 import inspect
 from collections.abc import Callable
 from contextlib import suppress
-from typing import Final, Optional, TypeVar
+from typing import Final, Optional, TypeVar, cast
 
 _CallableT = TypeVar("_CallableT", bound=Callable)
 
@@ -20,6 +20,43 @@ _TRANSFORMED_MARKER: Final = "__fleur_transformed__"
 # Function to get/set the current builder context
 _GET_CURRENT_BUILDER: Final = "__fleur_get_current_builder__"
 _SET_CURRENT_BUILDER: Final = "__fleur_set_current_builder__"
+
+
+def _is_statement_decorator(decorator_node: ast.expr, globalns: dict) -> bool:
+    """
+    Check if a decorator is a statement-registering decorator by looking at the actual object.
+
+    This avoids relying on names which can be aliased.
+    Returns True if the decorator has the __fleur_statement_decorator__ marker.
+    """
+    try:
+        # Try to resolve the decorator to an actual object
+        if isinstance(decorator_node, ast.Name):
+            # Simple name: @function
+            decorator_obj = globalns.get(decorator_node.id)
+        elif isinstance(decorator_node, ast.Attribute):
+            # Attribute access: @builder.function
+            if isinstance(decorator_node.value, ast.Name):
+                module_obj = globalns.get(decorator_node.value.id)
+                if module_obj is not None:
+                    decorator_obj = getattr(module_obj, decorator_node.attr, None)
+                else:
+                    decorator_obj = None
+            else:
+                # More complex expressions, give up
+                decorator_obj = None
+        else:
+            # Other expressions (calls, etc.), give up
+            decorator_obj = None
+
+        # Check if the decorator has the marker
+        if decorator_obj is not None and hasattr(decorator_obj, "__fleur_statement_decorator__"):
+            return True
+    except Exception:
+        # If anything goes wrong, be conservative and keep the decorator
+        pass
+
+    return False
 
 
 @dataclasses.dataclass
@@ -367,6 +404,109 @@ class PyASTTransformer(ast.NodeTransformer):
 
         return statements
 
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> list[ast.stmt]:
+        """
+        Transform function definitions with decorators.
+
+        For functions with decorators, we keep the definition as-is and register
+        the final result as an expression statement. This ensures decorator side
+        effects (like forEach) are captured.
+
+        The function body is also transformed recursively.
+
+        @dec2
+        @dec1
+        def foo(): ...
+
+        ->
+
+        @dec2
+        @dec1
+        def foo():
+            <transformed body>
+        __fleur_get_current_builder__().expr(foo)
+        """
+        # Transform the function body recursively
+        # Get parameter names for this nested function
+        param_names = {arg.arg for arg in node.args.args}
+        if node.args.vararg:
+            param_names.add(node.args.vararg.arg)
+        if node.args.kwarg:
+            param_names.add(node.args.kwarg.arg)
+
+        # Create a new transformer for the function body with its own scope
+        body_transformer = PyASTTransformer(param_names)
+        new_body: list[ast.stmt] = []
+        for stmt in node.body:
+            result = body_transformer.visit(stmt)
+            if isinstance(result, list):
+                new_body.extend(result)
+            else:
+                new_body.append(result)
+
+        # Update the function body with transformed statements
+        node.body = new_body
+
+        # Remove type annotations (JavaScript doesn't have types)
+        node.returns = None
+        for arg in node.args.args + node.args.posonlyargs + node.args.kwonlyargs:
+            arg.annotation = None
+        if node.args.vararg:
+            node.args.vararg.annotation = None
+        if node.args.kwarg:
+            node.args.kwarg.annotation = None
+
+        # Declare the function name as a variable
+        self._declare_var(node.name)
+
+        # If no decorators, just return the transformed function
+        if not node.decorator_list:
+            return [node]
+
+        # Check if there are any non-statement-registering decorators
+        # Statement-registering decorators like @js.function already register the function,
+        # so we only need expr() for decorators with side effects (like @forEach)
+        has_non_statement_decorator = False
+        for decorator in node.decorator_list:
+            # Check if this decorator looks like a statement-registering decorator
+            # These are: @function, @define, @builder.function, @builder.define, @js.function, @js.define
+            is_statement_decorator = False
+            if isinstance(decorator, ast.Name):
+                # @function, @define
+                if decorator.id in ("function", "define"):
+                    is_statement_decorator = True
+            elif isinstance(decorator, ast.Attribute):
+                # @builder.function, @js.function, etc.
+                if decorator.attr in ("function", "define"):
+                    is_statement_decorator = True
+
+            if not is_statement_decorator:
+                has_non_statement_decorator = True
+                break
+
+        # Only add expr() if there are non-statement-registering decorators
+        if has_non_statement_decorator:
+            expr_stmt = ast.Expr(
+                value=ast.Call(
+                    func=ast.Attribute(
+                        value=ast.Call(
+                            func=ast.Name(id=_GET_CURRENT_BUILDER, ctx=ast.Load()),
+                            args=[],
+                            keywords=[],
+                        ),
+                        attr="expr",
+                        ctx=ast.Load(),
+                    ),
+                    args=[ast.Name(id=node.name, ctx=ast.Load())],
+                    keywords=[],
+                ),
+            )
+            ast.copy_location(expr_stmt, node)
+            return [node, expr_stmt]
+
+        # If all decorators are statement-registering, just return the function
+        return [node]
+
 
 def transform_function_body(fn: Callable, param_names: set[str]) -> str:
     """
@@ -444,8 +584,13 @@ def create_transformed_function(fn: _CallableT, param_names: set[str]) -> _Calla
     if func_def is None:
         raise ValueError(f"Could not find function definition for {fn.__name__}")
 
-    # Remove decorators to avoid infinite recursion
-    func_def.decorator_list = []
+    # Remove only statement-registering decorators to avoid infinite recursion
+    # Check the actual decorator objects using the function's globals
+    # This avoids relying on names which can be aliased
+    original_decorators = func_def.decorator_list.copy()
+    func_def.decorator_list = [
+        decorator for decorator in original_decorators if not _is_statement_decorator(decorator, fn.__globals__)
+    ]
 
     # Remove type annotations to avoid NameError during exec
     # (JavaScript doesn't have types, so annotations are not needed)
@@ -503,10 +648,21 @@ def create_transformed_function(fn: _CallableT, param_names: set[str]) -> _Calla
     # Execute to define the function
     exec(code, globalns, localns)
 
-    # Get the transformed function and mark it
-    transformed_fn = localns[fn.__name__]
+    # Get the transformed function
+    # If decorators were applied (e.g., @staticmethod), we need to unwrap them
+    result = localns[fn.__name__]
+
+    # Unwrap staticmethod, classmethod, etc. to get the actual function
+    if isinstance(result, staticmethod):
+        transformed_fn = result.__func__
+    elif isinstance(result, classmethod):
+        transformed_fn = result.__func__
+    else:
+        transformed_fn = result
+
+    # Update globals and mark as transformed
     transformed_fn.__globals__.update(localns)
     setattr(transformed_fn, _TRANSFORMED_MARKER, True)
 
-    # Return the transformed function
-    return transformed_fn
+    # Return the transformed function (not the wrapper)
+    return cast(_CallableT, transformed_fn)
