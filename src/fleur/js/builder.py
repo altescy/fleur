@@ -557,6 +557,18 @@ class StatementBuilder:
         return cast(Function, ExpressionBuilder(ast.Identifier(name=fn.__name__)))
 
 
+_EmtterP = ParamSpec("_EmtterP")
+_EmtterR = TypeVar("_EmtterR")
+
+
+class emitter(Generic[_EmtterP, _EmtterR]):
+    def __init__(self, fn: Callable[_EmtterP, _EmtterR]) -> None:
+        self._fn = fn
+
+    def __call__(self, *args: _EmtterP.args, **kwargs: _EmtterP.kwargs) -> _EmtterR:
+        return self._fn(*args, **kwargs)
+
+
 _GLOBAL_BUILDER: Final[StatementBuilder] = StatementBuilder()
 _CURRENT_BUILDER: Final[contextvars.ContextVar[StatementBuilder]] = contextvars.ContextVar(
     "CURRENT_BUILDER",
@@ -583,6 +595,7 @@ def let(name: str) -> ExpressionBuilder: ...
 def let(name: str, value: _ExpressionBuilderT) -> _ExpressionBuilderT: ...
 @overload
 def let(name: type[_RecordT]) -> _RecordT: ...
+@emitter
 def let(
     name: Union[str, type[_RecordT]],
     value: Optional[ExpressionBuilder] = None,
@@ -598,6 +611,7 @@ def const(name: str) -> ExpressionBuilder: ...
 def const(name: str, value: _ExpressionBuilderT) -> _ExpressionBuilderT: ...
 @overload
 def const(name: type[_RecordT]) -> _RecordT: ...
+@emitter
 def const(
     name: Union[str, type[_RecordT]],
     value: Optional[ExpressionBuilder] = None,
@@ -613,6 +627,7 @@ def var(name: str) -> ExpressionBuilder: ...
 def var(name: str, value: _ExpressionBuilderT) -> _ExpressionBuilderT: ...
 @overload
 def var(name: type[_RecordT]) -> _RecordT: ...
+@emitter
 def var(
     name: Union[str, type[_RecordT]],
     value: Optional[ExpressionBuilder] = None,
@@ -622,6 +637,7 @@ def var(
     return (builder or _CURRENT_BUILDER.get()).var(name, value)  # pyright: ignore[reportArgumentType]
 
 
+@emitter
 def assign(
     target: ExpressionBuilder[_JSTypeT],
     value: ExpressionBuilder[_JSTypeT],
@@ -631,6 +647,7 @@ def assign(
     (builder or _CURRENT_BUILDER.get()).assign(target, value)
 
 
+@emitter
 def expr(expression: ExpressionBuilder, *, builder: Optional[StatementBuilder] = None) -> None:
     """
     Add an expression as a statement.
@@ -644,6 +661,7 @@ def expr(expression: ExpressionBuilder, *, builder: Optional[StatementBuilder] =
 def ret(*, builder: Optional[StatementBuilder] = ...) -> None: ...
 @overload
 def ret(value: _ExpressionBuilderT, *, builder: Optional[StatementBuilder] = ...) -> _ExpressionBuilderT: ...
+@emitter
 def ret(
     value: Optional[ExpressionBuilder] = None,
     *,
@@ -652,6 +670,7 @@ def ret(
     return (builder or _CURRENT_BUILDER.get()).ret(value)  # pyright: ignore[reportArgumentType]
 
 
+@emitter
 def if_then_else(
     condition: ExpressionBuilder[ast.Boolean],
     consequent: Callable[[StatementBuilder], Optional[Union[ExpressionBuilder, ast.BlockStatement]]],
@@ -674,6 +693,7 @@ def define(
 def define(
     *, builder: Optional[StatementBuilder] = ..., transform: bool = ...
 ) -> Callable[[Callable[_P, _R]], Function[_P, _R]]: ...
+@emitter
 def define(
     fn: Optional[Callable] = None,
     *,
@@ -708,16 +728,13 @@ def define(
     return decorator(fn)
 
 
-# Mark statement-registering decorators to avoid infinite recursion during transformation
-define.__fleur_statement_decorator__ = True  # type: ignore[attr-defined]
-
-
 @overload
 def function(fn: Callable[_P, _R], *, transform: bool = ...) -> Function[_P, _R]: ...
 @overload
 def function(fn: Callable[..., None], *, transform: bool = ...) -> Function[..., Undefined]: ...
 @overload
 def function(*, transform: bool = ...) -> Callable[[Callable[_P, _R]], Function[_P, _R]]: ...
+@emitter
 def function(
     fn: Optional[Callable] = None, *, transform: bool = True
 ) -> Union[Function, Callable[[Callable], Function]]:
@@ -730,10 +747,6 @@ def function(
         return decorator
 
     return Function(fn, transform=transform)
-
-
-# Mark statement-registering decorators to avoid infinite recursion during transformation
-function.__fleur_statement_decorator__ = True  # type: ignore[attr-defined]
 
 
 def conditional(

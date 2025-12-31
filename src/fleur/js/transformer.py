@@ -27,9 +27,11 @@ def _is_statement_decorator(decorator_node: ast.expr, globalns: dict) -> bool:
     Check if a decorator is a statement-registering decorator by looking at the actual object.
 
     This avoids relying on names which can be aliased.
-    Returns True if the decorator has the __fleur_statement_decorator__ marker.
+    Returns True if the decorator is an instance of the emitter class.
     """
-    try:
+    from .builder import emitter
+
+    with suppress(Exception):
         # Try to resolve the decorator to an actual object
         if isinstance(decorator_node, ast.Name):
             # Simple name: @function
@@ -50,11 +52,8 @@ def _is_statement_decorator(decorator_node: ast.expr, globalns: dict) -> bool:
             decorator_obj = None
 
         # Check if the decorator has the marker
-        if decorator_obj is not None and hasattr(decorator_obj, "__fleur_statement_decorator__"):
+        if isinstance(decorator_obj, emitter):
             return True
-    except Exception:
-        # If anything goes wrong, be conservative and keep the decorator
-        pass
 
     return False
 
