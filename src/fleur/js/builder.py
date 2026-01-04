@@ -1,6 +1,5 @@
 import contextvars
 import inspect
-from collections import defaultdict
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, ClassVar, Final, Generic, Optional, Protocol, TypeVar, Union, cast, final, overload
@@ -32,10 +31,10 @@ def _unary_operation(
     return ast.UnaryExpression(operator=op, operand=operand_ast)
 
 
-class ExpressionBuilder(Generic[_JSTypeT]):
-    __fleur_js_ast__: ast.Expression[_JSTypeT]
+class ExpressionBuilder(Generic[_JSTypeT_co]):
+    __fleur_js_ast__: ast.Expression[_JSTypeT_co]
 
-    def __init__(self, ast_node: Union[ast.Expression[_JSTypeT], "ExpressionBuilder[_JSTypeT]"]) -> None:
+    def __init__(self, ast_node: Union[ast.Expression[_JSTypeT_co], "ExpressionBuilder[_JSTypeT_co]"]) -> None:
         if isinstance(ast_node, ExpressionBuilder):
             ast_node = ast_node.__fleur_js_ast__
         self.__fleur_js_ast__ = ast_node
@@ -49,6 +48,18 @@ class ExpressionBuilder(Generic[_JSTypeT]):
                     key=key.__fleur_js_ast__,
                 )
             )
+
+        def __setitem__(
+            self: "ExpressionBuilder[_JSTypeT]", key: "String", value: "ExpressionBuilder[_JSTypeT]"
+        ) -> None:
+            target = ExpressionBuilder(
+                ast.KeyAccessExpression(
+                    object=self.__fleur_js_ast__,
+                    key=key.__fleur_js_ast__,
+                )
+            )
+
+            assign(target, value)
 
         def __getattr__(self, key: str) -> "ExpressionBuilder":
             return ExpressionBuilder(
@@ -342,6 +353,7 @@ class Record(ExpressionBuilder[ast.Object], Generic[_ExpressionBuilderT_co]):
     if TYPE_CHECKING:
 
         def __getitem__(self, key: String) -> _ExpressionBuilderT_co: ...
+        def __setitem__(self: "Record[_ExpressionBuilderT]", key: String, value: _ExpressionBuilderT) -> None: ...
         def hasOwnProperty(self, key: String) -> Boolean: ...
         def isPrototypeOf(self, key: "ExpressionBuilder") -> Boolean: ...
         def propertyIsEnumerable(self, key: String) -> Boolean: ...
@@ -355,10 +367,16 @@ _R = TypeVar("_R", bound=ExpressionBuilder)
 
 
 def _build_statements_from_function(
-    fn: Callable, transform: bool = True
+    fn: Callable,
+    transform: bool = True,
+    param_factory: Optional[Callable[[ast.Identifier], ExpressionBuilder]] = None,
 ) -> tuple[tuple[ast.Identifier, ...], ast.BlockStatement]:
     parameters = tuple(ast.Identifier(name=param.name) for param in inspect.signature(fn).parameters.values())
     body_builder = StatementBuilder()
+
+    # Use ExpressionBuilder as default factory
+    if param_factory is None:
+        param_factory = ExpressionBuilder
 
     # Create placeholder Function object for recursive calls
     func_placeholder = cast(Function, ExpressionBuilder(ast.Identifier(name=fn.__name__)))
@@ -384,7 +402,7 @@ def _build_statements_from_function(
             transformed_fn.__globals__[_GET_CURRENT_BUILDER] = _CURRENT_BUILDER.get
             # Make the function name refer to the Function object for recursive calls
             transformed_fn.__globals__[fn.__name__] = func_placeholder
-            transformed_fn(*(ExpressionBuilder(param) for param in parameters))  # pyright: ignore[reportCallIssue]
+            transformed_fn(*(param_factory(param) for param in parameters))  # pyright: ignore[reportCallIssue]
 
         ctx = contextvars.copy_context()
         ctx.run(_build_body)
@@ -395,7 +413,7 @@ def _build_statements_from_function(
 
         def _build_body() -> None:
             _CURRENT_BUILDER.set(body_builder)
-            fn(*(ExpressionBuilder(param) for param in parameters))  # pyright: ignore[reportCallIssue]
+            fn(*(param_factory(param) for param in parameters))  # pyright: ignore[reportCallIssue]
 
         ctx = contextvars.copy_context()
         ctx.run(_build_body)
@@ -513,6 +531,8 @@ class StatementBuilder:
 
         This is useful for expressions that have side effects, such as function calls.
         """
+        if expression is None:
+            return
         expr_statement = ast.ExpressionStatement(expression=expression.__fleur_js_ast__)
         self._statements.append(expr_statement)
 
@@ -527,6 +547,10 @@ class StatementBuilder:
         return_statement = ast.ReturnStatement(argument=value.__fleur_js_ast__ if value is not None else None)
         self._statements.append(return_statement)
         return value
+
+    def continue_(self) -> None:
+        continue_statement = ast.ContinueStatement()
+        self._statements.append(continue_statement)
 
     def if_then_else(
         self,
@@ -565,6 +589,18 @@ class StatementBuilder:
             statement = ast.ForOfStatement(
                 iterator=parameters[0],
                 iterable=iterable.__fleur_js_ast__,
+                body=block,
+            )
+            self._statements.append(statement)
+
+        return decorator
+
+    def for_in(self, obj: ExpressionBuilder[ast.Object]) -> Callable[[Callable[["String"], None]], None]:
+        def decorator(body: Callable[["String"], None]) -> None:
+            parameters, block = _build_statements_from_function(body, param_factory=String)
+            statement = ast.ForInStatement(
+                iterator=parameters[0],
+                object=obj.__fleur_js_ast__,
                 body=block,
             )
             self._statements.append(statement)
@@ -677,8 +713,9 @@ def assign(
     value: ExpressionBuilder[_JSTypeT],
     *,
     builder: Optional[StatementBuilder] = None,
-) -> None:
+) -> Undefined:
     (builder or _CURRENT_BUILDER.get()).assign(target, value)
+    return Undefined()
 
 
 @emitter
@@ -704,6 +741,10 @@ def ret(
     return (builder or _CURRENT_BUILDER.get()).ret(value)  # pyright: ignore[reportArgumentType]
 
 
+def continue_(*, builder: Optional[StatementBuilder] = None) -> None:
+    (builder or _CURRENT_BUILDER.get()).continue_()
+
+
 @emitter
 def if_then_else(
     condition: ExpressionBuilder[ast.Boolean],
@@ -722,6 +763,15 @@ def for_of(
     builder: Optional[StatementBuilder] = None,
 ) -> Callable[[Callable[[_ExpressionBuilderT], None]], None]:
     return (builder or _CURRENT_BUILDER.get()).for_of(iterator)
+
+
+@emitter
+def for_in(
+    obj: ExpressionBuilder[ast.Object],
+    *,
+    builder: Optional[StatementBuilder] = None,
+) -> Callable[[Callable[["String"], None]], None]:
+    return (builder or _CURRENT_BUILDER.get()).for_in(obj)
 
 
 @overload

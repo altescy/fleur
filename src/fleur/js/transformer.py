@@ -35,7 +35,7 @@ def _is_statement_decorator(decorator_node: ast.expr, globalns: dict) -> bool:
         # For call expressions like @js.for_of(arr), check the function being called
         if isinstance(decorator_node, ast.Call):
             decorator_node = decorator_node.func
-        
+
         # Try to resolve the decorator to an actual object
         if isinstance(decorator_node, ast.Name):
             # Simple name: @function
