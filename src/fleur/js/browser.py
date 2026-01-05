@@ -45,6 +45,15 @@ class Element(Record, metaclass=_GlobalMeta):
     __fleur_global_name__: str = "Element"
 
     if TYPE_CHECKING:
+        className: String
+        id: String
+        innerHTML: String
+        outerHTML: String
+
+        @property
+        def children(self) -> "HTMLCollection": ...
+        @property
+        def tagName(self) -> String: ...
 
         def setAttribute(self, name: String, value: String) -> None: ...
         def getAttribute(self, name: String) -> String: ...

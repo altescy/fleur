@@ -387,6 +387,9 @@ def _build_statements_from_function(
                 if var_name == fn.__name__:
                     target.__closure__[i].cell_contents = func_placeholder
 
+    # Check if this is a lambda function
+    is_lambda = fn.__name__ == "<lambda>"
+
     # If transform=True, use AST transformation to allow natural Python syntax
     if transform:
         param_names = {param.name for param in inspect.signature(fn).parameters.values()}
@@ -402,7 +405,11 @@ def _build_statements_from_function(
             transformed_fn.__globals__[_GET_CURRENT_BUILDER] = _CURRENT_BUILDER.get
             # Make the function name refer to the Function object for recursive calls
             transformed_fn.__globals__[fn.__name__] = func_placeholder
-            transformed_fn(*(param_factory(param) for param in parameters))  # pyright: ignore[reportCallIssue]
+            result = transformed_fn(*(param_factory(param) for param in parameters))  # pyright: ignore[reportCallIssue]
+
+            # For lambda functions, add the return value as a return statement
+            if is_lambda and result is not None:
+                body_builder.ret(result)
 
         ctx = contextvars.copy_context()
         ctx.run(_build_body)
@@ -413,7 +420,11 @@ def _build_statements_from_function(
 
         def _build_body() -> None:
             _CURRENT_BUILDER.set(body_builder)
-            fn(*(param_factory(param) for param in parameters))  # pyright: ignore[reportCallIssue]
+            result = fn(*(param_factory(param) for param in parameters))  # pyright: ignore[reportCallIssue]
+
+            # For lambda functions, add the return value as a return statement
+            if is_lambda and result is not None:
+                body_builder.ret(result)
 
         ctx = contextvars.copy_context()
         ctx.run(_build_body)
