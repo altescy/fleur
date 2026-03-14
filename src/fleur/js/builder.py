@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from fleur.js.ast import (
     ESTreeArrayExpression,
     ESTreeBinaryExpression,
@@ -38,7 +40,7 @@ def call(callee: ESTreeExpression, *args: ESTreeExpression) -> ESTreeCallExpress
     return ESTreeCallExpression(callee=callee, arguments=list(args))
 
 
-def object_expr(properties: list[tuple[str, ESTreeExpression]]) -> ESTreeObjectExpression:
+def object_expr(properties: Iterable[tuple[str, ESTreeExpression]]) -> ESTreeObjectExpression:
     return ESTreeObjectExpression(
         properties=[
             ESTreeObjectProperty(

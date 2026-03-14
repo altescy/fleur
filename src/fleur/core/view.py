@@ -1,24 +1,16 @@
 import re
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, Generic
 
-from fleur.js.ast import (
-    ESTreeExpression,
-    ESTreeFunctionBody,
-    ESTreeFunctionExpression,
-    ESTreeReturnStatement,
-)
+from fleur.js.ast import ESTreeExpression
 from fleur.js.builder import call, concat, literal, member, object_expr
+from fleur.types import ICompilable, JsonValue
 
 from .runtime import MODEL_IDENT, RUNTIME_H, runtime_ref
 from .types import ModelT_co, MsgGroupT, MsgGroupT_co
 
 if TYPE_CHECKING:
     from .msg import GroupedMsg
-
-
-class View(Generic[ModelT_co, MsgGroupT_co]):
-    def __compile__(self) -> ESTreeExpression:
-        raise NotImplementedError
 
 
 def _compile_text_expr(text: str) -> ESTreeExpression:
@@ -44,27 +36,41 @@ def _compile_text_expr(text: str) -> ESTreeExpression:
     return expr
 
 
-class Text(View[ModelT_co, MsgGroupT_co]):
-    def __init__(self, text: str) -> None:
-        self.text = text
+class View(Generic[ModelT_co, MsgGroupT_co]):
+    def __init__(
+        self,
+        *children: "JsonValue | View[ModelT_co, MsgGroupT_co]",
+        tag: str,
+        props: Mapping[str, ICompilable[ESTreeExpression] | JsonValue],
+    ) -> None:
+        self._tag = tag
+        self._props = props
+        self._children = children
 
     def __compile__(self) -> ESTreeExpression:
         return call(
             runtime_ref(RUNTIME_H),
-            literal("span"),
-            object_expr([]),
-            _compile_text_expr(self.text),
+            literal(self._tag),
+            object_expr(
+                [(k, v.__compile__() if isinstance(v, ICompilable) else literal(v)) for k, v in self._props.items()]
+            ),
+            *(
+                child.__compile__()
+                if isinstance(child, View)
+                else (_compile_text_expr(child) if isinstance(child, str) else literal(child))
+                for child in self._children
+            ),
         )
+
+
+class Text(View[ModelT_co, MsgGroupT_co]):
+    def __init__(self, text: str) -> None:
+        super().__init__(text, tag="span", props={})
 
 
 class VStack(View[ModelT_co, MsgGroupT_co]):
     def __init__(self, *children: View[ModelT_co, MsgGroupT_co]) -> None:
-        self.children = children
-
-    def __compile__(self) -> ESTreeExpression:
-        args = [literal("div"), object_expr([])]
-        args.extend(child.__compile__() for child in self.children)
-        return call(runtime_ref(RUNTIME_H), *args)
+        return super().__init__(*children, tag="div", props={})
 
 
 class Button(View[ModelT_co, MsgGroupT]):
@@ -73,17 +79,4 @@ class Button(View[ModelT_co, MsgGroupT]):
         *children: str | View[ModelT_co, MsgGroupT],
         onclick: "GroupedMsg[MsgGroupT, Any]",
     ) -> None:
-        self.children = children
-        self.onclick = onclick
-
-    def __compile__(self) -> ESTreeExpression:
-        onclick_handler = ESTreeFunctionExpression(
-            id=None,
-            params=[],
-            body=ESTreeFunctionBody(
-                body=[ESTreeReturnStatement(argument=self.onclick.__compile__())],
-            ),
-        )
-        props = object_expr([("onclick", onclick_handler)])
-        child_exprs = [literal(c) if isinstance(c, str) else c.__compile__() for c in self.children]
-        return call(runtime_ref(RUNTIME_H), literal("button"), props, *child_exprs)
+        super().__init__(*children, tag="button", props={"onclick": onclick})

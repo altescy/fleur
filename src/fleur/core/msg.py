@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Generic, Type, overload
 
 from typing_extensions import Self
 
-from fleur.js.ast import ESTreeExpression
+from fleur.js.ast import ESTreeExpression, ESTreeFunctionBody, ESTreeFunctionExpression, ESTreeReturnStatement
 from fleur.js.builder import json_expr
 
 from .runtime import MESSAGE_TYPE
@@ -37,7 +37,14 @@ class GroupedMsg(Generic[MsgGroupT, OptionalEventT]):
         self.event = event
 
     def __compile__(self) -> ESTreeExpression:
-        return json_expr({MESSAGE_TYPE: self.name})
+
+        return ESTreeFunctionExpression(
+            id=None,
+            params=[],
+            body=ESTreeFunctionBody(
+                body=[ESTreeReturnStatement(argument=json_expr({MESSAGE_TYPE: self.name}))],
+            ),
+        )
 
 
 class Msg(Generic[OptionalEventT]):
