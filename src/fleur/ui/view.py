@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import typing
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Generic
+from typing import TYPE_CHECKING, Final, Generic, Literal
 
 from fleur.core.component import Component
 from fleur.core.template import Page, TemplateInput
@@ -23,7 +24,7 @@ RadiusValue = int | float | str
 StyleValue = str | int | float
 StyleMap = Mapping[str, StyleValue]
 
-_RAW_COLORS = {
+RawColor = Literal[
     "black",
     "white",
     "red",
@@ -42,7 +43,8 @@ _RAW_COLORS = {
     "transparent",
     "currentColor",
     "inherit",
-}
+]
+_RAW_COLORS: Final[set[RawColor]] = set(typing.get_args(RawColor))
 
 
 def _is_raw_color(value: str) -> bool:
@@ -89,8 +91,8 @@ def _merge_props(
     props: Props | None,
     *,
     gap: SpacingValue | None = None,
-    bg: str | None = None,
-    fg: str | None = None,
+    bg: RawColor | str | None = None,
+    fg: RawColor | str | None = None,
     p: SpacingValue | None = None,
     px: SpacingValue | None = None,
     py: SpacingValue | None = None,
@@ -155,8 +157,8 @@ class VStack(Element[ModelT_co, MsgGroupT_co]):
         *children: JsonValue | View[ModelT_co, MsgGroupT_co],
         props: Props | None = None,
         gap: SpacingValue | None = None,
-        bg: str | None = None,
-        fg: str | None = None,
+        bg: RawColor | str | None = None,
+        fg: RawColor | str | None = None,
         p: SpacingValue | None = None,
         px: SpacingValue | None = None,
         py: SpacingValue | None = None,
@@ -188,8 +190,8 @@ class Button(Element[ModelT_co, MsgGroupT], Generic[ModelT_co, MsgGroupT]):
         *children: str | View[ModelT_co, MsgGroupT],
         onclick: "GroupedMsg[MsgGroupT, object]",
         props: Props | None = None,
-        bg: str | None = None,
-        fg: str | None = None,
+        bg: RawColor | str | None = None,
+        fg: RawColor | str | None = None,
         p: SpacingValue | None = None,
         px: SpacingValue | None = None,
         py: SpacingValue | None = None,
