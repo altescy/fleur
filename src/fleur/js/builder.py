@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 
 from fleur.js.ast import (
@@ -14,6 +15,8 @@ from fleur.js.ast import (
     ESTreeObjectProperty,
 )
 from fleur.types import JsonValue
+
+_IDENTIFIER_RE = re.compile(r"^[A-Za-z_$][A-Za-z0-9_$]*$")
 
 
 def ident(name: str) -> ESTreeIdentifier:
@@ -44,7 +47,7 @@ def object_expr(properties: Iterable[tuple[str, ESTreeExpression]]) -> ESTreeObj
     return ESTreeObjectExpression(
         properties=[
             ESTreeObjectProperty(
-                key=ident(key),
+                key=ident(key) if _IDENTIFIER_RE.match(key) else literal(key),
                 value=value,
                 kind="init",
             )
@@ -58,7 +61,7 @@ def json_expr(value: JsonValue) -> ESTreeExpression:
         return ESTreeObjectExpression(
             properties=[
                 ESTreeObjectProperty(
-                    key=ident(k),
+                    key=ident(k) if _IDENTIFIER_RE.match(k) else literal(k),
                     value=json_expr(v),
                     kind="init",
                 )

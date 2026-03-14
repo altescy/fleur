@@ -98,6 +98,20 @@ const wrapDispatch = (dispatch: Dispatch, vnode: VNode): VNode => {
 }
 
 const setProp = (el: Element & { __listeners?: Record<string, EventListener> }, key: string, value: unknown): void => {
+  if (key === "className") {
+    el.setAttribute("class", String(value))
+    return
+  }
+
+  if (key === "style" && value && typeof value === "object") {
+    const style = el as HTMLElement
+    for (const [styleKey, styleValue] of Object.entries(value as Record<string, unknown>)) {
+      if (styleValue == null) continue
+      style.style.setProperty(styleKey, String(styleValue))
+    }
+    return
+  }
+
   if (key.startsWith("on") && typeof value === "function") {
     const type = key.slice(2).toLowerCase()
     if (el.__listeners?.[key]) el.removeEventListener(type, el.__listeners[key])
@@ -110,6 +124,16 @@ const setProp = (el: Element & { __listeners?: Record<string, EventListener> }, 
 }
 
 const removeProp = (el: Element & { __handlers?: Record<string, EventListener> }, key: string): void => {
+  if (key === "className") {
+    el.removeAttribute("class")
+    return
+  }
+
+  if (key === "style") {
+    ;(el as HTMLElement).removeAttribute("style")
+    return
+  }
+
   if (key.startsWith("on")) {
     const type = key.slice(2).toLowerCase()
     const handler = el.__handlers?.[type]
