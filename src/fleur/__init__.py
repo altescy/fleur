@@ -1,0 +1,69 @@
+from fleur.core import (
+    Button,
+    Cmd,
+    Component,
+    Model,
+    Msg,
+    MsgGroup,
+    State,
+    Sub,
+    Text,
+    VStack,
+    compile_component,
+)
+from fleur.core.template import (
+    BloomContext,
+    Page,
+    TemplateInput,
+    render_app,
+    render_head,
+    render_script,
+    render_template,
+)
+from fleur.js.emitter import EmitterSettings, emit
+
+
+def bloom(
+    component: type[Component],
+    *,
+    page: Page | None = None,
+    template: TemplateInput | None = None,
+    component_name: str | None = None,
+) -> str:
+    from pathlib import Path
+
+    fleur_js_path = Path(__file__).parent / "assets" / "fleur.js"
+    runtime_js = fleur_js_path.read_text()
+
+    resolved_page = page or Page()
+    component_js = emit(compile_component(component))
+    context = BloomContext(
+        page=resolved_page,
+        component_name=component_name or component.__name__,
+        component_js=component_js,
+        runtime_js=runtime_js,
+        head_html=render_head(resolved_page),
+        app_html=render_app(resolved_page),
+        script_js=render_script(component_js=component_js, runtime_js=runtime_js, page=resolved_page),
+    )
+
+    return render_template(template, context)
+
+
+__all__ = [
+    "Button",
+    "Cmd",
+    "Component",
+    "Model",
+    "Msg",
+    "MsgGroup",
+    "State",
+    "Sub",
+    "Text",
+    "VStack",
+    "Page",
+    "EmitterSettings",
+    "bloom",
+    "emit",
+    "compile_component",
+]
