@@ -12,7 +12,7 @@ from fleur.js.builder import object_expr
 
 from .cmd import Cmd
 from .component import Component
-from .names import COMPONENT_INIT, COMPONENT_SUBSCRIPTIONS, COMPONENT_UPDATE, COMPONENT_VIEW, MODEL_IDENT
+from .runtime import COMPONENT_INIT, COMPONENT_SUBSCRIPTIONS, COMPONENT_UPDATE, COMPONENT_VIEW, MODEL_IDENT
 from .sub import Sub
 
 if TYPE_CHECKING:

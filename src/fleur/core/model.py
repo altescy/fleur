@@ -8,7 +8,7 @@ from fleur.js.ast import ESTreeBinaryExpression, ESTreeExpression
 from fleur.js.builder import call, ident, json_expr, literal, member, object_expr
 from fleur.types import JsonValue
 
-from .names import MODEL_IDENT
+from .runtime import MODEL_IDENT
 
 ValueT = TypeVar("ValueT", bound=JsonValue)
 ValueT_contra = TypeVar("ValueT_contra", bound=JsonValue, contravariant=True)

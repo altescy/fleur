@@ -1,35 +1,32 @@
 import dataclasses
-from typing import Any, Generic, Literal
+from typing import Generic, Literal
 
 from typing_extensions import TypeVar
 
 from fleur.types import JsonValue
 
-ESTreeNodeTypeT = TypeVar("ESTreeNodeTypeT", bound=str, default=Any)
+
+@dataclasses.dataclass(slots=True)
+class ESTreeNode: ...
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeNode(Generic[ESTreeNodeTypeT]):
-    type: ESTreeNodeTypeT
-
-
-@dataclasses.dataclass(slots=True)
-class ESTreePattern(ESTreeNode[ESTreeNodeTypeT]):
+class ESTreePattern(ESTreeNode):
     pass
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeExpression(ESTreeNode[ESTreeNodeTypeT]):
+class ESTreeExpression(ESTreeNode):
     pass
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeStatement(ESTreeNode[ESTreeNodeTypeT]):
+class ESTreeStatement(ESTreeNode):
     pass
 
 
-ESTreeExpressionT = TypeVar("ESTreeExpressionT", bound=ESTreeExpression[Any], default=ESTreeExpression[Any])
-ESTreeStatementT = TypeVar("ESTreeStatementT", bound=ESTreeStatement[Any], default=ESTreeStatement[Any])
+ESTreeExpressionT = TypeVar("ESTreeExpressionT", bound=ESTreeExpression, default=ESTreeExpression)
+ESTreeStatementT = TypeVar("ESTreeStatementT", bound=ESTreeStatement, default=ESTreeStatement)
 
 
 ##
@@ -38,9 +35,8 @@ ESTreeStatementT = TypeVar("ESTreeStatementT", bound=ESTreeStatement[Any], defau
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeIdentifier(ESTreePattern, ESTreeExpression[Literal["Identifier"]]):
+class ESTreeIdentifier(ESTreePattern, ESTreeExpression):
     name: str
-    type: Literal["Identifier"] = dataclasses.field(default="Identifier", init=False)
 
 
 ##
@@ -49,9 +45,8 @@ class ESTreeIdentifier(ESTreePattern, ESTreeExpression[Literal["Identifier"]]):
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeLiteral(ESTreeExpression[Literal["Literal"]]):
+class ESTreeLiteral(ESTreeExpression):
     value: JsonValue
-    type: Literal["Literal"] = dataclasses.field(default="Literal", init=False)
 
 
 ##
@@ -60,9 +55,8 @@ class ESTreeLiteral(ESTreeExpression[Literal["Literal"]]):
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeProgram(ESTreeNode[Literal["Program"]]):
+class ESTreeProgram(ESTreeNode):
     body: list["ESTreeDirective | ESTreeStatement"]
-    type: Literal["Program"] = dataclasses.field(default="Program", init=False)
 
 
 ##
@@ -74,7 +68,7 @@ ESTreeFunctionIDT = TypeVar("ESTreeFunctionIDT", bound=ESTreeIdentifier | None, 
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeFunction(ESTreeExpression[ESTreeNodeTypeT], Generic[ESTreeNodeTypeT, ESTreeFunctionIDT]):
+class ESTreeFunction(ESTreeExpression, Generic[ESTreeFunctionIDT]):
     id: ESTreeFunctionIDT
     params: list[ESTreePattern]
     body: "ESTreeFunctionBody"
@@ -86,9 +80,8 @@ class ESTreeFunction(ESTreeExpression[ESTreeNodeTypeT], Generic[ESTreeNodeTypeT,
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeExpressionStatement(ESTreeStatement[Literal["ExpressionStatement"]], Generic[ESTreeExpressionT]):
+class ESTreeExpressionStatement(ESTreeStatement, Generic[ESTreeExpressionT]):
     expression: ESTreeExpressionT
-    type: Literal["ExpressionStatement"] = dataclasses.field(default="ExpressionStatement", init=False)
 
 
 @dataclasses.dataclass(slots=True)
@@ -97,9 +90,8 @@ class ESTreeDirective(ESTreeExpressionStatement[ESTreeLiteral]):
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeBlockStatement(ESTreeStatement[Literal["BlockStatement"]], Generic[ESTreeStatementT]):
+class ESTreeBlockStatement(ESTreeStatement, Generic[ESTreeStatementT]):
     body: list[ESTreeStatementT]
-    type: Literal["BlockStatement"] = dataclasses.field(default="BlockStatement", init=False)
 
 
 @dataclasses.dataclass(slots=True)
@@ -108,129 +100,108 @@ class ESTreeFunctionBody(ESTreeBlockStatement[ESTreeDirective | ESTreeStatement]
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeReturnStatement(ESTreeStatement[Literal["ReturnStatement"]]):
+class ESTreeReturnStatement(ESTreeStatement):
     argument: ESTreeExpression | None
-    type: Literal["ReturnStatement"] = dataclasses.field(default="ReturnStatement", init=False)
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeLabeledStatement(ESTreeStatement[Literal["LabeledStatement"]]):
+class ESTreeLabeledStatement(ESTreeStatement):
     label: ESTreeIdentifier
     body: ESTreeStatement
-    type: Literal["LabeledStatement"] = dataclasses.field(default="LabeledStatement", init=False)
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeBreakStatement(ESTreeStatement[Literal["BreakStatement"]]):
+class ESTreeBreakStatement(ESTreeStatement):
     label: ESTreeIdentifier | None
-    type: Literal["BreakStatement"] = dataclasses.field(default="BreakStatement", init=False)
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeContinueStatement(ESTreeStatement[Literal["ContinueStatement"]]):
+class ESTreeContinueStatement(ESTreeStatement):
     label: ESTreeIdentifier | None
-    type: Literal["ContinueStatement"] = dataclasses.field(default="ContinueStatement", init=False)
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeIfStatement(ESTreeStatement[Literal["IfStatement"]]):
+class ESTreeIfStatement(ESTreeStatement):
     test: ESTreeExpression
     consequent: ESTreeStatement
     alternate: ESTreeStatement | None
-    type: Literal["IfStatement"] = dataclasses.field(default="IfStatement", init=False)
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeSwitchCase(ESTreeNode[Literal["SwitchCase"]]):
+class ESTreeSwitchCase(ESTreeNode):
     test: ESTreeExpression | None
     consequent: list[ESTreeStatement]
-    type: Literal["SwitchCase"] = dataclasses.field(default="SwitchCase", init=False)
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeSwitchStatement(ESTreeStatement[Literal["SwitchStatement"]]):
+class ESTreeSwitchStatement(ESTreeStatement):
     discriminant: ESTreeExpression
     cases: list[ESTreeSwitchCase]
-    type: Literal["SwitchStatement"] = dataclasses.field(default="SwitchStatement", init=False)
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeThrowStatement(ESTreeStatement[Literal["ThrowStatement"]]):
+class ESTreeThrowStatement(ESTreeStatement):
     argument: ESTreeExpression
-    type: Literal["ThrowStatement"] = dataclasses.field(default="ThrowStatement", init=False)
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeCatchClause(ESTreeNode[Literal["CatchClause"]]):
+class ESTreeCatchClause(ESTreeNode):
     param: ESTreePattern | None
     body: ESTreeBlockStatement
-    type: Literal["CatchClause"] = dataclasses.field(default="CatchClause", init=False)
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeTryStatement(ESTreeStatement[Literal["TryStatement"]]):
+class ESTreeTryStatement(ESTreeStatement):
     block: ESTreeBlockStatement
     handler: ESTreeCatchClause | None
     finalizer: ESTreeBlockStatement | None
-    type: Literal["TryStatement"] = dataclasses.field(default="TryStatement", init=False)
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeWhileStatement(ESTreeStatement[Literal["WhileStatement"]]):
+class ESTreeWhileStatement(ESTreeStatement):
     test: ESTreeExpression
     body: ESTreeStatement
-    type: Literal["WhileStatement"] = dataclasses.field(default="WhileStatement", init=False)
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeDoWhileStatement(ESTreeStatement[Literal["DoWhileStatement"]]):
+class ESTreeDoWhileStatement(ESTreeStatement):
     body: ESTreeStatement
     test: ESTreeExpression
-    type: Literal["DoWhileStatement"] = dataclasses.field(default="DoWhileStatement", init=False)
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeForStatement(ESTreeStatement[Literal["ForStatement"]]):
+class ESTreeForStatement(ESTreeStatement):
     init: "ESTreeVariableDeclaration | ESTreeExpression | None"
     test: ESTreeExpression | None
     update: ESTreeExpression | None
     body: ESTreeStatement
-    type: Literal["ForStatement"] = dataclasses.field(default="ForStatement", init=False)
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeForInStatement(ESTreeStatement[Literal["ForInStatement"]]):
+class ESTreeForInStatement(ESTreeStatement):
     left: "ESTreeVariableDeclaration | ESTreeExpression"
     right: ESTreeExpression
     body: ESTreeStatement
-    type: Literal["ForInStatement"] = dataclasses.field(default="ForInStatement", init=False)
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeDeclaration(ESTreeStatement[ESTreeNodeTypeT]):
-    pass
+class ESTreeDeclaration(ESTreeStatement): ...
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeFunctionDeclaration(
-    ESTreeFunction[Literal["FunctionDeclaration"], ESTreeIdentifier],
-    ESTreeDeclaration[Literal["FunctionDeclaration"]],
-):
-    type: Literal["FunctionDeclaration"] = dataclasses.field(default="FunctionDeclaration", init=False)
+class ESTreeFunctionDeclaration(ESTreeFunction[ESTreeIdentifier], ESTreeDeclaration): ...
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeVariableDeclarator(ESTreeNode[Literal["VariableDeclarator"]]):
+class ESTreeVariableDeclarator(ESTreeNode):
     id: ESTreePattern
     init: ESTreeExpression | None
-    type: Literal["VariableDeclarator"] = dataclasses.field(default="VariableDeclarator", init=False)
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeVariableDeclaration(ESTreeDeclaration[Literal["VariableDeclaration"]]):
+class ESTreeVariableDeclaration(ESTreeDeclaration):
     declarations: list[ESTreeVariableDeclarator]
     kind: Literal["var"]
-    type: Literal["VariableDeclaration"] = dataclasses.field(default="VariableDeclaration", init=False)
 
 
 ##
@@ -239,36 +210,28 @@ class ESTreeVariableDeclaration(ESTreeDeclaration[Literal["VariableDeclaration"]
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeThisExpression(ESTreeExpression[Literal["ThisExpression"]]):
-    type: Literal["ThisExpression"] = dataclasses.field(default="ThisExpression", init=False)
+class ESTreeThisExpression(ESTreeExpression): ...
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeArrayExpression(ESTreeExpression[Literal["ArrayExpression"]]):
+class ESTreeArrayExpression(ESTreeExpression):
     elements: list[ESTreeExpression | None]
-    type: Literal["ArrayExpression"] = dataclasses.field(default="ArrayExpression", init=False)
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeObjectProperty(ESTreeNode[Literal["Property"]]):
+class ESTreeObjectProperty(ESTreeNode):
     key: ESTreeLiteral | ESTreeIdentifier
     value: ESTreeExpression
     kind: Literal["init", "get", "set"]
-    type: Literal["Property"] = dataclasses.field(default="Property", init=False)
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeObjectExpression(ESTreeExpression[Literal["ObjectExpression"]]):
+class ESTreeObjectExpression(ESTreeExpression):
     properties: list[ESTreeObjectProperty]
-    type: Literal["ObjectExpression"] = dataclasses.field(default="ObjectExpression", init=False)
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeFunctionExpression(
-    ESTreeFunction[Literal["FunctionExpression"], ESTreeIdentifier | None],
-    ESTreeExpression[Literal["FunctionExpression"]],
-):
-    type: Literal["FunctionExpression"] = dataclasses.field(default="FunctionExpression", init=False)
+class ESTreeFunctionExpression(ESTreeFunction[ESTreeIdentifier | None], ESTreeExpression): ...
 
 
 ESTreeUnaryOperator = Literal[
@@ -283,11 +246,10 @@ ESTreeUnaryOperator = Literal[
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeUnaryExpression(ESTreeExpression[Literal["UnaryExpression"]]):
+class ESTreeUnaryExpression(ESTreeExpression):
     operator: ESTreeUnaryOperator
     prefix: bool
     argument: ESTreeExpression
-    type: Literal["UnaryExpression"] = dataclasses.field(default="UnaryExpression", init=False)
 
 
 ESTreeUpdateOperator = Literal[
@@ -297,11 +259,10 @@ ESTreeUpdateOperator = Literal[
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeUpdateExpression(ESTreeExpression[Literal["UpdateExpression"]]):
+class ESTreeUpdateExpression(ESTreeExpression):
     operator: ESTreeUpdateOperator
     argument: ESTreeExpression
     prefix: bool
-    type: Literal["UpdateExpression"] = dataclasses.field(default="UpdateExpression", init=False)
 
 
 ESTreeBinaryOperator = Literal[
@@ -329,11 +290,10 @@ ESTreeBinaryOperator = Literal[
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeBinaryExpression(ESTreeExpression[Literal["BinaryExpression"]]):
+class ESTreeBinaryExpression(ESTreeExpression):
     operator: ESTreeBinaryOperator
     left: ESTreeExpression
     right: ESTreeExpression
-    type: Literal["BinaryExpression"] = dataclasses.field(default="BinaryExpression", init=False)
 
 
 ESTreeLogicalOperator = Literal[
@@ -343,44 +303,38 @@ ESTreeLogicalOperator = Literal[
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeLogicalExpression(ESTreeExpression[Literal["LogicalExpression"]]):
+class ESTreeLogicalExpression(ESTreeExpression):
     operator: ESTreeLogicalOperator
     left: ESTreeExpression
     right: ESTreeExpression
-    type: Literal["LogicalExpression"] = dataclasses.field(default="LogicalExpression", init=False)
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeMemberExpression(ESTreeExpression[Literal["MemberExpression"]]):
+class ESTreeMemberExpression(ESTreeExpression):
     object: ESTreeExpression
     property: ESTreeExpression
     computed: bool
-    type: Literal["MemberExpression"] = dataclasses.field(default="MemberExpression", init=False)
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeConditionalExpression(ESTreeExpression[Literal["ConditionalExpression"]]):
+class ESTreeConditionalExpression(ESTreeExpression):
     test: ESTreeExpression
     alternate: ESTreeExpression
     consequent: ESTreeExpression
-    type: Literal["ConditionalExpression"] = dataclasses.field(default="ConditionalExpression", init=False)
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeCallExpression(ESTreeExpression[Literal["CallExpression"]]):
+class ESTreeCallExpression(ESTreeExpression):
     callee: ESTreeExpression
     arguments: list[ESTreeExpression]
-    type: Literal["CallExpression"] = dataclasses.field(default="CallExpression", init=False)
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeNewExpression(ESTreeExpression[Literal["NewExpression"]]):
+class ESTreeNewExpression(ESTreeExpression):
     callee: ESTreeExpression
     arguments: list[ESTreeExpression]
-    type: Literal["NewExpression"] = dataclasses.field(default="NewExpression", init=False)
 
 
 @dataclasses.dataclass(slots=True)
-class ESTreeSequenceExpression(ESTreeExpression[Literal["SequenceExpression"]]):
+class ESTreeSequenceExpression(ESTreeExpression):
     expressions: list[ESTreeExpression]
-    type: Literal["SequenceExpression"] = dataclasses.field(default="SequenceExpression", init=False)

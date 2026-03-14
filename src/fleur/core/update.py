@@ -14,8 +14,7 @@ from fleur.js.builder import literal, member
 
 from .cmd import Cmd
 from .model import ModelOperation
-from .names import MESSAGE_IDENT, MESSAGE_TYPE, MODEL_IDENT, RUNTIME_CMD, RUNTIME_NONE
-from .runtime import runtime_call
+from .runtime import MESSAGE_IDENT, MESSAGE_TYPE, MODEL_IDENT, RUNTIME_CMD, RUNTIME_NONE, runtime_call
 from .types import ModelT_co, MsgGroupT_co
 
 if TYPE_CHECKING:

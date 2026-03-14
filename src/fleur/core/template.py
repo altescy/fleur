@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Protocol, cast
 
-from .names import RUNTIME_NAMESPACE, RUNTIME_PROGRAM
+from .runtime import RUNTIME_NAMESPACE, RUNTIME_PROGRAM
 
 
 @dataclass(slots=True)

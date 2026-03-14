@@ -7,7 +7,7 @@ from typing_extensions import Self
 from fleur.js.ast import ESTreeExpression
 from fleur.js.builder import json_expr
 
-from .names import MESSAGE_TYPE
+from .runtime import MESSAGE_TYPE
 from .types import MsgGroupT, OptionalEventT
 
 if TYPE_CHECKING:

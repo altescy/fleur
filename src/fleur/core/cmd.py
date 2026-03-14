@@ -4,8 +4,7 @@ from typing_extensions import Self
 
 from fleur.js.ast import ESTreeExpression
 
-from .names import RUNTIME_CMD, RUNTIME_NONE
-from .runtime import runtime_call
+from .runtime import RUNTIME_CMD, RUNTIME_NONE, runtime_call
 from .types import ModelT, MsgGroupT
 
 

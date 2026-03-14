@@ -9,8 +9,7 @@ from fleur.js.ast import (
 )
 from fleur.js.builder import call, concat, literal, member, object_expr
 
-from .names import MODEL_IDENT, RUNTIME_H
-from .runtime import runtime_ref
+from .runtime import MODEL_IDENT, RUNTIME_H, runtime_ref
 from .types import ModelT_co, MsgGroupT, MsgGroupT_co
 
 if TYPE_CHECKING:
