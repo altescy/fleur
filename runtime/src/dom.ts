@@ -1,0 +1,70 @@
+import { VNode, VNodeType } from "./types"
+import { asVNode, resolveLazy } from "./vdom"
+
+export const setProp = (el: Element & { __listeners?: Record<string, EventListener> }, key: string, value: unknown): void => {
+  if (key === "className") {
+    el.setAttribute("class", String(value))
+    return
+  }
+
+  if (key === "style" && value && typeof value === "object") {
+    const style = el as HTMLElement
+    for (const [styleKey, styleValue] of Object.entries(value as Record<string, unknown>)) {
+      if (styleValue == null) continue
+      style.style.setProperty(styleKey, String(styleValue))
+    }
+    return
+  }
+
+  if (key.startsWith("on") && typeof value === "function") {
+    const type = key.slice(2).toLowerCase()
+    if (el.__listeners?.[key]) el.removeEventListener(type, el.__listeners[key])
+    const listener = value as EventListener
+    el.addEventListener(type, listener)
+    el.__listeners = { ...el.__listeners, [key]: listener }
+  } else if (value) {
+    el.setAttribute(key, String(value))
+  }
+}
+
+export const removeProp = (el: Element & { __handlers?: Record<string, EventListener> }, key: string): void => {
+  if (key === "className") {
+    el.removeAttribute("class")
+    return
+  }
+
+  if (key === "style") {
+    ;(el as HTMLElement).removeAttribute("style")
+    return
+  }
+
+  if (key.startsWith("on")) {
+    const type = key.slice(2).toLowerCase()
+    const handler = el.__handlers?.[type]
+    if (handler) el.removeEventListener(type, handler)
+  } else {
+    el.removeAttribute(key)
+  }
+}
+
+export const instantiate = (vnode: VNode): Node => {
+  const resolved = resolveLazy(vnode)
+  switch (resolved.type) {
+    case VNodeType.TEXT:
+      return document.createTextNode(resolved.value)
+    case VNodeType.ELEMENT: {
+      const el = document.createElement(resolved.tag)
+      for (const [k, v] of Object.entries(resolved.props || {})) {
+        setProp(el, k, v)
+      }
+      resolved.children
+        .map(resolveLazy)
+        .map(asVNode)
+        .map(instantiate)
+        .forEach((c) => el.appendChild(c))
+      return el
+    }
+    default:
+      throw new Error("Unknown vnode type")
+  }
+}

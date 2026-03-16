@@ -7,7 +7,8 @@
   "scripts": {
     "build": "bun build ./src/index.ts --target browser --format iife --minify --outfile ../src/fleur/assets/fleur.js",
     "build:dev": "bun build ./src/index.ts --target browser --format iife --sourcemap --outfile ../src/fleur/assets/fleur.js",
-    "check": "bunx tsc --noEmit"
+    "check": "bunx tsc --noEmit",
+    "test": "bun test"
   },
   "devDependencies": {
     "typescript": "^5.9.2"
