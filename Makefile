@@ -7,9 +7,17 @@ PYRIGHT  := uv run pyright
 .PHONY: all
 all: format lint test
 
+
 .PHONY: test
-test:
+test: test-python test-ts
+
+.PHONY: test-python
+test-python:
 	PYTHONPATH=$(PWD) $(PYTEST)
+
+.PHONY: test-ts
+test-ts:
+	bun run --cwd runtime test
 
 .PHONY: lint
 lint:
