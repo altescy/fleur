@@ -1,3 +1,6 @@
+from collections.abc import Callable
+
+import fleur.builtins as builtins
 from fleur.core import (
     Cmd,
     Component,
@@ -6,6 +9,9 @@ from fleur.core import (
     MsgGroup,
     State,
     Sub,
+    TaskLike,
+    Update,
+    View,
     compile_component,
 )
 from fleur.core.template import (
@@ -21,7 +27,7 @@ from fleur.js.emitter import EmitterSettings, emit
 
 
 def bloom(
-    component: type[Component],
+    component: Component | type[object] | Callable[[], Component],
     *,
     page: Page | None = None,
     template: TemplateInput | None = None,
@@ -36,7 +42,7 @@ def bloom(
     component_js = emit(compile_component(component))
     context = BloomContext(
         page=resolved_page,
-        component_name=component_name or component.__name__,
+        component_name=component_name or getattr(component, "__name__", "App"),
         component_js=component_js,
         runtime_js=runtime_js,
         head_html=render_head(resolved_page),
@@ -50,11 +56,15 @@ def bloom(
 __all__ = [
     "Cmd",
     "Component",
+    "builtins",
     "Model",
     "Msg",
     "MsgGroup",
     "State",
     "Sub",
+    "TaskLike",
+    "Update",
+    "View",
     "Page",
     "EmitterSettings",
     "bloom",

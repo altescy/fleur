@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import typing
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Final, Generic, Literal
 
 from fleur.core.component import Component
@@ -204,7 +204,7 @@ class Button(Element[ModelT_co, MsgGroupT], Generic[ModelT_co, MsgGroupT]):
 
 
 def bloom(
-    component: type[Component[ModelT, MsgGroupT]],
+    component: Component[ModelT, MsgGroupT] | type[object] | Callable[[], Component[ModelT, MsgGroupT]],
     *,
     theme: Theme | None = None,
     page: Page | None = None,

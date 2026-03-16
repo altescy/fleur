@@ -1,20 +1,23 @@
 from __future__ import annotations
 
-from typing import Any, Generic, Type, TypeVar, cast, get_origin, overload
+from typing import TYPE_CHECKING, Any, Generic, Type, TypeAlias, TypeVar, cast, get_origin, overload
 
 from typing_extensions import dataclass_transform
 
 from fleur.js.ast import ESTreeBinaryExpression, ESTreeExpression
-from fleur.js.builder import call, ident, json_expr, literal, member, object_expr
-from fleur.types import JsonValue
+from fleur.js.builder import call, ident, json_expr, member, object_expr
+from fleur.types import ICompilable, JsonValue
 
 from .runtime import MODEL_IDENT
 
-ValueT = TypeVar("ValueT", bound=JsonValue)
-ValueT_contra = TypeVar("ValueT_contra", bound=JsonValue, contravariant=True)
+if TYPE_CHECKING:
+    from fleur.js.ast import ESTreeExpression
 
-StateValueT = TypeVar("StateValueT", bound=JsonValue)
-StateValueT_contra = TypeVar("StateValueT_contra", bound=JsonValue, contravariant=True)
+ValueT = TypeVar("ValueT", bound=object)
+ValueT_contra = TypeVar("ValueT_contra", bound=object, contravariant=True)
+
+StateValueT = TypeVar("StateValueT", bound=object)
+StateValueT_contra = TypeVar("StateValueT_contra", bound=object, contravariant=True)
 
 ModelT = TypeVar("ModelT", bound="Model")
 ModelT_co = TypeVar("ModelT_co", bound="Model", covariant=True)
@@ -48,7 +51,7 @@ class ModelMeta(type):
 class Model(metaclass=ModelMeta):
     __state_fields__: tuple[str, ...] = ()
 
-    def __init__(self, **kwargs: JsonValue) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         unknown = sorted(set(kwargs) - set(self.__state_fields__))
         if unknown:
             names = ", ".join(unknown)
@@ -63,7 +66,7 @@ class Model(metaclass=ModelMeta):
             setattr(self, key, value)
 
     def __compile__(self) -> ESTreeExpression:
-        return json_expr({name: cast(JsonValue, getattr(self, name)) for name in self.__state_fields__})
+        return object_expr((name, _compile_operand(getattr(self, name))) for name in self.__state_fields__)
 
 
 class State(Generic[StateValueT]):
@@ -94,21 +97,34 @@ class State(Generic[StateValueT]):
         values[self._name] = value
 
 
+OperandValue: TypeAlias = Any
+
+
+def _compile_operand(operand: OperandValue) -> ESTreeExpression:
+    if isinstance(operand, ESTreeExpression):
+        return operand
+    if isinstance(operand, ICompilable):
+        return operand.__compile__()
+    return json_expr(operand)
+
+
 class ModelOperation(Generic[ModelT_co]):
-    def __init__(self, field_name: str, operator: str, operand: JsonValue) -> None:
+    def __init__(self, field_name: str, operator: str, operand: OperandValue) -> None:
         self.field_name = field_name
         self.operator = operator
         self.operand = operand
 
     def __compile__(self) -> ESTreeExpression:
         left = member(MODEL_IDENT, self.field_name)
-        right = literal(self.operand)
+        right = _compile_operand(self.operand)
 
         value_expr: ESTreeExpression
         if self.operator == "+":
             value_expr = ESTreeBinaryExpression(operator="+", left=left, right=right)
         elif self.operator == "-":
             value_expr = ESTreeBinaryExpression(operator="-", left=left, right=right)
+        elif self.operator == "=":
+            value_expr = right
         else:
             raise ValueError(f"Unsupported model operation: {self.operator}")
 
@@ -133,6 +149,9 @@ class ModelState(Generic[ModelT, StateValueT_contra]):
 
     def __sub__(self, other: StateValueT_contra) -> ModelOperation[ModelT]:
         return ModelOperation(self.field_name, "-", cast(JsonValue, other))
+
+    def set(self, value: OperandValue) -> ModelOperation[ModelT]:
+        return ModelOperation(self.field_name, "=", value)
 
     def __str__(self) -> str:
         return f"{MODEL_IDENT}.{self.field_name}"

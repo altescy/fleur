@@ -16,7 +16,13 @@ RuntimeFunctionName: TypeAlias = (
 )
 
 RuntimeNoneName: TypeAlias = Literal["none"]
-RuntimeMethodName: TypeAlias = RuntimeNoneName
+RuntimeMapName: TypeAlias = Literal["map"]
+RuntimeBatchName: TypeAlias = Literal["batch"]
+RuntimeTaskName: TypeAlias = Literal["task"]
+RuntimeIntervalName: TypeAlias = Literal["interval"]
+RuntimeMethodName: TypeAlias = (
+    RuntimeNoneName | RuntimeMapName | RuntimeBatchName | RuntimeTaskName | RuntimeIntervalName
+)
 RuntimeMemberName: TypeAlias = RuntimeFunctionName | RuntimeMethodName
 
 ComponentInitName: TypeAlias = Literal["init"]
@@ -26,7 +32,8 @@ ComponentSubscriptionsName: TypeAlias = Literal["subscriptions"]
 ComponentFieldName: TypeAlias = ComponentInitName | ComponentUpdateName | ComponentViewName | ComponentSubscriptionsName
 
 MessageTypeName: TypeAlias = Literal["type"]
-MessageFieldName: TypeAlias = MessageTypeName
+MessageEventName: TypeAlias = Literal["event"]
+MessageFieldName: TypeAlias = MessageTypeName | MessageEventName
 
 ModelIdentName: TypeAlias = Literal["model"]
 MessageIdentName: TypeAlias = Literal["message"]
@@ -41,6 +48,10 @@ RUNTIME_HTML: Final[RuntimeHtmlName] = "Html"
 RUNTIME_PROGRAM: Final[RuntimeProgramName] = "program"
 
 RUNTIME_NONE: Final[RuntimeNoneName] = "none"
+RUNTIME_MAP: Final[RuntimeMapName] = "map"
+RUNTIME_BATCH: Final[RuntimeBatchName] = "batch"
+RUNTIME_TASK: Final[RuntimeTaskName] = "task"
+RUNTIME_INTERVAL: Final[RuntimeIntervalName] = "interval"
 
 COMPONENT_INIT: Final[ComponentInitName] = "init"
 COMPONENT_UPDATE: Final[ComponentUpdateName] = "update"
@@ -48,6 +59,7 @@ COMPONENT_VIEW: Final[ComponentViewName] = "view"
 COMPONENT_SUBSCRIPTIONS: Final[ComponentSubscriptionsName] = "subscriptions"
 
 MESSAGE_TYPE: Final[MessageTypeName] = "type"
+MESSAGE_EVENT: Final[MessageEventName] = "event"
 
 MODEL_IDENT: Final[ModelIdentName] = "model"
 MESSAGE_IDENT: Final[MessageIdentName] = "message"

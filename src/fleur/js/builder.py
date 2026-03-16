@@ -39,6 +39,14 @@ def member_expr(object_expr: ESTreeExpression, property_name: str) -> ESTreeMemb
     )
 
 
+def index_expr(object_expr: ESTreeExpression, index: int) -> ESTreeMemberExpression:
+    return ESTreeMemberExpression(
+        object=object_expr,
+        property=literal(index),
+        computed=True,
+    )
+
+
 def call(callee: ESTreeExpression, *args: ESTreeExpression) -> ESTreeCallExpression:
     return ESTreeCallExpression(callee=callee, arguments=list(args))
 

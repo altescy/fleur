@@ -4,6 +4,7 @@ from .component import Component
 from .model import Model, ModelOperation, ModelState, State
 from .msg import GroupedMsg, Msg, MsgGroup
 from .sub import Sub
+from .task import TaskLike
 from .template import BloomContext, Page, SlotTemplate, Template, TemplateInput
 from .update import Update
 from .view import View
@@ -21,6 +22,7 @@ __all__ = [
     "State",
     "SlotTemplate",
     "Sub",
+    "TaskLike",
     "Template",
     "TemplateInput",
     "Update",

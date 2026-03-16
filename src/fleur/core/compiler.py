@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, cast
 
 from fleur.js.ast import (
@@ -11,7 +14,7 @@ from fleur.js.ast import (
 from fleur.js.builder import object_expr
 
 from .cmd import Cmd
-from .component import Component
+from .component import Component, Init
 from .runtime import COMPONENT_INIT, COMPONENT_SUBSCRIPTIONS, COMPONENT_UPDATE, COMPONENT_VIEW, MODEL_IDENT
 from .sub import Sub
 
@@ -20,17 +23,35 @@ if TYPE_CHECKING:
     from .sub import Sub
 
 
-def compile_component(component: type[Component]) -> ESTreeExpression:
-    c = cast(Any, component)
+ComponentInput = Component[Any, Any] | type[Any] | Callable[[], Component[Any, Any]]
+
+
+def _resolve_component(component: ComponentInput) -> Component[Any, Any] | type[Any]:
+    if isinstance(component, Component):
+        return component
+
+    if callable(component) and not hasattr(component, COMPONENT_UPDATE):
+        resolved = component()
+        if isinstance(resolved, Component):
+            return resolved
+        raise TypeError("Component factory must return Component")
+
+    return cast(type[Any], component)
+
+
+def compile_component(component: ComponentInput) -> ESTreeExpression:
+    c = cast(Any, _resolve_component(component))
     init = c.init
-    if isinstance(init, tuple):
+    if isinstance(init, Init):
+        init_model, init_cmd = init.model, init.cmd
+    elif isinstance(init, tuple):
         init_model, init_cmd = init
     else:
         init_model, init_cmd = init, Cmd.none()
 
     update = c.update
     view = c.view
-    subscriptions = getattr(component, COMPONENT_SUBSCRIPTIONS, Sub.none())
+    subscriptions = getattr(c, COMPONENT_SUBSCRIPTIONS, Sub.none())
 
     init_fn = ESTreeFunctionExpression(
         id=None,
