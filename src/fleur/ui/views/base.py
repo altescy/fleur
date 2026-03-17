@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import typing
 from collections.abc import Mapping
-from typing import Final, Generic, Literal, TypeAlias
+from typing import Any, Final, Generic, Literal, TypeAlias
 
 from fleur.core.expr import Expr
 from fleur.core.msg import GroupedMsg
@@ -11,7 +11,7 @@ from fleur.core.view import View
 from fleur.types import JsonValue
 
 ViewChild: TypeAlias = JsonValue | View[ModelT_co, MsgGroupT_co] | Expr[JsonValue | View[ModelT_co, MsgGroupT_co]]
-PropValue: TypeAlias = JsonValue | Expr[JsonValue] | GroupedMsg[MsgGroupT_co, object]
+PropValue: TypeAlias = JsonValue | Expr[JsonValue] | GroupedMsg[MsgGroupT_co, object, Any]
 Props = Mapping[str, PropValue]
 
 SpacingValue = int | float | str

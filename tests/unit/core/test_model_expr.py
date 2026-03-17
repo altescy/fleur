@@ -40,7 +40,7 @@ def test_update_requires_explicit_set() -> None:
     component = Component(
         CounterModel(count=0),
         CounterMsg.caseof(
-            CounterMsg.INC(cast(Any, CounterModel.count + 1)),
+            CounterMsg.INC.then(cast(Any, CounterModel.count + 1)),
         ),
         Text("count"),
     )

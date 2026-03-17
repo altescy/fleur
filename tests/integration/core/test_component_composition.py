@@ -1,4 +1,5 @@
 from fleur import Component, Model, Msg, MsgGroup, State, Update, View, compile_component, emit
+from fleur.core.events import PointerEvent
 from fleur.ui import Button, Text, VStack
 
 
@@ -7,16 +8,16 @@ class CounterModel(Model):
 
 
 class CounterMsg(MsgGroup):
-    INC = Msg()
-    DEC = Msg()
+    INC: Msg[PointerEvent] = Msg()
+    DEC: Msg[PointerEvent] = Msg()
 
 
 def counter():
     return Component(
         CounterModel(count=0),
         CounterMsg.caseof(
-            CounterMsg.INC(CounterModel.count.set(CounterModel.count + 1)),
-            CounterMsg.DEC(CounterModel.count.set(CounterModel.count - 1)),
+            CounterMsg.INC.then(CounterModel.count.set(CounterModel.count + 1)),
+            CounterMsg.DEC.then(CounterModel.count.set(CounterModel.count - 1)),
         ),
         VStack(
             Text(f"Count: {CounterModel.count}"),
@@ -39,7 +40,7 @@ def app():
     return Component(
         AppModel(counter=nested_counter.init.model),
         AppMsg.caseof(
-            AppMsg.COUNTER(Update.forward(AppModel.counter, nested_counter, AppMsg.COUNTER)),
+            AppMsg.COUNTER.then(Update.forward(AppModel.counter, nested_counter, AppMsg.COUNTER)),
         ),
         VStack(
             Text("Nested"),

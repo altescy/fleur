@@ -3,6 +3,7 @@ from typing import Sequence
 
 from fleur.core.cmd import Cmd
 from fleur.core.component import Component
+from fleur.core.events import PointerEvent
 from fleur.core.expr import Expr, compile_operand
 from fleur.core.model import Model, State
 from fleur.core.msg import GroupedMsg, Msg, MsgGroup
@@ -26,14 +27,10 @@ class TabsModel(Model):
 
 
 class TabsMsg(MsgGroup):
-    SELECT = Msg[int]()
-    NEXT = Msg()
-    PREV = Msg()
-    NOOP = Msg[object]()
-
-
-def _select(index: int) -> GroupedMsg[TabsMsg, int]:
-    return GroupedMsg(TabsMsg, "SELECT", index)
+    SELECT: Msg[PointerEvent, int] = Msg()
+    NEXT: Msg[PointerEvent, object] = Msg()
+    PREV: Msg[PointerEvent, object] = Msg()
+    NOOP: Msg[object, object] = Msg()
 
 
 class _ImmediateTask(TaskLike[object, object]):
@@ -44,7 +41,7 @@ class _ImmediateTask(TaskLike[object, object]):
         return call(member_expr(ident("Promise"), "resolve"), compile_operand(self._value))
 
 
-def _on_change_cmd(index: object, on_change: GroupedMsg[TabsMsg, int] | None) -> Cmd[TabsModel, TabsMsg]:
+def _on_change_cmd(index: object, on_change: GroupedMsg[TabsMsg, int, object] | None) -> Cmd[TabsModel, TabsMsg]:
     if on_change is None:
         return Cmd.none()
     return Cmd.task(_ImmediateTask(index), on_change, TabsMsg.NOOP)
@@ -55,9 +52,9 @@ def tabs(
     *,
     title: str = "Tabs",
     initial_index: int = 0,
-    on_change: GroupedMsg[TabsMsg, int] | None = None,
+    on_change: GroupedMsg[TabsMsg, int, object] | None = None,
 ) -> Component[TabsModel, TabsMsg]:
-    if len(items) == 0:
+    if not items:
         items = [TabSpec(label="Empty", content="No tabs configured")]
 
     max_index = len(items) - 1
@@ -75,7 +72,7 @@ def tabs(
     tab_buttons = [
         Button(
             Expr.when(TabsModel.active_index.equals(index), f"- {item.label}", item.label),
-            onclick=_select(index),
+            onclick=TabsMsg.SELECT.bind(index),
             bg="bg-subtle",
             fg="fg-default",
             px="sm",
@@ -91,25 +88,25 @@ def tabs(
     return Component(
         TabsModel(active_index=clamped_initial),
         TabsMsg.caseof(
-            TabsMsg.SELECT(
+            TabsMsg.SELECT.then(
                 (
-                    TabsModel.active_index.set(TabsMsg.SELECT.event),
-                    _on_change_cmd(TabsMsg.SELECT.event, on_change),
+                    TabsModel.active_index.set(TabsMsg.SELECT.context),
+                    _on_change_cmd(TabsMsg.SELECT.context, on_change),
                 )
             ),
-            TabsMsg.NEXT(
+            TabsMsg.NEXT.then(
                 (
                     TabsModel.active_index.set(next_index),
                     _on_change_cmd(next_index, on_change),
                 )
             ),
-            TabsMsg.PREV(
+            TabsMsg.PREV.then(
                 (
                     TabsModel.active_index.set(prev_index),
                     _on_change_cmd(prev_index, on_change),
                 )
             ),
-            TabsMsg.NOOP(TabsModel.active_index.set(TabsModel.active_index)),
+            TabsMsg.NOOP.then(TabsModel.active_index.set(TabsModel.active_index)),
         ),
         VStack(
             Text(title, font_weight=700),

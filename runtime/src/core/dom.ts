@@ -1,5 +1,6 @@
 import { VNode, VNodeType } from "./types"
 import { asVNode, resolveLazy } from "./vdom"
+import { normalizeEventPayload } from "./events"
 
 export const setProp = (el: Element & { __listeners?: Record<string, EventListener> }, key: string, value: unknown): void => {
   if (key === "className") {
@@ -20,7 +21,9 @@ export const setProp = (el: Element & { __listeners?: Record<string, EventListen
   if (key.startsWith("on") && typeof value === "function") {
     const type = key.slice(2).toLowerCase()
     if (el.__listeners?.[key]) el.removeEventListener(type, el.__listeners[key])
-    const listener = value as EventListener
+    const listener = ((event: Event) => {
+      ;(value as (payload: unknown) => unknown)(normalizeEventPayload(type, event))
+    }) as EventListener
     el.addEventListener(type, listener)
     el.__listeners = { ...el.__listeners, [key]: listener }
   } else if (value) {
@@ -28,7 +31,7 @@ export const setProp = (el: Element & { __listeners?: Record<string, EventListen
   }
 }
 
-export const removeProp = (el: Element & { __handlers?: Record<string, EventListener> }, key: string): void => {
+export const removeProp = (el: Element & { __listeners?: Record<string, EventListener> }, key: string): void => {
   if (key === "className") {
     el.removeAttribute("class")
     return
@@ -41,8 +44,11 @@ export const removeProp = (el: Element & { __handlers?: Record<string, EventList
 
   if (key.startsWith("on")) {
     const type = key.slice(2).toLowerCase()
-    const handler = el.__handlers?.[type]
-    if (handler) el.removeEventListener(type, handler)
+    const listener = el.__listeners?.[key]
+    if (listener) {
+      el.removeEventListener(type, listener)
+      delete el.__listeners?.[key]
+    }
   } else {
     el.removeAttribute(key)
   }

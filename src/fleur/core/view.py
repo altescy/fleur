@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Generic, TypeAlias, Union, cast
+from typing import TYPE_CHECKING, Any, Generic, TypeAlias, Union, cast
 
 from fleur.js.ast import ESTreeExpression, ESTreeFunctionBody, ESTreeFunctionExpression, ESTreeReturnStatement
 from fleur.js.builder import call, concat, ident, json_expr, literal, member, object_expr
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 ViewChildInner: TypeAlias = Union[JsonValue, "View[ModelT_co, MsgGroupT_co]"]
 ViewChild: TypeAlias = Union[ViewChildInner, Expr[ViewChildInner]]
-ViewProp: TypeAlias = Union[JsonValue, Expr[JsonValue], "GroupedMsg[MsgGroupT_co, object]"]
+ViewProp: TypeAlias = Union[JsonValue, Expr[JsonValue], "GroupedMsg[MsgGroupT_co, Any, Any]"]
 
 
 def _compile_text_expr(text: str) -> ESTreeExpression:
@@ -84,7 +84,7 @@ class View(Generic[ModelT_co, MsgGroupT_co]):
 
     @staticmethod
     def map(
-        tagger: "GroupedMsg[MsgGroupT, object]", view: "View[ModelT_co, MsgGroupT_co]"
+        tagger: "GroupedMsg[MsgGroupT, Any, Any]", view: "View[ModelT_co, MsgGroupT_co]"
     ) -> "MappedView[ModelT_co, MsgGroupT_co, MsgGroupT]":
         return cast(MappedView[ModelT_co, MsgGroupT_co, MsgGroupT], MappedView(tagger, view))
 
@@ -92,7 +92,7 @@ class View(Generic[ModelT_co, MsgGroupT_co]):
     def forward(
         field: "ModelState[ModelT, ModelT_co] | str",
         view: "View[ModelT_co, MsgGroupT_co]",
-        tagger: "GroupedMsg[MsgGroupT, object]",
+        tagger: "GroupedMsg[MsgGroupT, Any, Any]",
     ) -> "ForwardedView[ModelT, ModelT_co, MsgGroupT_co, MsgGroupT]":
         field_name = field if isinstance(field, str) else cast("ModelState[ModelT, ModelT_co]", field).field_name
         return cast(
@@ -102,7 +102,7 @@ class View(Generic[ModelT_co, MsgGroupT_co]):
 
 
 class MappedView(View[ModelT_co, MsgGroupT], Generic[ModelT_co, MsgGroupT_co, MsgGroupT]):
-    def __init__(self, tagger: "GroupedMsg[MsgGroupT, object]", view: View[ModelT_co, MsgGroupT_co]) -> None:
+    def __init__(self, tagger: "GroupedMsg[MsgGroupT, Any, Any]", view: View[ModelT_co, MsgGroupT_co]) -> None:
         self._tagger = tagger
         self._view = view
 
@@ -112,7 +112,7 @@ class MappedView(View[ModelT_co, MsgGroupT], Generic[ModelT_co, MsgGroupT_co, Ms
 
 class ForwardedView(View[ModelT, MsgGroupT], Generic[ModelT, ModelT_co, MsgGroupT_co, MsgGroupT]):
     def __init__(
-        self, field_name: str, tagger: "GroupedMsg[MsgGroupT, object]", view: View[ModelT_co, MsgGroupT_co]
+        self, field_name: str, tagger: "GroupedMsg[MsgGroupT, Any, Any]", view: View[ModelT_co, MsgGroupT_co]
     ) -> None:
         self._field_name = field_name
         self._tagger = tagger

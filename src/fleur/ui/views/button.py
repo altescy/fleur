@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from typing import Any
+
+from fleur.core.events import PointerEvent
 from fleur.core.expr import Expr
 from fleur.core.msg import GroupedMsg
 from fleur.core.types import ModelT_co, MsgGroupT
@@ -13,7 +16,7 @@ class Button(Element[ModelT_co, MsgGroupT]):
     def __init__(
         self,
         *children: str | View[ModelT_co, MsgGroupT] | Expr[JsonValue | View[ModelT_co, MsgGroupT]],
-        onclick: GroupedMsg[MsgGroupT, object],
+        onclick: GroupedMsg[MsgGroupT, PointerEvent, Any],
         props: Props | None = None,
         bg: RawColor | str | None = None,
         fg: RawColor | str | None = None,

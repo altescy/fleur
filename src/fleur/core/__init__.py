@@ -1,6 +1,7 @@
 from .cmd import Cmd
 from .compiler import compile_component
 from .component import Component
+from .events import FocusEvent, InputEvent, KeyboardEvent, PointerEvent, SubmitEvent
 from .expr import Expr
 from .model import Model, ModelOperation, ModelState, ModelUpdate, State
 from .msg import GroupedMsg, Msg, MsgGroup
@@ -14,7 +15,10 @@ __all__ = [
     "Cmd",
     "Component",
     "Expr",
+    "FocusEvent",
     "GroupedMsg",
+    "InputEvent",
+    "KeyboardEvent",
     "Model",
     "ModelOperation",
     "ModelState",
@@ -23,6 +27,7 @@ __all__ = [
     "MsgGroup",
     "Page",
     "State",
+    "SubmitEvent",
     "SlotTemplate",
     "Sub",
     "TaskLike",
@@ -30,6 +35,7 @@ __all__ = [
     "TemplateInput",
     "Update",
     "View",
+    "PointerEvent",
     "BloomContext",
     "compile_component",
 ]

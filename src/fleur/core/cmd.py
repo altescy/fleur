@@ -21,15 +21,15 @@ class Cmd(Generic[ModelT, MsgGroupT]):
         return cls()
 
     @classmethod
-    def map(cls, tagger: "GroupedMsg[MsgGroupT, Any]", cmd: "Cmd[ModelT, Any]") -> "Cmd[ModelT, MsgGroupT]":
+    def map(cls, tagger: "GroupedMsg[MsgGroupT, Any, Any]", cmd: "Cmd[ModelT, Any]") -> "Cmd[ModelT, MsgGroupT]":
         return cls(runtime_call((RUNTIME_CMD, RUNTIME_MAP), tagger.__compile__(), cmd.__compile__()))
 
     @classmethod
     def task(
         cls,
         effect: TaskLike[TaskValueT, TaskErrorT],
-        ok: "GroupedMsg[MsgGroupT, TaskValueT]",
-        err: "GroupedMsg[MsgGroupT, TaskErrorT]",
+        ok: "GroupedMsg[MsgGroupT, TaskValueT, Any]",
+        err: "GroupedMsg[MsgGroupT, TaskErrorT, Any]",
     ) -> "Cmd[ModelT, MsgGroupT]":
         effect_thunk = ESTreeFunctionExpression(
             id=None,

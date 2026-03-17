@@ -48,7 +48,8 @@ ComponentFieldName: TypeAlias = ComponentInitName | ComponentUpdateName | Compon
 
 MessageTypeName: TypeAlias = Literal["type"]
 MessageEventName: TypeAlias = Literal["event"]
-MessageFieldName: TypeAlias = MessageTypeName | MessageEventName
+MessageContextName: TypeAlias = Literal["context"]
+MessageFieldName: TypeAlias = MessageTypeName | MessageEventName | MessageContextName
 
 ModelIdentName: TypeAlias = Literal["model"]
 MessageIdentName: TypeAlias = Literal["message"]
@@ -78,6 +79,7 @@ COMPONENT_SUBSCRIPTIONS: Final[ComponentSubscriptionsName] = "subscriptions"
 
 MESSAGE_TYPE: Final[MessageTypeName] = "type"
 MESSAGE_EVENT: Final[MessageEventName] = "event"
+MESSAGE_CONTEXT: Final[MessageContextName] = "context"
 
 MODEL_IDENT: Final[ModelIdentName] = "model"
 MESSAGE_IDENT: Final[MessageIdentName] = "message"

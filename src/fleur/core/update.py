@@ -40,7 +40,7 @@ class ForwardedUpdate(Generic[ModelT_co, MsgGroupT_co]):
         self,
         field_name: str,
         component: "Component[Any, Any]",
-        tagger: "GroupedMsg[MsgGroupT_co, Any]",
+        tagger: "GroupedMsg[MsgGroupT_co, Any, Any]",
     ) -> None:
         self.field_name = field_name
         self.component = component
@@ -93,7 +93,7 @@ class Update(Generic[ModelT_co, MsgGroupT_co]):
     def forward(
         field: ModelState[ModelT, Any] | str,
         component: "Component[Any, Any]",
-        tagger: "GroupedMsg[MsgGroupT, Any]",
+        tagger: "GroupedMsg[MsgGroupT, Any, Any]",
     ) -> ForwardedUpdate[ModelT, MsgGroupT]:
         field_name = field if isinstance(field, str) else field.field_name
         return cast(ForwardedUpdate[ModelT, MsgGroupT], ForwardedUpdate(field_name, component, tagger))
@@ -102,7 +102,7 @@ class Update(Generic[ModelT_co, MsgGroupT_co]):
         self,
         cases: list[
             tuple[
-                "GroupedMsg[MsgGroupT_co, Any]",
+                "GroupedMsg[MsgGroupT_co, Any, Any]",
                 CaseValue,
             ]
         ],

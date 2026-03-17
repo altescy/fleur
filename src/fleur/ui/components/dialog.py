@@ -1,4 +1,5 @@
 from fleur.core.component import Component
+from fleur.core.events import PointerEvent
 from fleur.core.expr import Expr
 from fleur.core.model import Model, State
 from fleur.core.msg import Msg, MsgGroup
@@ -11,9 +12,9 @@ class DialogModel(Model):
 
 
 class DialogMsg(MsgGroup):
-    OPEN = Msg()
-    CLOSE = Msg()
-    TOGGLE = Msg()
+    OPEN: Msg[PointerEvent] = Msg()
+    CLOSE: Msg[PointerEvent] = Msg()
+    TOGGLE: Msg[PointerEvent] = Msg()
 
 
 def dialog(
@@ -25,9 +26,9 @@ def dialog(
     return Component(
         DialogModel(open=False),
         DialogMsg.caseof(
-            DialogMsg.OPEN(DialogModel.open.set(True)),
-            DialogMsg.CLOSE(DialogModel.open.set(False)),
-            DialogMsg.TOGGLE(DialogModel.open.set(Expr.when(DialogModel.open, False, True))),
+            DialogMsg.OPEN.then(DialogModel.open.set(True)),
+            DialogMsg.CLOSE.then(DialogModel.open.set(False)),
+            DialogMsg.TOGGLE.then(DialogModel.open.set(Expr.when(DialogModel.open, False, True))),
         ),
         VStack(
             Text("Dialog", font_weight=700),

@@ -2,17 +2,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Generic, Type, cast
 
-from typing_extensions import Self
+from typing_extensions import Self, TypeVar
 
 from fleur.js.ast import ESTreeExpression, ESTreeFunctionBody, ESTreeFunctionExpression, ESTreeReturnStatement
 from fleur.js.builder import ident, json_expr, member_expr, object_expr
 from fleur.types import ICompilable
 
-from .runtime import MESSAGE_EVENT, MESSAGE_IDENT, MESSAGE_TYPE
-from .types import MsgGroupT, OptionalEventT
+from .runtime import MESSAGE_CONTEXT, MESSAGE_EVENT, MESSAGE_IDENT, MESSAGE_TYPE
+from .types import MsgGroupT, OptionalContextT, OptionalEventT
+
+BoundContextT = TypeVar("BoundContextT")
 
 if TYPE_CHECKING:
-    from .types import ModelT
     from .update import CaseValue, Update
 
 
@@ -21,10 +22,10 @@ class MsgGroup:
     def caseof(
         cls,
         *cases: tuple[
-            "GroupedMsg[Self, Any]",
-            "CaseValue[ModelT, Self]",
+            "GroupedMsg[Self, Any, Any]",
+            "CaseValue",
         ],
-    ) -> "Update[ModelT, Self]":
+    ) -> "Update[Any, Self]":
         from .update import Update
 
         return Update(list(cases))
@@ -47,17 +48,48 @@ class MessageEventRef(Generic[OptionalEventT], ICompilable[ESTreeExpression]):
         return expr
 
 
-class GroupedMsg(Generic[MsgGroupT, OptionalEventT]):
-    def __init__(self, group: type[MsgGroupT], name: str, event_payload: OptionalEventT | None = None) -> None:
+class MessageContextRef(Generic[OptionalContextT], ICompilable[ESTreeExpression]):
+    def __init__(self, path: tuple[str, ...] = ()) -> None:
+        self._path = path
+
+    def __getattr__(self, item: str) -> "MessageContextRef[Any]":
+        return MessageContextRef((*self._path, item))
+
+    def __getitem__(self, item: str) -> "MessageContextRef[Any]":
+        return MessageContextRef((*self._path, item))
+
+    def __compile__(self) -> ESTreeExpression:
+        expr: ESTreeExpression = member_expr(ident(MESSAGE_IDENT), MESSAGE_CONTEXT)
+        for part in self._path:
+            expr = member_expr(expr, part)
+        return expr
+
+
+class GroupedMsg(Generic[MsgGroupT, OptionalEventT, OptionalContextT]):
+    def __init__(
+        self,
+        group: type[MsgGroupT],
+        name: str,
+        event_payload: object | None = None,
+        context_payload: object | None = None,
+    ) -> None:
         self.group = group
         self.name = name
-        self._event_payload = event_payload
+        self._event_payload = cast(OptionalEventT | None, event_payload)
+        self._context_payload = cast(OptionalContextT | None, context_payload)
 
     @property
     def event(self) -> OptionalEventT:
         return cast(OptionalEventT, MessageEventRef())
 
-    def __call__(
+    @property
+    def context(self) -> OptionalContextT:
+        return cast(OptionalContextT, MessageContextRef())
+
+    def bind(self, context: OptionalContextT) -> Self:
+        return self.__class__(self.group, self.name, self._event_payload, context)
+
+    def then(
         self,
         update: "CaseValue",
     ) -> tuple[Self, "CaseValue"]:
@@ -65,11 +97,19 @@ class GroupedMsg(Generic[MsgGroupT, OptionalEventT]):
 
     def __compile__(self) -> ESTreeExpression:
         event_expr: ESTreeExpression = ident(MESSAGE_EVENT)
+        context_expr: ESTreeExpression = json_expr(None)
+
         if self._event_payload is not None:
             if isinstance(self._event_payload, ICompilable):
                 event_expr = self._event_payload.__compile__()
             else:
                 event_expr = json_expr(cast(Any, self._event_payload))
+
+        if self._context_payload is not None:
+            if isinstance(self._context_payload, ICompilable):
+                context_expr = self._context_payload.__compile__()
+            else:
+                context_expr = json_expr(cast(Any, self._context_payload))
 
         return ESTreeFunctionExpression(
             id=None,
@@ -81,6 +121,7 @@ class GroupedMsg(Generic[MsgGroupT, OptionalEventT]):
                             [
                                 (MESSAGE_TYPE, json_expr(self.name)),
                                 (MESSAGE_EVENT, event_expr),
+                                (MESSAGE_CONTEXT, context_expr),
                             ]
                         )
                     )
@@ -89,7 +130,7 @@ class GroupedMsg(Generic[MsgGroupT, OptionalEventT]):
         )
 
 
-class Msg(Generic[OptionalEventT]):
+class Msg(Generic[OptionalEventT, OptionalContextT]):
     event: OptionalEventT | None
 
     def __set_name__(self, owner: type[MsgGroup], name: str) -> None:
@@ -99,7 +140,9 @@ class Msg(Generic[OptionalEventT]):
         self.event = event
         self._name: str | None = None
 
-    def __get__(self, instance: object, owner: Type[MsgGroupT]) -> GroupedMsg[MsgGroupT, OptionalEventT]:
+    def __get__(
+        self, instance: object, owner: Type[MsgGroupT]
+    ) -> GroupedMsg[MsgGroupT, OptionalEventT, OptionalContextT]:
         if self._name is None:
             raise AttributeError("Msg descriptor is not initialized")
         return GroupedMsg(owner, self._name, self.event)
