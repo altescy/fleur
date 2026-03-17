@@ -1,5 +1,5 @@
 from .theme import Theme, apply_theme, theme_style_tag, theme_variables
-from .view import Button, Text, VStack, bloom
+from .views import Button, Text, VStack, bloom
 
 __all__ = [
     "Button",
