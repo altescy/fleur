@@ -1,17 +1,25 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable, Generic, cast
+from typing import Generic, Literal, cast
 
-from fleur.core.task import TaskExpr, TaskLike, TaskValueT
+from fleur.core.runtime import RUNTIME_HTTP, RUNTIME_REQUEST, runtime_call
+from fleur.core.task import TaskLike, TaskValueT
 from fleur.js.ast import ESTreeExpression
-from fleur.js.builder import call, ident, literal, member_expr
-from fleur.js.combinators import Promise, TaskValueRef
+from fleur.js.builder import json_expr
 from fleur.types import JsonValue
 
+HttpErrorKind = Literal["network", "timeout", "abort", "http_status", "decode", "unknown"]
+HttpCredentials = Literal["omit", "same-origin", "include"]
 
+
+@dataclass(frozen=True, slots=True)
 class HttpError:
-    pass
+    kind: HttpErrorKind
+    message: str
+    url: str | None = None
+    status: int | None = None
+    status_text: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,37 +31,61 @@ class _HttpTask(Generic[TaskValueT], TaskLike[TaskValueT, HttpError]):
 
 
 @dataclass(frozen=True, slots=True)
-class _FetchResponse(TaskExpr[object]):
-    expr: ESTreeExpression
-
-    def __compile__(self) -> ESTreeExpression:
-        return self.expr
-
-    def json(self) -> TaskValueRef[JsonValue]:
-        return TaskValueRef(call(member_expr(self.expr, "json")))
-
-
-@dataclass(frozen=True, slots=True)
 class _Expect(Generic[TaskValueT]):
-    _mapper: Callable[[_FetchResponse], TaskExpr[TaskValueT]] = field(repr=False)
-
-    def map(self, response: _FetchResponse) -> TaskExpr[TaskValueT]:
-        return self._mapper(response)
+    name: str = field(repr=False)
 
 
 class Http:
     @staticmethod
     def expectJson() -> _Expect[JsonValue]:
-        return _Expect(lambda response: response.json())
+        return _Expect("json")
 
     @staticmethod
-    def get(url: str, *, expect: _Expect[TaskValueT]) -> TaskLike[TaskValueT, HttpError]:
-        compiled = (
-            Promise[_FetchResponse, HttpError, _FetchResponse](
-                call(ident("fetch"), literal(url)),
-                value_ref_factory=_FetchResponse,
-            )
-            .then(expect.map)
-            .__compile__()
-        )
+    def expectText() -> _Expect[str]:
+        return _Expect("text")
+
+    @staticmethod
+    def request(
+        method: str,
+        url: str,
+        *,
+        expect: _Expect[TaskValueT],
+        headers: dict[str, str] | None = None,
+        body: JsonValue | None = None,
+        timeout_ms: int | None = None,
+        credentials: HttpCredentials | None = None,
+    ) -> TaskLike[TaskValueT, HttpError]:
+        request: dict[str, JsonValue] = {
+            "method": method.upper(),
+            "url": url,
+            "expect": expect.name,
+        }
+        if headers is not None:
+            request["headers"] = {k: v for k, v in headers.items()}
+        if body is not None:
+            request["body"] = body
+        if timeout_ms is not None:
+            request["timeoutMs"] = timeout_ms
+        if credentials is not None:
+            request["credentials"] = credentials
+
+        compiled = runtime_call((RUNTIME_HTTP, RUNTIME_REQUEST), json_expr(request))
         return cast(TaskLike[TaskValueT, HttpError], _HttpTask(compiled))
+
+    @staticmethod
+    def get(
+        url: str,
+        *,
+        expect: _Expect[TaskValueT],
+        headers: dict[str, str] | None = None,
+        timeout_ms: int | None = None,
+        credentials: HttpCredentials | None = None,
+    ) -> TaskLike[TaskValueT, HttpError]:
+        return Http.request(
+            "GET",
+            url,
+            expect=expect,
+            headers=headers,
+            timeout_ms=timeout_ms,
+            credentials=credentials,
+        )

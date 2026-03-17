@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 
-import { diff } from "../src/diff"
-import { h } from "../src/vdom"
+import { diff } from "../../src/core/diff"
+import { h } from "../../src/core/vdom"
 
 describe("diff", () => {
   test("creates TEXT patch when text changes", () => {

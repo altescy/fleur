@@ -1,6 +1,6 @@
 from collections.abc import Callable
 
-import fleur.builtins as builtins
+from fleur.builtins import Http, HttpError
 from fleur.core import (
     Cmd,
     Component,
@@ -56,7 +56,6 @@ def bloom(
 __all__ = [
     "Cmd",
     "Component",
-    "builtins",
     "Model",
     "Msg",
     "MsgGroup",
@@ -67,6 +66,8 @@ __all__ = [
     "View",
     "Page",
     "EmitterSettings",
+    "Http",
+    "HttpError",
     "bloom",
     "emit",
     "compile_component",

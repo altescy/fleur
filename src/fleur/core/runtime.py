@@ -10,9 +10,16 @@ RuntimeLazyName: TypeAlias = Literal["lazy"]
 RuntimeCmdName: TypeAlias = Literal["Cmd"]
 RuntimeSubName: TypeAlias = Literal["Sub"]
 RuntimeHtmlName: TypeAlias = Literal["Html"]
+RuntimeHttpName: TypeAlias = Literal["Http"]
 RuntimeProgramName: TypeAlias = Literal["program"]
 RuntimeFunctionName: TypeAlias = (
-    RuntimeHName | RuntimeLazyName | RuntimeCmdName | RuntimeSubName | RuntimeHtmlName | RuntimeProgramName
+    RuntimeHName
+    | RuntimeLazyName
+    | RuntimeCmdName
+    | RuntimeSubName
+    | RuntimeHtmlName
+    | RuntimeHttpName
+    | RuntimeProgramName
 )
 
 RuntimeNoneName: TypeAlias = Literal["none"]
@@ -20,8 +27,16 @@ RuntimeMapName: TypeAlias = Literal["map"]
 RuntimeBatchName: TypeAlias = Literal["batch"]
 RuntimeTaskName: TypeAlias = Literal["task"]
 RuntimeIntervalName: TypeAlias = Literal["interval"]
+RuntimeGetName: TypeAlias = Literal["get"]
+RuntimeRequestName: TypeAlias = Literal["request"]
 RuntimeMethodName: TypeAlias = (
-    RuntimeNoneName | RuntimeMapName | RuntimeBatchName | RuntimeTaskName | RuntimeIntervalName
+    RuntimeNoneName
+    | RuntimeMapName
+    | RuntimeBatchName
+    | RuntimeTaskName
+    | RuntimeIntervalName
+    | RuntimeGetName
+    | RuntimeRequestName
 )
 RuntimeMemberName: TypeAlias = RuntimeFunctionName | RuntimeMethodName
 
@@ -45,6 +60,7 @@ RUNTIME_LAZY: Final[RuntimeLazyName] = "lazy"
 RUNTIME_CMD: Final[RuntimeCmdName] = "Cmd"
 RUNTIME_SUB: Final[RuntimeSubName] = "Sub"
 RUNTIME_HTML: Final[RuntimeHtmlName] = "Html"
+RUNTIME_HTTP: Final[RuntimeHttpName] = "Http"
 RUNTIME_PROGRAM: Final[RuntimeProgramName] = "program"
 
 RUNTIME_NONE: Final[RuntimeNoneName] = "none"
@@ -52,6 +68,8 @@ RUNTIME_MAP: Final[RuntimeMapName] = "map"
 RUNTIME_BATCH: Final[RuntimeBatchName] = "batch"
 RUNTIME_TASK: Final[RuntimeTaskName] = "task"
 RUNTIME_INTERVAL: Final[RuntimeIntervalName] = "interval"
+RUNTIME_GET: Final[RuntimeGetName] = "get"
+RUNTIME_REQUEST: Final[RuntimeRequestName] = "request"
 
 COMPONENT_INIT: Final[ComponentInitName] = "init"
 COMPONENT_UPDATE: Final[ComponentUpdateName] = "update"
