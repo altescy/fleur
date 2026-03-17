@@ -9,6 +9,7 @@ export const setProp = (el: Element & { __listeners?: Record<string, EventListen
 
   if (key === "style" && value && typeof value === "object") {
     const style = el as HTMLElement
+    style.removeAttribute("style")
     for (const [styleKey, styleValue] of Object.entries(value as Record<string, unknown>)) {
       if (styleValue == null) continue
       style.style.setProperty(styleKey, String(styleValue))
