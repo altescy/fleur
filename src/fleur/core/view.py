@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Generic, TypeAlias, Union, cast
 
-from fleur.js.ast import ESTreeExpression, ESTreeFunctionBody, ESTreeFunctionExpression, ESTreeReturnStatement
+from fleur.js.ast import (
+    ESTreeArrayExpression,
+    ESTreeExpression,
+    ESTreeFunctionBody,
+    ESTreeFunctionExpression,
+    ESTreeReturnStatement,
+)
 from fleur.js.builder import call, concat, ident, json_expr, literal, member, object_expr
 from fleur.types import JsonValue
 
@@ -19,7 +25,13 @@ if TYPE_CHECKING:
 
 ViewChildInner: TypeAlias = Union[JsonValue, "View[ModelT_co, MsgGroupT_co]"]
 ViewChild: TypeAlias = Union[ViewChildInner, Expr[ViewChildInner]]
-ViewProp: TypeAlias = Union[JsonValue, Expr[JsonValue], "GroupedMsg[MsgGroupT_co, Any, Any]"]
+ViewProp: TypeAlias = Union[
+    JsonValue,
+    Expr[JsonValue],
+    "GroupedMsg[MsgGroupT_co, Any, Any]",
+    Mapping[str, "ViewProp"],
+    Sequence["ViewProp"],
+]
 
 
 def _compile_text_expr(text: str) -> ESTreeExpression:
@@ -50,7 +62,11 @@ def _compile_prop_value(value: ViewProp) -> ESTreeExpression:
         return value.__compile__()
     if isinstance(value, GroupedMsg):
         return value.__compile__()
-    return json_expr(value)
+    if isinstance(value, Mapping):
+        return object_expr((k, _compile_prop_value(cast(ViewProp, v))) for k, v in value.items())
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        return ESTreeArrayExpression(elements=[_compile_prop_value(cast(ViewProp, item)) for item in value])
+    return json_expr(cast(JsonValue, value))
 
 
 def _compile_child(child: ViewChild) -> ESTreeExpression:

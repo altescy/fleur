@@ -9,7 +9,18 @@ from fleur.core.types import ModelT_co, MsgGroupT
 from fleur.core.view import View
 from fleur.types import JsonValue
 
-from .base import Element, LengthValue, Props, RadiusValue, RawColor, SpacingValue, StyleMap, _merge_props
+from .base import (
+    ColorArg,
+    Element,
+    FontSizeArg,
+    FontWeightArg,
+    Props,
+    RadiusArg,
+    SpacingArg,
+    StringArg,
+    StyleMap,
+    _merge_props,
+)
 
 
 class Button(Element[ModelT_co, MsgGroupT]):
@@ -18,28 +29,28 @@ class Button(Element[ModelT_co, MsgGroupT]):
         *children: str | View[ModelT_co, MsgGroupT] | Expr[JsonValue | View[ModelT_co, MsgGroupT]],
         onclick: GroupedMsg[MsgGroupT, PointerEvent, Any],
         props: Props | None = None,
-        bg: RawColor | str | None = None,
-        fg: RawColor | str | None = None,
-        p: SpacingValue | None = None,
-        px: SpacingValue | None = None,
-        py: SpacingValue | None = None,
-        radius: RadiusValue | None = None,
-        border: str | None = None,
-        font_size: LengthValue | None = None,
-        font_weight: int | str | None = None,
+        bg: ColorArg | None = None,
+        fg: ColorArg | None = None,
+        p: SpacingArg | None = None,
+        px: SpacingArg | None = None,
+        py: SpacingArg | None = None,
+        radius: RadiusArg | None = None,
+        border: StringArg | None = None,
+        font_size: FontSizeArg | None = None,
+        font_weight: FontWeightArg | None = None,
         style: StyleMap | None = None,
     ) -> None:
         merged = _merge_props(
             props,
-            bg=bg or "var(--fleur-comp-button-bg)",
-            fg=fg or "var(--fleur-comp-button-fg)",
+            bg=bg if bg is not None else "var(--fleur-comp-button-bg)",
+            fg=fg if fg is not None else "var(--fleur-comp-button-fg)",
             p=p,
-            px=px or "sm",
-            py=py or "xs",
-            radius=radius or "var(--fleur-comp-button-radius)",
-            border=border or "var(--fleur-comp-button-border)",
+            px=px if px is not None else "sm",
+            py=py if py is not None else "xs",
+            radius=radius if radius is not None else "var(--fleur-comp-button-radius)",
+            border=border if border is not None else "var(--fleur-comp-button-border)",
             font_size=font_size,
-            font_weight=font_weight or "var(--fleur-comp-button-font-weight)",
+            font_weight=font_weight if font_weight is not None else "var(--fleur-comp-button-font-weight)",
             style=style,
         )
         merged["onclick"] = onclick

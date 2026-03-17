@@ -1,14 +1,20 @@
 from __future__ import annotations
 
+from typing import cast
+
+from fleur.core.expr import Expr
 from fleur.core.types import ModelT_co, MsgGroupT_co
+from fleur.js.builder import json_expr
+from fleur.types import JsonValue
 
 from .base import (
+    ColorArg,
     Element,
-    LengthValue,
+    LengthArg,
     Props,
-    RadiusValue,
-    RawColor,
-    SpacingValue,
+    RadiusArg,
+    SpacingArg,
+    StringArg,
     StyleMap,
     StyleValue,
     ViewChild,
@@ -22,31 +28,39 @@ class Grid(Element[ModelT_co, MsgGroupT_co]):
         self,
         *children: ViewChild,
         props: Props | None = None,
-        columns: int | None = None,
-        min_col: LengthValue | None = None,
-        gap: SpacingValue | None = None,
-        bg: RawColor | str | None = None,
-        fg: RawColor | str | None = None,
-        p: SpacingValue | None = None,
-        px: SpacingValue | None = None,
-        py: SpacingValue | None = None,
-        radius: RadiusValue | None = None,
-        mx: SpacingValue | None = None,
-        my: SpacingValue | None = None,
-        max_w: LengthValue | None = None,
-        border: str | None = None,
-        font_family: str | None = None,
-        justify: str | None = None,
-        align: str | None = None,
+        columns: int | Expr[JsonValue] | None = None,
+        min_col: LengthArg | None = None,
+        gap: SpacingArg | None = None,
+        bg: ColorArg | None = None,
+        fg: ColorArg | None = None,
+        p: SpacingArg | None = None,
+        px: SpacingArg | None = None,
+        py: SpacingArg | None = None,
+        radius: RadiusArg | None = None,
+        mx: SpacingArg | None = None,
+        my: SpacingArg | None = None,
+        max_w: LengthArg | None = None,
+        border: StringArg | None = None,
+        font_family: StringArg | None = None,
+        justify: StringArg | None = None,
+        align: StringArg | None = None,
         style: StyleMap | None = None,
     ) -> None:
         grid_template_columns = None
         if columns is not None:
-            grid_template_columns = f"repeat({columns}, minmax(0, 1fr))"
+            grid_template_columns = (
+                f"repeat({columns}, minmax(0, 1fr))"
+                if not isinstance(columns, Expr)
+                else cast(Expr[JsonValue], Expr(json_expr("repeat(")) + columns + ", minmax(0, 1fr))")
+            )
         elif min_col is not None:
             min_col_value = _length(min_col)
             if min_col_value is not None:
-                grid_template_columns = f"repeat(auto-fit, minmax({min_col_value}, 1fr))"
+                grid_template_columns = (
+                    f"repeat(auto-fit, minmax({min_col_value}, 1fr))"
+                    if not isinstance(min_col_value, Expr)
+                    else cast(Expr[JsonValue], Expr(json_expr("repeat(auto-fit, minmax(")) + min_col_value + ", 1fr))")
+                )
 
         merged = _merge_props(
             props,
@@ -78,17 +92,25 @@ class GridItem(Element[ModelT_co, MsgGroupT_co]):
         self,
         *children: ViewChild,
         props: Props | None = None,
-        col_span: int | None = None,
-        row_span: int | None = None,
-        align_self: str | None = None,
-        justify_self: str | None = None,
+        col_span: int | Expr[JsonValue] | None = None,
+        row_span: int | Expr[JsonValue] | None = None,
+        align_self: StringArg | None = None,
+        justify_self: StringArg | None = None,
         style: StyleMap | None = None,
     ) -> None:
         item_style: dict[str, StyleValue] = dict(style) if style is not None else {}
         if col_span is not None:
-            item_style["grid-column"] = f"span {col_span}"
+            item_style["grid-column"] = (
+                f"span {col_span}"
+                if not isinstance(col_span, Expr)
+                else cast(Expr[JsonValue], Expr(json_expr("span ")) + col_span)
+            )
         if row_span is not None:
-            item_style["grid-row"] = f"span {row_span}"
+            item_style["grid-row"] = (
+                f"span {row_span}"
+                if not isinstance(row_span, Expr)
+                else cast(Expr[JsonValue], Expr(json_expr("span ")) + row_span)
+            )
         if align_self is not None:
             item_style["align-self"] = align_self
         if justify_self is not None:

@@ -2,7 +2,18 @@ from __future__ import annotations
 
 from fleur.core.types import ModelT_co, MsgGroupT_co
 
-from .base import Element, LengthValue, Props, RadiusValue, RawColor, SpacingValue, StyleMap, ViewChild, _merge_props
+from .base import (
+    ColorArg,
+    Element,
+    LengthArg,
+    Props,
+    RadiusArg,
+    SpacingArg,
+    StringArg,
+    StyleMap,
+    ViewChild,
+    _merge_props,
+)
 
 
 class Box(Element[ModelT_co, MsgGroupT_co]):
@@ -10,20 +21,20 @@ class Box(Element[ModelT_co, MsgGroupT_co]):
         self,
         *children: ViewChild,
         props: Props | None = None,
-        gap: SpacingValue | None = None,
-        bg: RawColor | str | None = None,
-        fg: RawColor | str | None = None,
-        p: SpacingValue | None = None,
-        px: SpacingValue | None = None,
-        py: SpacingValue | None = None,
-        radius: RadiusValue | None = None,
-        mx: SpacingValue | None = None,
-        my: SpacingValue | None = None,
-        w: LengthValue | None = None,
-        h: LengthValue | None = None,
-        max_w: LengthValue | None = None,
-        border: str | None = None,
-        font_family: str | None = None,
+        gap: SpacingArg | None = None,
+        bg: ColorArg | None = None,
+        fg: ColorArg | None = None,
+        p: SpacingArg | None = None,
+        px: SpacingArg | None = None,
+        py: SpacingArg | None = None,
+        radius: RadiusArg | None = None,
+        mx: SpacingArg | None = None,
+        my: SpacingArg | None = None,
+        w: LengthArg | None = None,
+        h: LengthArg | None = None,
+        max_w: LengthArg | None = None,
+        border: StringArg | None = None,
+        font_family: StringArg | None = None,
         style: StyleMap | None = None,
     ) -> None:
         merged = _merge_props(

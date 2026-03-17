@@ -43,8 +43,7 @@ def bloom(
     runtime_js = fleur_js_path.read_text()
 
     resolved_page = page or Page()
-    if theme is not None:
-        resolved_page = apply_theme(resolved_page, theme)
+    resolved_page = apply_theme(resolved_page, theme or Theme())
 
     component_js = emit(compile_component(component))
     context = BloomContext(

@@ -1,20 +1,24 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from typing import cast
 
+from fleur.core.expr import Expr
 from fleur.core.types import ModelT_co, MsgGroupT_co
 from fleur.types import JsonValue
 
 from .base import (
+    ColorArg,
     Element,
     FlexDirection,
     FlexWrap,
-    LengthValue,
+    LengthArg,
     Props,
-    RadiusValue,
-    RawColor,
-    SpacingValue,
+    RadiusArg,
+    SpacingArg,
+    StringArg,
     StyleMap,
+    StyleValue,
     ViewChild,
     _merge_props,
 )
@@ -25,22 +29,22 @@ class VStack(Element[ModelT_co, MsgGroupT_co]):
         self,
         *children: ViewChild,
         props: Props | None = None,
-        gap: SpacingValue | None = None,
-        bg: RawColor | str | None = None,
-        fg: RawColor | str | None = None,
-        p: SpacingValue | None = None,
-        px: SpacingValue | None = None,
-        py: SpacingValue | None = None,
-        radius: RadiusValue | None = None,
-        mx: SpacingValue | None = None,
-        my: SpacingValue | None = None,
-        max_w: LengthValue | None = None,
-        border: str | None = None,
-        font_family: str | None = None,
-        flex_direction: FlexDirection | None = None,
-        flex_wrap: FlexWrap | None = None,
-        justify: str | None = None,
-        align: str | None = None,
+        gap: SpacingArg | None = None,
+        bg: ColorArg | None = None,
+        fg: ColorArg | None = None,
+        p: SpacingArg | None = None,
+        px: SpacingArg | None = None,
+        py: SpacingArg | None = None,
+        radius: RadiusArg | None = None,
+        mx: SpacingArg | None = None,
+        my: SpacingArg | None = None,
+        max_w: LengthArg | None = None,
+        border: StringArg | None = None,
+        font_family: StringArg | None = None,
+        flex_direction: FlexDirection | Expr[JsonValue] | None = None,
+        flex_wrap: FlexWrap | Expr[JsonValue] | None = None,
+        justify: StringArg | None = None,
+        align: StringArg | None = None,
         style: StyleMap | None = None,
     ) -> None:
         merged = _merge_props(
@@ -65,7 +69,11 @@ class VStack(Element[ModelT_co, MsgGroupT_co]):
             style=style,
         )
         existing_style = merged.get("style")
-        style_props: dict[str, JsonValue] = dict(existing_style.items()) if isinstance(existing_style, Mapping) else {}
+        style_props: dict[str, StyleValue] = (
+            {key: cast(StyleValue, value) for key, value in existing_style.items()}
+            if isinstance(existing_style, Mapping)
+            else {}
+        )
         style_props.setdefault("display", "flex")
         style_props.setdefault("flex-direction", "column")
         merged["style"] = style_props

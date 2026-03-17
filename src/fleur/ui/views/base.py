@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import typing
 from collections.abc import Mapping
-from typing import Any, Final, Generic, Literal, TypeAlias
+from typing import Any, Final, Generic, Literal, TypeAlias, cast
 
 from fleur.core.expr import Expr
 from fleur.core.msg import GroupedMsg
@@ -11,14 +11,23 @@ from fleur.core.view import View
 from fleur.types import JsonValue
 
 ViewChild: TypeAlias = JsonValue | View[ModelT_co, MsgGroupT_co] | Expr[JsonValue | View[ModelT_co, MsgGroupT_co]]
-PropValue: TypeAlias = JsonValue | Expr[JsonValue] | GroupedMsg[MsgGroupT_co, object, Any]
+PropValue: TypeAlias = (
+    JsonValue | Expr[JsonValue] | GroupedMsg[MsgGroupT_co, object, Any] | Mapping[str, "PropValue"] | list["PropValue"]
+)
 Props = Mapping[str, PropValue]
 
 SpacingValue = int | float | str
 RadiusValue = int | float | str
 LengthValue = int | float | str
-StyleValue = str | int | float
+FontSizeValue = int | float | str
+StyleValue = str | int | float | Expr[JsonValue]
 StyleMap = Mapping[str, StyleValue]
+SpacingArg = SpacingValue | Expr[JsonValue]
+RadiusArg = RadiusValue | Expr[JsonValue]
+LengthArg = LengthValue | Expr[JsonValue]
+FontSizeArg = FontSizeValue | Expr[JsonValue]
+FontWeightArg = int | str | Expr[JsonValue]
+StringArg = str | Expr[JsonValue]
 FlexDirection = Literal["row", "column", "row-reverse", "column-reverse"]
 FlexWrap = Literal["nowrap", "wrap", "wrap-reverse"]
 
@@ -43,6 +52,7 @@ RawColor = Literal[
     "inherit",
 ]
 _RAW_COLORS: Final[set[RawColor]] = set(typing.get_args(RawColor))
+ColorArg = RawColor | str | Expr[JsonValue]
 
 
 def _is_raw_color(value: str) -> bool:
@@ -50,9 +60,11 @@ def _is_raw_color(value: str) -> bool:
     return lower in _RAW_COLORS or lower.startswith(("#", "rgb(", "rgba(", "hsl(", "hsla(", "var("))
 
 
-def _space(value: SpacingValue | None) -> str | None:
+def _space(value: SpacingArg | None) -> str | Expr[JsonValue] | None:
     if value is None:
         return None
+    if isinstance(value, Expr):
+        return value
     if isinstance(value, (int, float)):
         return f"{value}px"
 
@@ -72,9 +84,11 @@ def _space(value: SpacingValue | None) -> str | None:
     return f"var(--fleur-space-{token})"
 
 
-def _radius(value: RadiusValue | None) -> str | None:
+def _radius(value: RadiusArg | None) -> str | Expr[JsonValue] | None:
     if value is None:
         return None
+    if isinstance(value, Expr):
+        return value
     if isinstance(value, (int, float)):
         return f"{value}px"
 
@@ -88,49 +102,76 @@ def _radius(value: RadiusValue | None) -> str | None:
     return f"var(--fleur-radius-{token})"
 
 
-def _length(value: LengthValue | None) -> str | None:
+def _length(value: LengthArg | None) -> str | Expr[JsonValue] | None:
     return _space(value)
 
 
-def _color(value: str | None) -> str | None:
+def _font_size(value: FontSizeArg | None) -> str | Expr[JsonValue] | None:
     if value is None:
         return None
+    if isinstance(value, Expr):
+        return value
+    if isinstance(value, (int, float)):
+        return f"{value}px"
+
+    token = value.strip()
+    if token.replace(".", "", 1).isdigit():
+        return f"{token}px"
+
+    if token.endswith(("px", "rem", "em", "%", "vh", "vw")):
+        return token
+
+    if token.startswith(("var(", "calc(")):
+        return token
+
+    return f"var(--fleur-text-{token})"
+
+
+def _color(value: ColorArg | None) -> str | Expr[JsonValue] | None:
+    if value is None:
+        return None
+    if isinstance(value, Expr):
+        return value
     return value if _is_raw_color(value) else f"var(--fleur-color-{value})"
 
 
 def _merge_props(
     props: Props | None,
     *,
-    gap: SpacingValue | None = None,
-    bg: RawColor | str | None = None,
-    fg: RawColor | str | None = None,
-    p: SpacingValue | None = None,
-    px: SpacingValue | None = None,
-    py: SpacingValue | None = None,
-    radius: RadiusValue | None = None,
-    mx: SpacingValue | None = None,
-    my: SpacingValue | None = None,
-    mt: SpacingValue | None = None,
-    mr: SpacingValue | None = None,
-    mb: SpacingValue | None = None,
-    ml: SpacingValue | None = None,
-    w: LengthValue | None = None,
-    h: LengthValue | None = None,
-    max_w: LengthValue | None = None,
-    border: str | None = None,
-    font_size: LengthValue | None = None,
-    font_weight: int | str | None = None,
-    font_family: str | None = None,
-    display: str | None = None,
-    flex_direction: FlexDirection | None = None,
-    flex_wrap: FlexWrap | None = None,
-    justify: str | None = None,
-    align: str | None = None,
+    gap: SpacingArg | None = None,
+    bg: ColorArg | None = None,
+    fg: ColorArg | None = None,
+    p: SpacingArg | None = None,
+    px: SpacingArg | None = None,
+    py: SpacingArg | None = None,
+    radius: RadiusArg | None = None,
+    mx: SpacingArg | None = None,
+    my: SpacingArg | None = None,
+    mt: SpacingArg | None = None,
+    mr: SpacingArg | None = None,
+    mb: SpacingArg | None = None,
+    ml: SpacingArg | None = None,
+    w: LengthArg | None = None,
+    h: LengthArg | None = None,
+    max_w: LengthArg | None = None,
+    border: StringArg | None = None,
+    font_size: FontSizeArg | None = None,
+    font_weight: FontWeightArg | None = None,
+    font_family: StringArg | None = None,
+    display: StringArg | None = None,
+    flex_direction: FlexDirection | Expr[JsonValue] | None = None,
+    flex_wrap: FlexWrap | Expr[JsonValue] | None = None,
+    justify: StringArg | None = None,
+    align: StringArg | None = None,
     style: StyleMap | None = None,
 ) -> dict[str, PropValue]:
     merged: dict[str, PropValue] = dict(props or {})
     existing_style = merged.get("style")
-    style_map: dict[str, JsonValue] = dict(existing_style.items()) if isinstance(existing_style, Mapping) else {}
+    style_map: dict[str, StyleValue] = (
+        {key: cast(StyleValue, value) for key, value in existing_style.items()}
+        if isinstance(existing_style, Mapping)
+        else {}
+    )
 
     gap_value = _space(gap)
     p_value = _space(p)
@@ -148,7 +189,7 @@ def _merge_props(
     width_value = _length(w)
     height_value = _length(h)
     max_width_value = _length(max_w)
-    font_size_value = _length(font_size)
+    font_size_value = _font_size(font_size)
 
     if gap_value is not None:
         style_map["gap"] = gap_value
@@ -191,7 +232,7 @@ def _merge_props(
     if font_size_value is not None:
         style_map["font-size"] = font_size_value
     if font_weight is not None:
-        style_map["font-weight"] = str(font_weight)
+        style_map["font-weight"] = font_weight if isinstance(font_weight, Expr) else str(font_weight)
     if font_family is not None:
         style_map["font-family"] = font_family
     if display is not None:
