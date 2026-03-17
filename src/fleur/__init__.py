@@ -26,12 +26,14 @@ from fleur.core.template import (
     render_template,
 )
 from fleur.js.emitter import EmitterSettings, emit
+from fleur.ui import Theme, apply_theme
 
 
 def bloom(
     component: Component | type[object] | Callable[[], Component],
     *,
     page: Page | None = None,
+    theme: Theme | None = None,
     template: TemplateInput | None = None,
     component_name: str | None = None,
 ) -> str:
@@ -41,6 +43,9 @@ def bloom(
     runtime_js = fleur_js_path.read_text()
 
     resolved_page = page or Page()
+    if theme is not None:
+        resolved_page = apply_theme(resolved_page, theme)
+
     component_js = emit(compile_component(component))
     context = BloomContext(
         page=resolved_page,
