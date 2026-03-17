@@ -55,15 +55,23 @@ export const diff = (oldV: VNode | undefined, newV: VNode | undefined, path: num
       }
     }
 
-    for (let i = 0; i < oldElement.children.length; i++) {
+    for (let i = oldElement.children.length - 1; i >= 0; i--) {
       if (!used.has(i)) {
         patches.push({ type: PatchType.REMOVE, path: [...path, i] })
       }
     }
   } else {
-    const maxLen = Math.max(oldElement.children.length, newElement.children.length)
-    for (let i = 0; i < maxLen; i++) {
+    const sharedLen = Math.min(oldElement.children.length, newElement.children.length)
+    for (let i = 0; i < sharedLen; i++) {
       patches.push(...diff(oldElement.children[i], newElement.children[i], [...path, i]))
+    }
+
+    for (let i = oldElement.children.length - 1; i >= newElement.children.length; i--) {
+      patches.push({ type: PatchType.REMOVE, path: [...path, i] })
+    }
+
+    for (let i = oldElement.children.length; i < newElement.children.length; i++) {
+      patches.push({ type: PatchType.INSERT, path: [...path, i], vnode: newElement.children[i] })
     }
   }
 

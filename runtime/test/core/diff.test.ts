@@ -23,4 +23,14 @@ describe("diff", () => {
 
     expect(hasMove).toBe(true)
   })
+
+  test("emits REMOVE patches from tail to head", () => {
+    const oldV = h("div", {}, h("span", {}, "A"), h("span", {}, "B"), h("span", {}, "C"), h("span", {}, "D"))
+    const newV = h("div", {}, h("span", {}, "A"), h("span", {}, "X"))
+
+    const patches = diff(oldV, newV)
+    const removePaths = patches.filter((patch) => patch.type === "REMOVE").map((patch) => patch.path)
+
+    expect(removePaths).toEqual([[3], [2]])
+  })
 })

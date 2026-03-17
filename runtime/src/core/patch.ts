@@ -12,7 +12,6 @@ export const getNode = (root: Node, path: number[]): Node | null => {
 
 export const apply = (root: Node, patch: Patch): Node => {
   const node = getNode(root, patch.path)
-  if (!node) return root
 
   switch (patch.type) {
     case PatchType.INSERT: {
@@ -28,6 +27,7 @@ export const apply = (root: Node, patch: Patch): Node => {
       return root
     }
     case PatchType.MOVE: {
+      if (!node) return root
       const parentNode = getNode(root, patch.to.slice(0, -1))
       if (!parentNode) return root
       const refNode = parentNode.childNodes[patch.to.at(-1) ?? 0]
@@ -35,19 +35,36 @@ export const apply = (root: Node, patch: Patch): Node => {
       return root
     }
     case PatchType.REMOVE:
+      if (!node) return root
       node.parentNode?.removeChild(node)
       return root
     case PatchType.REPLACE: {
+      if (!node) {
+        const parent = getNode(root, patch.path.slice(0, -1)) as Node | null
+        if (!parent) return root
+        const replacedNode = instantiate(patch.vnode)
+        const index = patch.path.at(-1) ?? 0
+        const refNode = parent.childNodes[index] ?? null
+        if (refNode) {
+          parent.replaceChild(replacedNode, refNode)
+        } else {
+          parent.appendChild(replacedNode)
+        }
+        return root
+      }
+
       const replacedNode = instantiate(patch.vnode)
       const parent = node.parentNode
       if (!parent) return root
       parent.replaceChild(replacedNode, node)
-      return replacedNode
+      return patch.path.length === 0 ? replacedNode : root
     }
     case PatchType.TEXT:
+      if (!node) return root
       node.textContent = patch.value
       return root
     case PatchType.PROPS: {
+      if (!node) return root
       const target = node as Element & { __handlers?: Record<string, EventListener>; __listeners?: Record<string, EventListener> }
       for (const [k, v] of Object.entries(patch.props)) {
         if (v == null || v === false) {
