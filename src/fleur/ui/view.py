@@ -2,21 +2,20 @@ from __future__ import annotations
 
 import typing
 from collections.abc import Callable, Mapping
-from typing import TYPE_CHECKING, Final, Generic, Literal
+from typing import Final, Generic, Literal, TypeAlias
 
 from fleur.core.component import Component
+from fleur.core.expr import Expr
+from fleur.core.msg import GroupedMsg
 from fleur.core.template import Page, TemplateInput
 from fleur.core.types import ModelT, ModelT_co, MsgGroupT, MsgGroupT_co
 from fleur.core.view import View
-from fleur.js.ast import ESTreeExpression
-from fleur.types import ICompilable, JsonValue
+from fleur.types import JsonValue
 
 from .theme import Theme, apply_theme
 
-if TYPE_CHECKING:
-    from fleur.core.msg import GroupedMsg
-
-PropValue = ICompilable[ESTreeExpression] | JsonValue
+ViewChild: TypeAlias = JsonValue | View[ModelT_co, MsgGroupT_co] | Expr[JsonValue | View[ModelT_co, MsgGroupT_co]]
+PropValue: TypeAlias = JsonValue | Expr[JsonValue] | GroupedMsg[MsgGroupT_co, object]
 Props = Mapping[str, PropValue]
 
 SpacingValue = int | float | str
@@ -139,7 +138,7 @@ def _merge_props(
 class Element(View[ModelT_co, MsgGroupT_co], Generic[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
-        *children: JsonValue | View[ModelT_co, MsgGroupT_co],
+        *children: ViewChild,
         tag: str,
         props: Props,
     ) -> None:
@@ -154,7 +153,7 @@ class Text(Element[ModelT_co, MsgGroupT_co]):
 class VStack(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
-        *children: JsonValue | View[ModelT_co, MsgGroupT_co],
+        *children: ViewChild,
         props: Props | None = None,
         gap: SpacingValue | None = None,
         bg: RawColor | str | None = None,
@@ -187,7 +186,7 @@ class VStack(Element[ModelT_co, MsgGroupT_co]):
 class Button(Element[ModelT_co, MsgGroupT], Generic[ModelT_co, MsgGroupT]):
     def __init__(
         self,
-        *children: str | View[ModelT_co, MsgGroupT],
+        *children: str | View[ModelT_co, MsgGroupT] | Expr[JsonValue | View[ModelT_co, MsgGroupT]],
         onclick: "GroupedMsg[MsgGroupT, object]",
         props: Props | None = None,
         bg: RawColor | str | None = None,

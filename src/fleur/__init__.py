@@ -4,7 +4,9 @@ from fleur.builtins import Http, HttpError
 from fleur.core import (
     Cmd,
     Component,
+    Expr,
     Model,
+    ModelUpdate,
     Msg,
     MsgGroup,
     State,
@@ -56,7 +58,9 @@ def bloom(
 __all__ = [
     "Cmd",
     "Component",
+    "Expr",
     "Model",
+    "ModelUpdate",
     "Msg",
     "MsgGroup",
     "State",

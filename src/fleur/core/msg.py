@@ -12,7 +12,7 @@ from .runtime import MESSAGE_EVENT, MESSAGE_IDENT, MESSAGE_TYPE
 from .types import MsgGroupT, OptionalEventT
 
 if TYPE_CHECKING:
-    from .model import ModelT
+    from .types import ModelT
     from .update import CaseValue, Update
 
 
@@ -59,8 +59,8 @@ class GroupedMsg(Generic[MsgGroupT, OptionalEventT]):
 
     def __call__(
         self,
-        update: "CaseValue[ModelT, MsgGroupT]",
-    ) -> tuple[Self, "CaseValue[ModelT, MsgGroupT]"]:
+        update: "CaseValue",
+    ) -> tuple[Self, "CaseValue"]:
         return self, update
 
     def __compile__(self) -> ESTreeExpression:

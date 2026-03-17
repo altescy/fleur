@@ -9,6 +9,7 @@ from fleur.js.ast import ESTreeExpression
 from fleur.js.builder import json_expr
 from fleur.types import JsonValue
 
+HttpMethod = Literal["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
 HttpErrorKind = Literal["network", "timeout", "abort", "http_status", "decode", "unknown"]
 HttpCredentials = Literal["omit", "same-origin", "include"]
 
@@ -46,7 +47,7 @@ class Http:
 
     @staticmethod
     def request(
-        method: str,
+        method: HttpMethod,
         url: str,
         *,
         expect: _Expect[TaskValueT],

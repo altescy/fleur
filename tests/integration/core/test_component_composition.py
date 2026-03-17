@@ -15,8 +15,8 @@ def counter():
     return Component(
         CounterModel(count=0),
         CounterMsg.caseof(
-            CounterMsg.INC(CounterModel.count + 1),
-            CounterMsg.DEC(CounterModel.count - 1),
+            CounterMsg.INC(CounterModel.count.set(CounterModel.count + 1)),
+            CounterMsg.DEC(CounterModel.count.set(CounterModel.count - 1)),
         ),
         VStack(
             Text(f"Count: {CounterModel.count}"),

@@ -40,8 +40,8 @@ class CounterMsg(MsgGroup):
 def App() -> Component[CounterModel, CounterMsg]:
     init = CounterModel(count=0)
     update = CounterMsg.caseof(
-        CounterMsg.INC(CounterModel.count + 1),
-        CounterMsg.DEC(CounterModel.count - 1),
+        CounterMsg.INC(CounterModel.count.set(CounterModel.count + 1)),
+        CounterMsg.DEC(CounterModel.count.set(CounterModel.count - 1)),
     )
     view = VStack(
         Text(f"Count: {CounterModel.count}"),

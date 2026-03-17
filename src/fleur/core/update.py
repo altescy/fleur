@@ -17,7 +17,7 @@ from fleur.js.ast import (
 from fleur.js.builder import call, ident, index_expr, literal, member
 
 from .cmd import Cmd
-from .model import ModelOperation, ModelState
+from .model import ModelState, ModelUpdate
 from .runtime import MESSAGE_EVENT, MESSAGE_IDENT, MESSAGE_TYPE, MODEL_IDENT, RUNTIME_CMD, RUNTIME_NONE, runtime_call
 from .types import ModelT, ModelT_co, MsgGroupT, MsgGroupT_co
 
@@ -31,9 +31,7 @@ class CompiledUpdateResult(Protocol):
 
 
 CaseValue = (
-    ModelOperation["ModelT_co"]
-    | tuple[ModelOperation["ModelT_co"], Cmd["ModelT_co", "MsgGroupT_co"]]
-    | CompiledUpdateResult
+    ModelUpdate["ModelT_co"] | tuple[ModelUpdate["ModelT_co"], Cmd["ModelT_co", "MsgGroupT_co"]] | CompiledUpdateResult
 )
 
 
@@ -58,7 +56,7 @@ class ForwardedUpdate(Generic[ModelT_co, MsgGroupT_co]):
             kind="var",
         )
 
-        model_expr = ModelOperation(self.field_name, "=", index_expr(result_ident, 0)).__compile__()
+        model_expr = ModelUpdate(self.field_name, index_expr(result_ident, 0)).__compile__()
         cmd_expr = Cmd.map(self.tagger, Cmd(index_expr(result_ident, 1))).__compile__()
         result_pair = ESTreeArrayExpression(elements=[model_expr, cmd_expr])
 
@@ -81,10 +79,13 @@ def _compile_case_result(value: CaseValue) -> ESTreeExpression:
         operation, cmd = value
         return ESTreeArrayExpression(elements=[operation.__compile__(), cmd.__compile__()])
 
-    if isinstance(value, ModelOperation):
+    if isinstance(value, ModelUpdate):
         return ESTreeArrayExpression(elements=[value.__compile__(), Cmd.none().__compile__()])
 
-    return value.__compile_update_result__()
+    if hasattr(value, "__compile_update_result__"):
+        return value.__compile_update_result__()
+
+    raise TypeError("Update case must return ModelState.set(...), (ModelUpdate, Cmd), or Update.forward(...)")
 
 
 class Update(Generic[ModelT_co, MsgGroupT_co]):
@@ -102,7 +103,7 @@ class Update(Generic[ModelT_co, MsgGroupT_co]):
         cases: list[
             tuple[
                 "GroupedMsg[MsgGroupT_co, Any]",
-                CaseValue[ModelT_co, MsgGroupT_co],
+                CaseValue,
             ]
         ],
     ) -> None:

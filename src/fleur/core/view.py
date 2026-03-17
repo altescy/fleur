@@ -2,18 +2,24 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, Generic, cast
+from typing import TYPE_CHECKING, Generic, TypeAlias, Union, cast
 
 from fleur.js.ast import ESTreeExpression, ESTreeFunctionBody, ESTreeFunctionExpression, ESTreeReturnStatement
 from fleur.js.builder import call, concat, ident, json_expr, literal, member, object_expr
-from fleur.types import ICompilable, JsonValue
+from fleur.types import JsonValue
 
+from .expr import Expr
+from .msg import GroupedMsg
 from .runtime import MODEL_IDENT, RUNTIME_H, RUNTIME_HTML, RUNTIME_MAP, runtime_call, runtime_ref
 from .types import ModelT, ModelT_co, MsgGroupT, MsgGroupT_co
 
 if TYPE_CHECKING:
     from .model import ModelState
-    from .msg import GroupedMsg
+
+
+ViewChildInner: TypeAlias = Union[JsonValue, "View[ModelT_co, MsgGroupT_co]"]
+ViewChild: TypeAlias = Union[ViewChildInner, Expr[ViewChildInner]]
+ViewProp: TypeAlias = Union[JsonValue, Expr[JsonValue], "GroupedMsg[MsgGroupT_co, object]"]
 
 
 def _compile_text_expr(text: str) -> ESTreeExpression:
@@ -39,14 +45,18 @@ def _compile_text_expr(text: str) -> ESTreeExpression:
     return expr
 
 
-def _compile_prop_value(value: ICompilable[ESTreeExpression] | JsonValue) -> ESTreeExpression:
-    if isinstance(value, ICompilable):
+def _compile_prop_value(value: ViewProp) -> ESTreeExpression:
+    if isinstance(value, Expr):
+        return value.__compile__()
+    if isinstance(value, GroupedMsg):
         return value.__compile__()
     return json_expr(value)
 
 
-def _compile_child(child: JsonValue | View[ModelT_co, MsgGroupT_co]) -> ESTreeExpression:
+def _compile_child(child: ViewChild) -> ESTreeExpression:
     if isinstance(child, View):
+        return child.__compile__()
+    if isinstance(child, Expr):
         return child.__compile__()
     if isinstance(child, str):
         return _compile_text_expr(child)
@@ -56,9 +66,9 @@ def _compile_child(child: JsonValue | View[ModelT_co, MsgGroupT_co]) -> ESTreeEx
 class View(Generic[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
-        *children: JsonValue | "View[ModelT_co, MsgGroupT_co]",
+        *children: ViewChild,
         tag: str,
-        props: Mapping[str, ICompilable[ESTreeExpression] | JsonValue],
+        props: Mapping[str, ViewProp],
     ) -> None:
         self._tag = tag
         self._props = props
@@ -74,7 +84,7 @@ class View(Generic[ModelT_co, MsgGroupT_co]):
 
     @staticmethod
     def map(
-        tagger: "GroupedMsg[MsgGroupT, Any]", view: "View[ModelT_co, MsgGroupT_co]"
+        tagger: "GroupedMsg[MsgGroupT, object]", view: "View[ModelT_co, MsgGroupT_co]"
     ) -> "MappedView[ModelT_co, MsgGroupT_co, MsgGroupT]":
         return cast(MappedView[ModelT_co, MsgGroupT_co, MsgGroupT], MappedView(tagger, view))
 
@@ -82,7 +92,7 @@ class View(Generic[ModelT_co, MsgGroupT_co]):
     def forward(
         field: "ModelState[ModelT, ModelT_co] | str",
         view: "View[ModelT_co, MsgGroupT_co]",
-        tagger: "GroupedMsg[MsgGroupT, Any]",
+        tagger: "GroupedMsg[MsgGroupT, object]",
     ) -> "ForwardedView[ModelT, ModelT_co, MsgGroupT_co, MsgGroupT]":
         field_name = field if isinstance(field, str) else cast("ModelState[ModelT, ModelT_co]", field).field_name
         return cast(
@@ -92,7 +102,7 @@ class View(Generic[ModelT_co, MsgGroupT_co]):
 
 
 class MappedView(View[ModelT_co, MsgGroupT], Generic[ModelT_co, MsgGroupT_co, MsgGroupT]):
-    def __init__(self, tagger: "GroupedMsg[MsgGroupT, Any]", view: View[ModelT_co, MsgGroupT_co]) -> None:
+    def __init__(self, tagger: "GroupedMsg[MsgGroupT, object]", view: View[ModelT_co, MsgGroupT_co]) -> None:
         self._tagger = tagger
         self._view = view
 
@@ -102,7 +112,7 @@ class MappedView(View[ModelT_co, MsgGroupT], Generic[ModelT_co, MsgGroupT_co, Ms
 
 class ForwardedView(View[ModelT, MsgGroupT], Generic[ModelT, ModelT_co, MsgGroupT_co, MsgGroupT]):
     def __init__(
-        self, field_name: str, tagger: "GroupedMsg[MsgGroupT, Any]", view: View[ModelT_co, MsgGroupT_co]
+        self, field_name: str, tagger: "GroupedMsg[MsgGroupT, object]", view: View[ModelT_co, MsgGroupT_co]
     ) -> None:
         self._field_name = field_name
         self._tagger = tagger

@@ -77,6 +77,13 @@ def _emit(node: ast.ESTreeNode, settings: EmitterSettings, level: int) -> str:
         return f"{obj}.{prop}"
     elif isinstance(node, ast.ESTreeBinaryExpression):
         return f"({_emit(node.left, settings, level)}{op_space}{node.operator}{op_space}{_emit(node.right, settings, level)})"
+    elif isinstance(node, ast.ESTreeLogicalExpression):
+        return f"({_emit(node.left, settings, level)}{op_space}{node.operator}{op_space}{_emit(node.right, settings, level)})"
+    elif isinstance(node, ast.ESTreeConditionalExpression):
+        return (
+            f"({_emit(node.test, settings, level)}{op_space}?{op_space}{_emit(node.consequent, settings, level)}"
+            f"{op_space}:{op_space}{_emit(node.alternate, settings, level)})"
+        )
     elif isinstance(node, ast.ESTreeLiteral):
         return json.dumps(node.value)
     elif isinstance(node, ast.ESTreeIdentifier):

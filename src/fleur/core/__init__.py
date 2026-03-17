@@ -1,7 +1,8 @@
 from .cmd import Cmd
 from .compiler import compile_component
 from .component import Component
-from .model import Model, ModelOperation, ModelState, State
+from .expr import Expr
+from .model import Model, ModelOperation, ModelState, ModelUpdate, State
 from .msg import GroupedMsg, Msg, MsgGroup
 from .sub import Sub
 from .task import TaskLike
@@ -12,10 +13,12 @@ from .view import View
 __all__ = [
     "Cmd",
     "Component",
+    "Expr",
     "GroupedMsg",
     "Model",
     "ModelOperation",
     "ModelState",
+    "ModelUpdate",
     "Msg",
     "MsgGroup",
     "Page",
