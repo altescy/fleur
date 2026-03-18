@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, Generic, Type, cast
 
 from typing_extensions import Self, TypeVar
@@ -8,6 +9,7 @@ from fleur.js.ast import ESTreeExpression, ESTreeFunctionBody, ESTreeFunctionExp
 from fleur.js.builder import ident, json_expr, member_expr, object_expr
 from fleur.types import ICompilable
 
+from .expr import Expr
 from .runtime import MESSAGE_CONTEXT, MESSAGE_EVENT, MESSAGE_IDENT, MESSAGE_TYPE
 from .types import ModelT, MsgGroupT, OptionalContextT, OptionalEventT
 
@@ -65,18 +67,18 @@ class MessageContextRef(Generic[OptionalContextT], ICompilable[ESTreeExpression]
         return expr
 
 
-class GroupedMsg(Generic[MsgGroupT, OptionalEventT, OptionalContextT]):
+class GroupedMsg(Expr[Mapping[str, Any]], Generic[MsgGroupT, OptionalEventT, OptionalContextT]):
     def __init__(
         self,
         group: type[MsgGroupT],
         name: str,
-        event_payload: object | None = None,
-        context_payload: object | None = None,
+        event_payload: OptionalEventT | None = None,
+        context_payload: OptionalContextT | None = None,
     ) -> None:
         self.group = group
         self.name = name
-        self._event_payload = cast(OptionalEventT | None, event_payload)
-        self._context_payload = cast(OptionalContextT | None, context_payload)
+        self._event_payload = event_payload
+        self._context_payload = context_payload
 
     @property
     def event(self) -> OptionalEventT:
@@ -141,8 +143,9 @@ class Msg(Generic[OptionalEventT, OptionalContextT]):
         self._name: str | None = None
 
     def __get__(
-        self, instance: object, owner: Type[MsgGroupT]
+        self, instance: None, owner: Type[MsgGroupT]
     ) -> GroupedMsg[MsgGroupT, OptionalEventT, OptionalContextT]:
+        del instance
         if self._name is None:
             raise AttributeError("Msg descriptor is not initialized")
         return GroupedMsg(owner, self._name, self.event)

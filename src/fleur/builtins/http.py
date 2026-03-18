@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Generic, Literal, cast
 
+from fleur.core.model import Model
 from fleur.core.runtime import RUNTIME_HTTP, RUNTIME_REQUEST, runtime_call
 from fleur.core.task import TaskLike, TaskValueT
 from fleur.js.ast import ESTreeExpression
@@ -15,7 +16,7 @@ HttpCredentials = Literal["omit", "same-origin", "include"]
 
 
 @dataclass(frozen=True, slots=True)
-class HttpError:
+class HttpError(Model):
     kind: HttpErrorKind
     message: str
     url: str | None = None

@@ -2,7 +2,7 @@ from fleur import Cmd, Msg, MsgGroup, builtins, emit
 
 
 class HttpMsg(MsgGroup):
-    OK = Msg[object]()
+    OK = Msg()
     ERR = Msg[builtins.HttpError]()
 
 

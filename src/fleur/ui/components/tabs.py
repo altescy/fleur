@@ -1,6 +1,6 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Sequence, TypeAlias, cast
+from typing import Any, Sequence, TypeAlias, cast
 
 from fleur.core.cmd import Cmd
 from fleur.core.component import Component
@@ -33,13 +33,13 @@ class TabsModel(Model):
 
 
 class TabsMsg(MsgGroup):
-    SELECT: Msg[PointerEvent, int] = Msg()
-    NEXT: Msg[PointerEvent, object] = Msg()
-    PREV: Msg[PointerEvent, object] = Msg()
-    NOOP: Msg[object, object] = Msg()
+    SELECT = Msg[PointerEvent, int]()
+    NEXT = Msg[PointerEvent, Any]()
+    PREV = Msg[PointerEvent, Any]()
+    NOOP = Msg()
 
 
-class _ImmediateTask(TaskLike[object, object]):
+class _ImmediateTask(TaskLike):
     def __init__(self, value: FleurValue | Expr) -> None:
         self._value = value
 
@@ -47,9 +47,7 @@ class _ImmediateTask(TaskLike[object, object]):
         return call(member_expr(ident("Promise"), "resolve"), ensure_expr(self._value))
 
 
-def _on_change_cmd(
-    index: int | Expr[int], on_change: GroupedMsg[TabsMsg, int, object] | None
-) -> Cmd[TabsModel, TabsMsg]:
+def _on_change_cmd(index: int | Expr[int], on_change: GroupedMsg[TabsMsg, int] | None) -> Cmd[TabsModel, TabsMsg]:
     if on_change is None:
         return Cmd.none()
     return Cmd.task(_ImmediateTask(index), on_change, TabsMsg.NOOP)
@@ -75,7 +73,7 @@ def tabs(
     *,
     title: str | None | Expr[str | None] = None,
     initial_index: int = 0,
-    on_change: GroupedMsg[TabsMsg, int, object] | None = None,
+    on_change: GroupedMsg[TabsMsg, int] | None = None,
     empty_message: str | Expr[str] = "No tab selected",
     props: Props | None = None,
     list_props: Props | None = None,
