@@ -125,6 +125,45 @@ ThemePalette = TypedDict(
 )
 
 
+ThemeColors = TypedDict(
+    "ThemeColors",
+    {
+        "background": str,
+        "foreground": str,
+        "card": str,
+        "card-foreground": str,
+        "popover": str,
+        "popover-foreground": str,
+        "primary": str,
+        "primary-foreground": str,
+        "secondary": str,
+        "secondary-foreground": str,
+        "muted": str,
+        "muted-foreground": str,
+        "accent": str,
+        "accent-foreground": str,
+        "destructive": str,
+        "destructive-foreground": str,
+        "border": str,
+        "input": str,
+        "ring": str,
+        "chart-1": str,
+        "chart-2": str,
+        "chart-3": str,
+        "chart-4": str,
+        "chart-5": str,
+        "sidebar": str,
+        "sidebar-foreground": str,
+        "sidebar-primary": str,
+        "sidebar-primary-foreground": str,
+        "sidebar-accent": str,
+        "sidebar-accent-foreground": str,
+        "sidebar-border": str,
+        "sidebar-ring": str,
+    },
+)
+
+
 ThemeVariables = TypedDict(
     "ThemeVariables",
     {
@@ -169,6 +208,46 @@ def _default_theme_palette() -> ThemePalette:
 
 def _default_theme_variables() -> ThemeVariables:
     return cast(ThemeVariables, {})
+
+
+def _default_theme_colors() -> ThemeColors:
+    return cast(
+        ThemeColors,
+        {
+            "background": "oklch(1 0 0)",
+            "foreground": "oklch(0.145 0 0)",
+            "card": "oklch(1 0 0)",
+            "card-foreground": "oklch(0.145 0 0)",
+            "popover": "oklch(1 0 0)",
+            "popover-foreground": "oklch(0.145 0 0)",
+            "primary": "oklch(0.205 0 0)",
+            "primary-foreground": "oklch(0.985 0 0)",
+            "secondary": "oklch(0.97 0 0)",
+            "secondary-foreground": "oklch(0.205 0 0)",
+            "muted": "oklch(0.97 0 0)",
+            "muted-foreground": "oklch(0.556 0 0)",
+            "accent": "oklch(0.97 0 0)",
+            "accent-foreground": "oklch(0.205 0 0)",
+            "destructive": "oklch(0.5771 0.2152 27.3250)",
+            "destructive-foreground": "oklch(1 0 0)",
+            "border": "oklch(0.922 0 0)",
+            "input": "oklch(0.922 0 0)",
+            "ring": "oklch(0.708 0 0)",
+            "chart-1": "oklch(0.646 0.222 41.116)",
+            "chart-2": "oklch(0.6 0.118 184.704)",
+            "chart-3": "oklch(0.398 0.07 227.392)",
+            "chart-4": "oklch(0.828 0.189 84.429)",
+            "chart-5": "oklch(0.769 0.188 70.08)",
+            "sidebar": "oklch(0.985 0 0)",
+            "sidebar-foreground": "oklch(0.145 0 0)",
+            "sidebar-primary": "oklch(0.205 0 0)",
+            "sidebar-primary-foreground": "oklch(0.985 0 0)",
+            "sidebar-accent": "oklch(0.97 0 0)",
+            "sidebar-accent-foreground": "oklch(0.205 0 0)",
+            "sidebar-border": "oklch(0.922 0 0)",
+            "sidebar-ring": "oklch(0.708 0 0)",
+        },
+    )
 
 
 @dataclass(slots=True)

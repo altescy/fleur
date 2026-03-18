@@ -35,3 +35,11 @@ def test_zen_preset_exposes_expected_palette() -> None:
 
     assert variables["--fleur-color-bg-canvas"] == "oklch(0.9195 0.0169 88.0030)"
     assert variables["--fleur-font-body"] == '"Inter", sans-serif'
+
+
+def test_theme_variables_expose_direct_fleur_color_tokens() -> None:
+    variables = theme_variables(Theme())
+
+    assert "--fleur-color-muted" in variables
+    assert "--fleur-color-card" in variables
+    assert "--fleur-color-accent" in variables

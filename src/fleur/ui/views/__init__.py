@@ -13,9 +13,12 @@ from .base import (
 from .box import Box
 from .button import Button
 from .divider import Divider
+from .form import Form
 from .grid import Grid, GridItem
 from .hstack import HStack
+from .input import Input
 from .text import Text
+from .textarea import Textarea
 from .vstack import VStack
 
 __all__ = [
@@ -24,9 +27,11 @@ __all__ = [
     "Divider",
     "FlexDirection",
     "FlexWrap",
+    "Form",
     "Grid",
     "GridItem",
     "HStack",
+    "Input",
     "LengthValue",
     "Props",
     "RadiusValue",
@@ -35,6 +40,7 @@ __all__ = [
     "StyleMap",
     "StyleValue",
     "Text",
+    "Textarea",
     "VStack",
     "ViewChild",
 ]

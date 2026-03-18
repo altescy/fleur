@@ -5,6 +5,7 @@ from .themes import (
     ZEN_THEME,
     Theme,
     ThemeColorName,
+    ThemeColors,
     ThemeComponentName,
     ThemeComponentTokenName,
     ThemeCoreTokens,
@@ -18,25 +19,29 @@ from .themes import (
     theme_style_tag,
     theme_variables,
 )
-from .views import Box, Button, Divider, Grid, GridItem, HStack, Text, VStack
+from .views import Box, Button, Divider, Form, Grid, GridItem, HStack, Input, Text, Textarea, VStack
 
 __all__ = [
     "Button",
     "Box",
     "Divider",
+    "Form",
     "Grid",
     "GridItem",
     "HStack",
+    "Input",
     "DialogModel",
     "DialogMsg",
     "TabSpec",
     "TabsModel",
     "TabsMsg",
     "Text",
+    "Textarea",
     "Theme",
     "ThemeColorName",
     "ThemeComponentName",
     "ThemeComponentTokenName",
+    "ThemeColors",
     "ThemeCoreTokens",
     "ThemeFontSizeName",
     "ThemePalette",
