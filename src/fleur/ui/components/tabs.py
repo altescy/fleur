@@ -55,8 +55,6 @@ def tabs(
     title: TabsChild = "Tabs",
     initial_index: int = 0,
     on_change: GroupedMsg[TabsMsg, int, object] | None = None,
-    prev_label: TabsChild = "Prev",
-    next_label: TabsChild = "Next",
     empty_message: TabsChild = "No tab selected",
 ) -> Component[TabsModel, TabsMsg]:
     if not items:
@@ -144,11 +142,6 @@ def tabs(
                 p="xs",
                 radius="md",
                 align="center",
-            ),
-            HStack(
-                Button(prev_label, onclick=TabsMsg.PREV, bg="bg-subtle", fg="fg-default"),
-                Button(next_label, onclick=TabsMsg.NEXT, bg="bg-subtle", fg="fg-default"),
-                gap="xs",
             ),
             panel_expr,
             gap="sm",

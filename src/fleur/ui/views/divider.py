@@ -15,7 +15,7 @@ class Divider(Element[ModelT_co, MsgGroupT_co]):
         self,
         *,
         props: Props | None = None,
-        color: ColorArg = "var(--fleur-sem-border-default)",
+        color: ColorArg = "var(--fleur-color-border-default)",
         my: SpacingArg | None = "sm",
     ) -> None:
         border_top = (

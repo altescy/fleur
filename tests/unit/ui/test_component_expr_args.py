@@ -29,8 +29,6 @@ def test_tabs_supports_expr_arguments() -> None:
                     )
                 ],
                 title=Expr.when(TabsModel.active_index.equals(0), "Tabs*", "Tabs"),
-                prev_label=Expr.when(TabsModel.active_index.equals(0), "Back*", "Back"),
-                next_label=Expr.when(TabsModel.active_index.equals(0), "Forward*", "Forward"),
                 empty_message=Expr.when(TabsModel.active_index.equals(0), "None*", "None"),
             )
         )
@@ -38,5 +36,3 @@ def test_tabs_supports_expr_arguments() -> None:
 
     assert '(model.active_index===0)?"Tabs*":"Tabs"' in source
     assert '(model.active_index===0)?"Home*":"Home"' in source
-    assert '(model.active_index===0)?"Back*":"Back"' in source
-    assert '(model.active_index===0)?"Forward*":"Forward"' in source

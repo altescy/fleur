@@ -41,7 +41,6 @@ ThemeSpaceName: TypeAlias = Literal["xs", "sm", "md", "lg", "xl"]
 ThemeRadiusName: TypeAlias = Literal["sm", "md", "lg"]
 ThemeFontSizeName: TypeAlias = Literal["xs", "sm", "base", "lg", "xl", "2xl"]
 ThemeTypographyName: TypeAlias = Literal["body", "mono"]
-ThemeSemanticName: TypeAlias = Literal["bg-canvas", "bg-surface", "fg-default", "fg-muted", "border-default"]
 ThemeComponentName: TypeAlias = Literal["button", "panel", "input"]
 ThemeComponentTokenName: TypeAlias = Literal["bg", "fg", "radius", "font-weight", "focus-ring", "border"]
 ThemeMode: TypeAlias = Literal["light", "dark"]
@@ -180,7 +179,6 @@ class Theme:
     dark: ThemePalette = field(default_factory=_default_theme_palette)
     colors: dict[ThemeColorName, str] = field(default_factory=dict)
     font_sizes: dict[ThemeFontSizeName, int | float | str] = field(default_factory=dict)
-    semantic: dict[ThemeSemanticName, str] = field(default_factory=dict)
     components: dict[ThemeComponentName, dict[ThemeComponentTokenName, str]] = field(default_factory=dict)
     variables: ThemeVariables = field(default_factory=_default_theme_variables)
     custom_variables: dict[str, str] = field(default_factory=dict)

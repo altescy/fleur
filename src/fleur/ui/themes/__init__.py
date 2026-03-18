@@ -15,7 +15,6 @@ from .base import (
     ThemeMode,
     ThemePalette,
     ThemeRadiusName,
-    ThemeSemanticName,
     ThemeSpaceName,
     ThemeTypographyName,
     ThemeVariables,
@@ -106,15 +105,6 @@ def _theme_with_defaults(theme: Theme, base_theme: Theme) -> Theme:
         **base_theme.colors,
         **theme.colors,
     }
-    semantic = {
-        "bg-canvas": "var(--fleur-color-bg-canvas)",
-        "bg-surface": "var(--fleur-color-bg-surface)",
-        "fg-default": "var(--fleur-color-fg-default)",
-        "fg-muted": "var(--fleur-color-fg-muted)",
-        "border-default": "var(--fleur-color-border-default)",
-        **base_theme.semantic,
-        **theme.semantic,
-    }
     components = {
         **base_theme.components,
         **{k: {**base_theme.components.get(k, {}), **v} for k, v in theme.components.items()},
@@ -141,7 +131,6 @@ def _theme_with_defaults(theme: Theme, base_theme: Theme) -> Theme:
             **base_theme.font_sizes,
             **theme.font_sizes,
         },
-        semantic=cast(dict[ThemeSemanticName, str], semantic),
         components=cast(dict[ThemeComponentName, dict[ThemeComponentTokenName, str]], components),
         variables=cast(
             ThemeVariables, {**cast(dict[str, str], base_theme.variables), **cast(dict[str, str], theme.variables)}
@@ -189,8 +178,6 @@ def theme_variables(theme: Theme, *, base_theme: Theme | None = None) -> dict[st
             variables[f"--fleur-color-{fleur_name}"] = merged.colors[shadcn_name]
     for key, value in merged.font_sizes.items():
         variables[f"--fleur-text-{_normalize_name(key)}"] = _normalize_length(value)
-    for key, value in merged.semantic.items():
-        variables[f"--fleur-sem-{_normalize_name(key)}"] = value
     for comp_name, values in merged.components.items():
         comp_key = _normalize_name(comp_name)
         for key, value in values.items():
@@ -210,8 +197,8 @@ def theme_style_tag(theme: Theme, *, base_theme: Theme | None = None) -> str:
         "body{"
         "font-size:var(--fleur-text-base);"
         "font-family:var(--fleur-font-body);"
-        "background:var(--fleur-sem-bg-canvas);"
-        "color:var(--fleur-sem-fg-default);"
+        "background:var(--fleur-color-bg-canvas);"
+        "color:var(--fleur-color-fg-default);"
         "line-height:1.5;"
         "text-rendering:optimizeLegibility;"
         "-webkit-font-smoothing:antialiased;"
@@ -220,7 +207,7 @@ def theme_style_tag(theme: Theme, *, base_theme: Theme | None = None) -> str:
         "button,input,select,textarea{font:inherit;color:inherit;}"
         "button{appearance:none;-webkit-appearance:none;background:none;border:0;cursor:pointer;transition:background-color .15s ease,color .15s ease,border-color .15s ease,box-shadow .15s ease;}"
         "button:disabled{cursor:not-allowed;opacity:.55;}"
-        "hr{border:0;border-top:1px solid var(--fleur-sem-border-default);margin:0;}"
+        "hr{border:0;border-top:1px solid var(--fleur-color-border-default);margin:0;}"
         ":focus-visible{outline:none;box-shadow:var(--fleur-comp-button-focus-ring);border-radius:var(--fleur-radius-sm);}"
     )
     extra_css = "".join(merged.extra_css)
@@ -242,7 +229,6 @@ __all__ = [
     "ThemeMode",
     "ThemePalette",
     "ThemeRadiusName",
-    "ThemeSemanticName",
     "ThemeSpaceName",
     "ThemeTypographyName",
     "ThemeVariables",
