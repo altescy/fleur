@@ -19,6 +19,7 @@ from .base import (
     ThemeSpaceName,
     ThemeTypographyName,
     ThemeVariables,
+    _ResolvedTheme,
     _normalize_length,
     _normalize_name,
 )
@@ -51,7 +52,7 @@ def _resolved_shadcn_tokens(theme: Theme) -> dict[str, str]:
     return cast(dict[str, str], {**theme.theme, **palette})
 
 
-def _shadcn_color_overrides(tokens: dict[str, str]) -> ThemeColors:
+def _shadcn_color_overrides(tokens: dict[str, str]) -> dict[ThemeColorName, str]:
     return {
         "background": tokens.get("background", "oklch(1 0 0)"),
         "foreground": tokens.get("foreground", "oklch(0.145 0 0)"),
@@ -92,7 +93,14 @@ def _shadcn_color_overrides(tokens: dict[str, str]) -> ThemeColors:
     }
 
 
-def _theme_with_defaults(theme: Theme, base_theme: Theme) -> Theme:
+def _merge_theme_colors(tokens: dict[str, str], *overrides: dict[ThemeColorName, str]) -> ThemeColors:
+    merged: dict[ThemeColorName, str] = _shadcn_color_overrides(tokens).copy()
+    for override in overrides:
+        merged.update(override)
+    return cast(ThemeColors, merged)
+
+
+def _theme_with_defaults(theme: Theme, base_theme: Theme) -> _ResolvedTheme:
     tokens = _resolved_shadcn_tokens(base_theme)
     tokens.update(_resolved_shadcn_tokens(theme))
 
@@ -101,15 +109,7 @@ def _theme_with_defaults(theme: Theme, base_theme: Theme) -> Theme:
     body_font = tokens.get("font-sans")
     mono_font = tokens.get("font-mono")
 
-    colors = cast(
-        ThemeColors,
-        {
-            **_shadcn_color_overrides(tokens),
-            **cast(dict[str, str], base_theme.colors),
-            **cast(dict[str, str], theme.colors),
-        },
-    )
-    resolved_colors = cast(dict[ThemeColorName, str], dict(colors))
+    resolved_colors = _merge_theme_colors(tokens, base_theme.colors, theme.colors)
     components = {
         **base_theme.components,
         **{k: {**base_theme.components.get(k, {}), **v} for k, v in theme.components.items()},
@@ -120,7 +120,7 @@ def _theme_with_defaults(theme: Theme, base_theme: Theme) -> Theme:
         **theme.custom_variables,
     }
 
-    resolved = Theme(
+    resolved = _ResolvedTheme(
         mode=theme.mode,
         theme={**base_theme.theme, **theme.theme},
         light=cast(ThemePalette, {**cast(dict[str, str], base_theme.light), **cast(dict[str, str], theme.light)}),
@@ -162,9 +162,9 @@ def theme_variables(theme: Theme, *, base_theme: Theme | None = None) -> dict[st
 
     variables: dict[str, str] = {}
     for key, value in merged.colors.items():
-        color_value = cast(str, value)
-        variables[f"--{_normalize_name(key)}"] = color_value
-        variables[f"--fleur-color-{_normalize_name(key)}"] = color_value
+        color = cast(str, value)
+        variables[f"--{_normalize_name(key)}"] = color
+        variables[f"--fleur-color-{_normalize_name(key)}"] = color
 
     alias_map: dict[str, ThemeColorName] = {
         "bg-canvas": "background",
@@ -182,7 +182,7 @@ def theme_variables(theme: Theme, *, base_theme: Theme | None = None) -> dict[st
     }
     for fleur_name, shadcn_name in alias_map.items():
         if shadcn_name in merged.colors:
-            variables[f"--fleur-color-{fleur_name}"] = cast(str, merged.colors[shadcn_name])
+            variables[f"--fleur-color-{fleur_name}"] = merged.colors[shadcn_name]
     for key, value in merged.font_sizes.items():
         variables[f"--fleur-text-{_normalize_name(key)}"] = _normalize_length(value)
     for comp_name, values in merged.components.items():

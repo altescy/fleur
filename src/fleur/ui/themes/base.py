@@ -210,46 +210,6 @@ def _default_theme_variables() -> ThemeVariables:
     return cast(ThemeVariables, {})
 
 
-def _default_theme_colors() -> ThemeColors:
-    return cast(
-        ThemeColors,
-        {
-            "background": "oklch(1 0 0)",
-            "foreground": "oklch(0.145 0 0)",
-            "card": "oklch(1 0 0)",
-            "card-foreground": "oklch(0.145 0 0)",
-            "popover": "oklch(1 0 0)",
-            "popover-foreground": "oklch(0.145 0 0)",
-            "primary": "oklch(0.205 0 0)",
-            "primary-foreground": "oklch(0.985 0 0)",
-            "secondary": "oklch(0.97 0 0)",
-            "secondary-foreground": "oklch(0.205 0 0)",
-            "muted": "oklch(0.97 0 0)",
-            "muted-foreground": "oklch(0.556 0 0)",
-            "accent": "oklch(0.97 0 0)",
-            "accent-foreground": "oklch(0.205 0 0)",
-            "destructive": "oklch(0.5771 0.2152 27.3250)",
-            "destructive-foreground": "oklch(1 0 0)",
-            "border": "oklch(0.922 0 0)",
-            "input": "oklch(0.922 0 0)",
-            "ring": "oklch(0.708 0 0)",
-            "chart-1": "oklch(0.646 0.222 41.116)",
-            "chart-2": "oklch(0.6 0.118 184.704)",
-            "chart-3": "oklch(0.398 0.07 227.392)",
-            "chart-4": "oklch(0.828 0.189 84.429)",
-            "chart-5": "oklch(0.769 0.188 70.08)",
-            "sidebar": "oklch(0.985 0 0)",
-            "sidebar-foreground": "oklch(0.145 0 0)",
-            "sidebar-primary": "oklch(0.205 0 0)",
-            "sidebar-primary-foreground": "oklch(0.985 0 0)",
-            "sidebar-accent": "oklch(0.97 0 0)",
-            "sidebar-accent-foreground": "oklch(0.205 0 0)",
-            "sidebar-border": "oklch(0.922 0 0)",
-            "sidebar-ring": "oklch(0.708 0 0)",
-        },
-    )
-
-
 @dataclass(slots=True)
 class Theme:
     mode: ThemeMode = "light"
@@ -262,6 +222,20 @@ class Theme:
     variables: ThemeVariables = field(default_factory=_default_theme_variables)
     custom_variables: dict[str, str] = field(default_factory=dict)
     extra_css: list[str] = field(default_factory=list)
+
+
+@dataclass(slots=True)
+class _ResolvedTheme:
+    mode: ThemeMode
+    theme: ThemeCoreTokens
+    light: ThemePalette
+    dark: ThemePalette
+    colors: ThemeColors
+    font_sizes: dict[ThemeFontSizeName, int | float | str]
+    components: dict[ThemeComponentName, dict[ThemeComponentTokenName, str]]
+    variables: ThemeVariables
+    custom_variables: dict[str, str]
+    extra_css: list[str]
 
 
 def _normalize_name(name: str | int) -> str:
