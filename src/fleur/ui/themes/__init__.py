@@ -19,9 +19,9 @@ from .base import (
     ThemeSpaceName,
     ThemeTypographyName,
     ThemeVariables,
-    _ResolvedTheme,
     _normalize_length,
     _normalize_name,
+    _ResolvedTheme,
 )
 from .basic import BASIC_THEME
 from .zen import ZEN_THEME
