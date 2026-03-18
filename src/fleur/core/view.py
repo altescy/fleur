@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Generic, TypeAlias, Union, cast
+from typing import Any, Generic, TypeAlias, Union
 
+from fleur.core.model import Model, ModelState
 from fleur.js.ast import (
     ESTreeArrayExpression,
     ESTreeExpression,
@@ -12,19 +13,14 @@ from fleur.js.ast import (
     ESTreeReturnStatement,
 )
 from fleur.js.builder import call, concat, ident, json_expr, literal, member, object_expr
-from fleur.types import JsonValue
+from fleur.types import ICompilable, JsonValue
 
 from .expr import Expr
 from .msg import GroupedMsg
 from .runtime import MODEL_IDENT, RUNTIME_H, RUNTIME_HTML, RUNTIME_MAP, runtime_call, runtime_ref
 from .types import ModelT, ModelT_co, MsgGroupT, MsgGroupT_co
 
-if TYPE_CHECKING:
-    from .model import ModelState
-
-
-ViewChildInner: TypeAlias = Union[JsonValue, "View[ModelT_co, MsgGroupT_co]"]
-ViewChild: TypeAlias = Union[ViewChildInner, Expr[ViewChildInner]]
+ViewChild: TypeAlias = Union[JsonValue, Model, Expr[JsonValue | Model]]
 ViewProp: TypeAlias = Union[
     JsonValue,
     Expr[JsonValue],
@@ -63,23 +59,21 @@ def _compile_prop_value(value: ViewProp) -> ESTreeExpression:
     if isinstance(value, GroupedMsg):
         return value.__compile__()
     if isinstance(value, Mapping):
-        return object_expr((k, _compile_prop_value(cast(ViewProp, v))) for k, v in value.items())
+        return object_expr((k, _compile_prop_value(v)) for k, v in value.items())
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
-        return ESTreeArrayExpression(elements=[_compile_prop_value(cast(ViewProp, item)) for item in value])
-    return json_expr(cast(JsonValue, value))
+        return ESTreeArrayExpression(elements=[_compile_prop_value(item) for item in value])
+    return json_expr(value)
 
 
 def _compile_child(child: ViewChild) -> ESTreeExpression:
-    if isinstance(child, View):
-        return child.__compile__()
-    if isinstance(child, Expr):
+    if isinstance(child, ICompilable):
         return child.__compile__()
     if isinstance(child, str):
         return _compile_text_expr(child)
     return json_expr(child)
 
 
-class View(Generic[ModelT_co, MsgGroupT_co]):
+class View(Model, Generic[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
         *children: ViewChild,
@@ -102,19 +96,16 @@ class View(Generic[ModelT_co, MsgGroupT_co]):
     def map(
         tagger: "GroupedMsg[MsgGroupT, Any, Any]", view: "View[ModelT_co, MsgGroupT_co]"
     ) -> "MappedView[ModelT_co, MsgGroupT_co, MsgGroupT]":
-        return cast(MappedView[ModelT_co, MsgGroupT_co, MsgGroupT], MappedView(tagger, view))
+        return MappedView(tagger, view)
 
     @staticmethod
     def forward(
-        field: "ModelState[ModelT, ModelT_co] | str",
+        field: ModelState[ModelT, ModelT_co] | str,
         view: "View[ModelT_co, MsgGroupT_co]",
         tagger: "GroupedMsg[MsgGroupT, Any, Any]",
     ) -> "ForwardedView[ModelT, ModelT_co, MsgGroupT_co, MsgGroupT]":
-        field_name = field if isinstance(field, str) else cast("ModelState[ModelT, ModelT_co]", field).field_name
-        return cast(
-            ForwardedView[ModelT, ModelT_co, MsgGroupT_co, MsgGroupT],
-            ForwardedView(field_name, tagger, view),
-        )
+        field_name = field if isinstance(field, str) else field._field_name
+        return ForwardedView(field_name, tagger, view)
 
 
 class MappedView(View[ModelT_co, MsgGroupT], Generic[ModelT_co, MsgGroupT_co, MsgGroupT]):

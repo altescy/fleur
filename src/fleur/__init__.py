@@ -4,6 +4,7 @@ from fleur.builtins import Http, HttpError
 from fleur.core import (
     Cmd,
     Component,
+    Cond,
     Expr,
     Model,
     ModelUpdate,
@@ -14,7 +15,6 @@ from fleur.core import (
     TaskLike,
     Update,
     View,
-    compile_component,
 )
 from fleur.core.template import (
     BloomContext,
@@ -30,7 +30,7 @@ from fleur.ui import Theme, apply_theme
 
 
 def bloom(
-    component: Component | type[object] | Callable[[], Component],
+    component: Component | Callable[[], Component],
     *,
     page: Page | None = None,
     theme: Theme | None = None,
@@ -45,7 +45,7 @@ def bloom(
     resolved_page = page or Page()
     resolved_page = apply_theme(resolved_page, theme or Theme())
 
-    component_js = emit(compile_component(component))
+    component_js = emit((component() if callable(component) else component).__compile__())
     context = BloomContext(
         page=resolved_page,
         component_name=component_name or getattr(component, "__name__", "App"),
@@ -62,6 +62,7 @@ def bloom(
 __all__ = [
     "Cmd",
     "Component",
+    "Cond",
     "Expr",
     "Model",
     "ModelUpdate",
@@ -78,5 +79,4 @@ __all__ = [
     "HttpError",
     "bloom",
     "emit",
-    "compile_component",
 ]

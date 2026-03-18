@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-from typing import cast
-
 from fleur.core.expr import Expr
 from fleur.core.types import ModelT_co, MsgGroupT_co
 from fleur.js.builder import json_expr
-from fleur.types import JsonValue
 
 from .base import (
     ColorArg,
@@ -28,7 +25,7 @@ class Grid(Element[ModelT_co, MsgGroupT_co]):
         self,
         *children: ViewChild,
         props: Props | None = None,
-        columns: int | Expr[JsonValue] | None = None,
+        columns: int | Expr[int] | None = None,
         min_col: LengthArg | None = None,
         gap: SpacingArg | None = None,
         bg: ColorArg | None = None,
@@ -51,7 +48,7 @@ class Grid(Element[ModelT_co, MsgGroupT_co]):
             grid_template_columns = (
                 f"repeat({columns}, minmax(0, 1fr))"
                 if not isinstance(columns, Expr)
-                else cast(Expr[JsonValue], Expr(json_expr("repeat(")) + columns + ", minmax(0, 1fr))")
+                else Expr[str](json_expr("repeat(")) + columns + ", minmax(0, 1fr))"
             )
         elif min_col is not None:
             min_col_value = _length(min_col)
@@ -59,7 +56,7 @@ class Grid(Element[ModelT_co, MsgGroupT_co]):
                 grid_template_columns = (
                     f"repeat(auto-fit, minmax({min_col_value}, 1fr))"
                     if not isinstance(min_col_value, Expr)
-                    else cast(Expr[JsonValue], Expr(json_expr("repeat(auto-fit, minmax(")) + min_col_value + ", 1fr))")
+                    else Expr[str](json_expr("repeat(auto-fit, minmax(")) + min_col_value + ", 1fr))"
                 )
 
         merged = _merge_props(
@@ -92,8 +89,8 @@ class GridItem(Element[ModelT_co, MsgGroupT_co]):
         self,
         *children: ViewChild,
         props: Props | None = None,
-        col_span: int | Expr[JsonValue] | None = None,
-        row_span: int | Expr[JsonValue] | None = None,
+        col_span: int | None | Expr[int] = None,
+        row_span: int | None | Expr[int] = None,
         align_self: StringArg | None = None,
         justify_self: StringArg | None = None,
         style: StyleMap | None = None,
@@ -101,15 +98,11 @@ class GridItem(Element[ModelT_co, MsgGroupT_co]):
         item_style: dict[str, StyleValue] = dict(style) if style is not None else {}
         if col_span is not None:
             item_style["grid-column"] = (
-                f"span {col_span}"
-                if not isinstance(col_span, Expr)
-                else cast(Expr[JsonValue], Expr(json_expr("span ")) + col_span)
+                f"span {col_span}" if not isinstance(col_span, Expr) else Expr[str](json_expr("span ")) + col_span
             )
         if row_span is not None:
             item_style["grid-row"] = (
-                f"span {row_span}"
-                if not isinstance(row_span, Expr)
-                else cast(Expr[JsonValue], Expr(json_expr("span ")) + row_span)
+                f"span {row_span}" if not isinstance(row_span, Expr) else Expr[str](json_expr("span ")) + row_span
             )
         if align_self is not None:
             item_style["align-self"] = align_self

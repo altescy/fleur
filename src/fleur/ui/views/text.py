@@ -1,14 +1,15 @@
 from __future__ import annotations
 
+from fleur.core.expr import Expr
 from fleur.core.types import ModelT_co, MsgGroupT_co
 
-from .base import ColorArg, Element, FontSizeArg, FontWeightArg, Props, StringArg, ViewChild, _merge_props
+from .base import ColorArg, Element, FontSizeArg, FontWeightArg, Props, StringArg, _merge_props
 
 
 class Text(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
-        text: ViewChild,
+        text: str | None | Expr[str | None],
         *,
         props: Props | None = None,
         fg: ColorArg | None = None,

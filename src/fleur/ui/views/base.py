@@ -2,32 +2,26 @@ from __future__ import annotations
 
 import typing
 from collections.abc import Mapping
-from typing import Any, Final, Generic, Literal, TypeAlias, cast
+from typing import Final, Generic, Literal, cast
 
 from fleur.core.expr import Expr
-from fleur.core.msg import GroupedMsg
 from fleur.core.types import ModelT_co, MsgGroupT_co
-from fleur.core.view import View
-from fleur.types import JsonValue
+from fleur.core.view import View, ViewChild, ViewProp
 
-ViewChild: TypeAlias = JsonValue | View[ModelT_co, MsgGroupT_co] | Expr[JsonValue | View[ModelT_co, MsgGroupT_co]]
-PropValue: TypeAlias = (
-    JsonValue | Expr[JsonValue] | GroupedMsg[MsgGroupT_co, object, Any] | Mapping[str, "PropValue"] | list["PropValue"]
-)
-Props = Mapping[str, PropValue]
+Props = Mapping[str, ViewProp]
 
 SpacingValue = int | float | str
 RadiusValue = int | float | str
 LengthValue = int | float | str
 FontSizeValue = int | float | str
-StyleValue = str | int | float | Expr[JsonValue]
+StyleValue = str | int | float | Expr[str | int | float]
 StyleMap = Mapping[str, StyleValue]
-SpacingArg = SpacingValue | Expr[JsonValue]
-RadiusArg = RadiusValue | Expr[JsonValue]
-LengthArg = LengthValue | Expr[JsonValue]
-FontSizeArg = FontSizeValue | Expr[JsonValue]
-FontWeightArg = int | str | Expr[JsonValue]
-StringArg = str | Expr[JsonValue]
+SpacingArg = SpacingValue | Expr[SpacingValue]
+RadiusArg = RadiusValue | Expr[RadiusValue]
+LengthArg = LengthValue | Expr[LengthValue]
+FontSizeArg = FontSizeValue | Expr[FontSizeValue]
+FontWeightArg = int | str | Expr[int | str]
+StringArg = str | Expr[str]
 FlexDirection = Literal["row", "column", "row-reverse", "column-reverse"]
 FlexWrap = Literal["nowrap", "wrap", "wrap-reverse"]
 
@@ -52,7 +46,7 @@ RawColor = Literal[
     "inherit",
 ]
 _RAW_COLORS: Final[set[RawColor]] = set(typing.get_args(RawColor))
-ColorArg = RawColor | str | Expr[JsonValue]
+ColorArg = RawColor | str | Expr[RawColor | str]
 
 
 def _is_raw_color(value: str) -> bool:
@@ -60,7 +54,7 @@ def _is_raw_color(value: str) -> bool:
     return lower in _RAW_COLORS or lower.startswith(("#", "rgb(", "rgba(", "hsl(", "hsla(", "var("))
 
 
-def _space(value: SpacingArg | None) -> str | Expr[JsonValue] | None:
+def _space(value: SpacingArg | None) -> str | Expr[int | float | str] | None:
     if value is None:
         return None
     if isinstance(value, Expr):
@@ -84,7 +78,7 @@ def _space(value: SpacingArg | None) -> str | Expr[JsonValue] | None:
     return f"var(--fleur-space-{token})"
 
 
-def _radius(value: RadiusArg | None) -> str | Expr[JsonValue] | None:
+def _radius(value: RadiusArg | None) -> RadiusArg | None:
     if value is None:
         return None
     if isinstance(value, Expr):
@@ -102,11 +96,11 @@ def _radius(value: RadiusArg | None) -> str | Expr[JsonValue] | None:
     return f"var(--fleur-radius-{token})"
 
 
-def _length(value: LengthArg | None) -> str | Expr[JsonValue] | None:
+def _length(value: LengthArg | None) -> LengthArg | None:
     return _space(value)
 
 
-def _font_size(value: FontSizeArg | None) -> str | Expr[JsonValue] | None:
+def _font_size(value: FontSizeArg | None) -> FontSizeArg | None:
     if value is None:
         return None
     if isinstance(value, Expr):
@@ -127,7 +121,7 @@ def _font_size(value: FontSizeArg | None) -> str | Expr[JsonValue] | None:
     return f"var(--fleur-text-{token})"
 
 
-def _color(value: ColorArg | None) -> str | Expr[JsonValue] | None:
+def _color(value: ColorArg | None) -> ColorArg | None:
     if value is None:
         return None
     if isinstance(value, Expr):
@@ -159,13 +153,13 @@ def _merge_props(
     font_weight: FontWeightArg | None = None,
     font_family: StringArg | None = None,
     display: StringArg | None = None,
-    flex_direction: FlexDirection | Expr[JsonValue] | None = None,
-    flex_wrap: FlexWrap | Expr[JsonValue] | None = None,
+    flex_direction: FlexDirection | Expr | None = None,
+    flex_wrap: FlexWrap | Expr | None = None,
     justify: StringArg | None = None,
     align: StringArg | None = None,
     style: StyleMap | None = None,
-) -> dict[str, PropValue]:
-    merged: dict[str, PropValue] = dict(props or {})
+) -> dict[str, ViewProp]:
+    merged: dict[str, ViewProp] = dict(props or {})
     existing_style = merged.get("style")
     style_map: dict[str, StyleValue] = (
         {key: cast(StyleValue, value) for key, value in existing_style.items()}

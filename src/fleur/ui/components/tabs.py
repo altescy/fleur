@@ -1,27 +1,31 @@
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Sequence, TypeAlias
+from typing import Sequence, TypeAlias, cast
 
 from fleur.core.cmd import Cmd
 from fleur.core.component import Component
+from fleur.core.cond import Cond
 from fleur.core.events import PointerEvent
-from fleur.core.expr import Expr, compile_operand
+from fleur.core.expr import Expr, ensure_expr
 from fleur.core.model import Model, State
 from fleur.core.msg import GroupedMsg, Msg, MsgGroup
 from fleur.core.task import TaskLike
+from fleur.core.types import FleurValue
 from fleur.core.view import View
 from fleur.js.ast import ESTreeExpression
 from fleur.js.builder import call, ident, member_expr
 from fleur.types import JsonValue
 
 from ..views import Box, Button, HStack, Text, VStack
+from ..views.base import Props, ViewProp
 
 TabsChild: TypeAlias = str | View["TabsModel", "TabsMsg"] | Expr[JsonValue | View["TabsModel", "TabsMsg"]]
 
 
 @dataclass(frozen=True, slots=True)
 class TabSpec:
-    label: TabsChild
-    content: TabsChild
+    label: str | Expr[str]
+    content: JsonValue | View | Expr[JsonValue | View]
 
 
 class TabsModel(Model):
@@ -36,26 +40,46 @@ class TabsMsg(MsgGroup):
 
 
 class _ImmediateTask(TaskLike[object, object]):
-    def __init__(self, value: object) -> None:
+    def __init__(self, value: FleurValue | Expr) -> None:
         self._value = value
 
     def __compile__(self) -> ESTreeExpression:
-        return call(member_expr(ident("Promise"), "resolve"), compile_operand(self._value))
+        return call(member_expr(ident("Promise"), "resolve"), ensure_expr(self._value))
 
 
-def _on_change_cmd(index: object, on_change: GroupedMsg[TabsMsg, int, object] | None) -> Cmd[TabsModel, TabsMsg]:
+def _on_change_cmd(
+    index: int | Expr[int], on_change: GroupedMsg[TabsMsg, int, object] | None
+) -> Cmd[TabsModel, TabsMsg]:
     if on_change is None:
         return Cmd.none()
     return Cmd.task(_ImmediateTask(index), on_change, TabsMsg.NOOP)
 
 
+def _merge_component_props(defaults: Props | None, overrides: Props | None) -> Props:
+    merged: Props = dict(defaults or {})
+    if overrides is None:
+        return merged
+
+    for key, value in overrides.items():
+        if key == "style" and isinstance(value, Mapping) and isinstance(merged.get("style"), Mapping):
+            style = dict(cast(Mapping[str, ViewProp], merged["style"]))
+            style.update(cast(Mapping[str, ViewProp], value))
+            merged["style"] = style
+            continue
+        merged[key] = value
+    return merged
+
+
 def tabs(
     items: Sequence[TabSpec],
     *,
-    title: TabsChild = "Tabs",
+    title: str | None | Expr[str | None] = None,
     initial_index: int = 0,
     on_change: GroupedMsg[TabsMsg, int, object] | None = None,
-    empty_message: TabsChild = "No tab selected",
+    empty_message: str | Expr[str] = "No tab selected",
+    props: Props | None = None,
+    list_props: Props | None = None,
+    panel_props: Props | None = None,
 ) -> Component[TabsModel, TabsMsg]:
     if not items:
         items = [TabSpec(label="Empty", content="No tabs configured")]
@@ -63,12 +87,47 @@ def tabs(
     max_index = len(items) - 1
     clamped_initial = min(max(initial_index, 0), max_index)
 
-    panel_expr: Expr[JsonValue | View[TabsModel, TabsMsg]] | View[TabsModel, TabsMsg]
-    panel_expr = Box(Text(empty_message), p="sm", bg="bg-surface", border="var(--fleur-comp-panel-border)")
+    resolved_root_props = _merge_component_props(
+        {
+            "style": {
+                "gap": "var(--fleur-space-sm)",
+                "padding": "var(--fleur-space-md)",
+                "background": "var(--fleur-color-bg-canvas)",
+                "border": "var(--fleur-comp-panel-border)",
+                "border-radius": "var(--fleur-radius-md)",
+            }
+        },
+        props,
+    )
+    resolved_list_props = _merge_component_props(
+        {
+            "style": {
+                "gap": "var(--fleur-space-xs)",
+                "padding": "var(--fleur-space-xs)",
+                "background": "var(--fleur-color-bg-subtle)",
+                "border-radius": "var(--fleur-radius-md)",
+                "flex-wrap": "wrap",
+                "align-items": "center",
+            }
+        },
+        list_props,
+    )
+    resolved_panel_props = _merge_component_props(
+        {
+            "style": {
+                "padding": "var(--fleur-space-sm)",
+                "background": "var(--fleur-color-bg-surface)",
+            }
+        },
+        panel_props,
+    )
+
+    panel_expr: Expr[FleurValue | View[TabsModel, TabsMsg]] | View[TabsModel, TabsMsg]
+    panel_expr = Box(Text(empty_message), props=resolved_panel_props)
     for index in range(max_index, -1, -1):
-        panel_expr = Expr.when(
-            TabsModel.active_index.equals(index),
-            Box(items[index].content, p="sm", bg="bg-surface", border="var(--fleur-comp-panel-border)", radius="md"),
+        panel_expr = Cond.when(
+            TabsModel.active_index.eq(index),
+            Box(items[index].content, props=resolved_panel_props),
             panel_expr,
         )
 
@@ -76,28 +135,28 @@ def tabs(
         Button(
             item.label,
             onclick=TabsMsg.SELECT.bind(index),
-            bg=Expr.when(
-                TabsModel.active_index.equals(index),
+            bg=Cond.when(
+                TabsModel.active_index.eq(index),
                 "var(--fleur-color-bg-surface)",
                 "transparent",
             ),
-            fg=Expr.when(
-                TabsModel.active_index.equals(index),
+            fg=Cond.when(
+                TabsModel.active_index.eq(index),
                 "var(--fleur-color-fg-default)",
                 "var(--fleur-color-fg-muted)",
             ),
-            border=Expr.when(
-                TabsModel.active_index.equals(index),
+            border=Cond.when(
+                TabsModel.active_index.eq(index),
                 "1px solid var(--fleur-color-border-default)",
                 "1px solid transparent",
             ),
             px="sm",
             py="xs",
             radius="sm",
-            font_weight=Expr.when(TabsModel.active_index.equals(index), "600", "500"),
+            font_weight=Cond.when(TabsModel.active_index.eq(index), "600", "500"),
             style={
-                "box-shadow": Expr.when(
-                    TabsModel.active_index.equals(index),
+                "box-shadow": Cond.when(
+                    TabsModel.active_index.eq(index),
                     "0 1px 2px rgba(10, 10, 10, 0.08)",
                     "none",
                 )
@@ -106,48 +165,44 @@ def tabs(
         for index, item in enumerate(items)
     ]
 
-    next_index = Expr.when(TabsModel.active_index < max_index, TabsModel.active_index + 1, 0)
-    prev_index = Expr.when(TabsModel.active_index > 0, TabsModel.active_index - 1, max_index)
+    next_index = Cond.when(TabsModel.active_index < max_index, TabsModel.active_index + 1, 0)
+    prev_index = Cond.when(TabsModel.active_index > 0, TabsModel.active_index - 1, max_index)
+
+    root_children: list[TabsChild] = []
+    if title is not None:
+        root_children.append(Text(title, font_weight=700))
+    root_children.extend(
+        [
+            HStack(
+                *tab_buttons,
+                props=resolved_list_props,
+            ),
+            panel_expr,
+        ]
+    )
 
     return Component(
         TabsModel(active_index=clamped_initial),
         TabsMsg.caseof(
             TabsMsg.SELECT.then(
                 (
-                    TabsModel.active_index.set(TabsMsg.SELECT.context),
+                    State.set(TabsModel.active_index, TabsMsg.SELECT.context),
                     _on_change_cmd(TabsMsg.SELECT.context, on_change),
                 )
             ),
             TabsMsg.NEXT.then(
                 (
-                    TabsModel.active_index.set(next_index),
+                    State.set(TabsModel.active_index, next_index),
                     _on_change_cmd(next_index, on_change),
                 )
             ),
             TabsMsg.PREV.then(
                 (
-                    TabsModel.active_index.set(prev_index),
+                    State.set(TabsModel.active_index, prev_index),
                     _on_change_cmd(prev_index, on_change),
                 )
             ),
-            TabsMsg.NOOP.then(TabsModel.active_index.set(TabsModel.active_index)),
+            TabsMsg.NOOP.then(State.set(TabsModel.active_index, TabsModel.active_index)),
         ),
-        VStack(
-            Text(title, font_weight=700),
-            HStack(
-                *tab_buttons,
-                gap="xs",
-                flex_wrap="wrap",
-                bg="bg-subtle",
-                p="xs",
-                radius="md",
-                align="center",
-            ),
-            panel_expr,
-            gap="sm",
-            p="md",
-            bg="bg-canvas",
-            border="var(--fleur-comp-panel-border)",
-            radius="md",
-        ),
+        VStack(*root_children, props=resolved_root_props),
     )

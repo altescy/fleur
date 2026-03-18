@@ -1,9 +1,14 @@
 from .cmd import Cmd
-from .compiler import compile_component
 from .component import Component
+from .cond import Cond
 from .events import FocusEvent, InputEvent, KeyboardEvent, PointerEvent, SubmitEvent
 from .expr import Expr
-from .model import Model, ModelOperation, ModelState, ModelUpdate, State
+from .model import (
+    Model,
+    ModelState,
+    ModelUpdate,
+    State,
+)
 from .msg import GroupedMsg, Msg, MsgGroup
 from .sub import Sub
 from .task import TaskLike
@@ -14,13 +19,13 @@ from .view import View
 __all__ = [
     "Cmd",
     "Component",
+    "Cond",
     "Expr",
     "FocusEvent",
     "GroupedMsg",
     "InputEvent",
     "KeyboardEvent",
     "Model",
-    "ModelOperation",
     "ModelState",
     "ModelUpdate",
     "Msg",
@@ -37,5 +42,4 @@ __all__ = [
     "View",
     "PointerEvent",
     "BloomContext",
-    "compile_component",
 ]

@@ -6,7 +6,6 @@ from fleur.core.events import FocusEvent, InputEvent, KeyboardEvent
 from fleur.core.expr import Expr
 from fleur.core.msg import GroupedMsg
 from fleur.core.types import ModelT_co, MsgGroupT
-from fleur.types import JsonValue
 
 from .base import (
     ColorArg,
@@ -30,8 +29,8 @@ class Textarea(Element[ModelT_co, MsgGroupT]):
         props: Props | None = None,
         value: StringArg | None = None,
         placeholder: StringArg | None = None,
-        rows: int | Expr[JsonValue] | None = None,
-        cols: int | Expr[JsonValue] | None = None,
+        rows: int | Expr[int] | None = None,
+        cols: int | Expr[int] | None = None,
         oninput: GroupedMsg[MsgGroupT, InputEvent, Any] | None = None,
         onchange: GroupedMsg[MsgGroupT, InputEvent, Any] | None = None,
         onfocus: GroupedMsg[MsgGroupT, FocusEvent, Any] | None = None,

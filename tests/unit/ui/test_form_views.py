@@ -1,4 +1,4 @@
-from fleur import Expr, Model, Msg, MsgGroup, State, emit
+from fleur import Cond, Model, Msg, MsgGroup, State, emit
 from fleur.core.events import InputEvent, KeyboardEvent, SubmitEvent
 from fleur.ui import Form, Input, Text, Textarea
 
@@ -39,7 +39,7 @@ def test_textarea_and_form_compile_rows_expression_and_submit_event() -> None:
         Form(
             Text("Feedback"),
             Textarea(
-                rows=Expr.when(FormModel.count > 0, 4, 2),
+                rows=Cond.when(FormModel.count > 0, 4, 2),
                 oninput=FormMsg.INPUT,
             ),
             onsubmit=FormMsg.SUBMIT,

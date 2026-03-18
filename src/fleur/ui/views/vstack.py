@@ -5,7 +5,6 @@ from typing import cast
 
 from fleur.core.expr import Expr
 from fleur.core.types import ModelT_co, MsgGroupT_co
-from fleur.types import JsonValue
 
 from .base import (
     ColorArg,
@@ -41,8 +40,8 @@ class VStack(Element[ModelT_co, MsgGroupT_co]):
         max_w: LengthArg | None = None,
         border: StringArg | None = None,
         font_family: StringArg | None = None,
-        flex_direction: FlexDirection | Expr[JsonValue] | None = None,
-        flex_wrap: FlexWrap | Expr[JsonValue] | None = None,
+        flex_direction: FlexDirection | Expr[FlexDirection] | None = None,
+        flex_wrap: FlexWrap | Expr[FlexWrap] | None = None,
         justify: StringArg | None = None,
         align: StringArg | None = None,
         style: StyleMap | None = None,

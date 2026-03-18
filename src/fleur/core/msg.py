@@ -9,7 +9,7 @@ from fleur.js.builder import ident, json_expr, member_expr, object_expr
 from fleur.types import ICompilable
 
 from .runtime import MESSAGE_CONTEXT, MESSAGE_EVENT, MESSAGE_IDENT, MESSAGE_TYPE
-from .types import MsgGroupT, OptionalContextT, OptionalEventT
+from .types import ModelT, MsgGroupT, OptionalContextT, OptionalEventT
 
 BoundContextT = TypeVar("BoundContextT")
 
@@ -23,9 +23,9 @@ class MsgGroup:
         cls,
         *cases: tuple[
             "GroupedMsg[Self, Any, Any]",
-            "CaseValue",
+            "CaseValue[ModelT, Self]",
         ],
-    ) -> "Update[Any, Self]":
+    ) -> "Update[ModelT, Self]":
         from .update import Update
 
         return Update(list(cases))
@@ -91,8 +91,8 @@ class GroupedMsg(Generic[MsgGroupT, OptionalEventT, OptionalContextT]):
 
     def then(
         self,
-        update: "CaseValue",
-    ) -> tuple[Self, "CaseValue"]:
+        update: "CaseValue[ModelT, MsgGroupT]",
+    ) -> tuple[Self, "CaseValue[ModelT, MsgGroupT]"]:
         return self, update
 
     def __compile__(self) -> ESTreeExpression:

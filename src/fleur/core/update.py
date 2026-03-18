@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generic, Protocol, cast
+from typing import TYPE_CHECKING, Any, Generic, Protocol
 
 from fleur.js.ast import (
     ESTreeArrayExpression,
@@ -17,6 +17,7 @@ from fleur.js.ast import (
 from fleur.js.builder import call, ident, index_expr, literal, member
 
 from .cmd import Cmd
+from .expr import Expr
 from .model import ModelState, ModelUpdate
 from .runtime import MESSAGE_EVENT, MESSAGE_IDENT, MESSAGE_TYPE, MODEL_IDENT, RUNTIME_CMD, RUNTIME_NONE, runtime_call
 from .types import ModelT, ModelT_co, MsgGroupT, MsgGroupT_co
@@ -56,7 +57,7 @@ class ForwardedUpdate(Generic[ModelT_co, MsgGroupT_co]):
             kind="var",
         )
 
-        model_expr = ModelUpdate(self.field_name, index_expr(result_ident, 0)).__compile__()
+        model_expr = ModelUpdate(self.field_name, Expr(index_expr(result_ident, 0))).__compile__()
         cmd_expr = Cmd.map(self.tagger, Cmd(index_expr(result_ident, 1))).__compile__()
         result_pair = ESTreeArrayExpression(elements=[model_expr, cmd_expr])
 
@@ -95,8 +96,8 @@ class Update(Generic[ModelT_co, MsgGroupT_co]):
         component: "Component[Any, Any]",
         tagger: "GroupedMsg[MsgGroupT, Any, Any]",
     ) -> ForwardedUpdate[ModelT, MsgGroupT]:
-        field_name = field if isinstance(field, str) else field.field_name
-        return cast(ForwardedUpdate[ModelT, MsgGroupT], ForwardedUpdate(field_name, component, tagger))
+        field_name = field if isinstance(field, str) else field._field_name
+        return ForwardedUpdate(field_name, component, tagger)
 
     def __init__(
         self,
@@ -130,14 +131,10 @@ class Update(Generic[ModelT_co, MsgGroupT_co]):
             cases=switch_cases,
         )
 
-        params = cast(
-            list[Any],
-            [
-                ESTreeIdentifier(name=MODEL_IDENT),
-                ESTreeIdentifier(name=MESSAGE_IDENT),
-            ],
-        )
-
+        params = [
+            ESTreeIdentifier(name=MODEL_IDENT),
+            ESTreeIdentifier(name=MESSAGE_IDENT),
+        ]
         return ESTreeFunctionExpression(
             id=None,
             params=params,

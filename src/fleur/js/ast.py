@@ -1,4 +1,5 @@
 import dataclasses
+from collections.abc import Sequence
 from typing import Generic, Literal
 
 from typing_extensions import TypeVar
@@ -56,7 +57,7 @@ class ESTreeLiteral(ESTreeExpression):
 
 @dataclasses.dataclass(slots=True)
 class ESTreeProgram(ESTreeNode):
-    body: list["ESTreeDirective | ESTreeStatement"]
+    body: Sequence["ESTreeDirective | ESTreeStatement"]
 
 
 ##
@@ -70,7 +71,7 @@ ESTreeFunctionIDT = TypeVar("ESTreeFunctionIDT", bound=ESTreeIdentifier | None, 
 @dataclasses.dataclass(slots=True)
 class ESTreeFunction(ESTreeExpression, Generic[ESTreeFunctionIDT]):
     id: ESTreeFunctionIDT
-    params: list[ESTreePattern]
+    params: Sequence[ESTreePattern]
     body: "ESTreeFunctionBody"
 
 
@@ -91,7 +92,7 @@ class ESTreeDirective(ESTreeExpressionStatement[ESTreeLiteral]):
 
 @dataclasses.dataclass(slots=True)
 class ESTreeBlockStatement(ESTreeStatement, Generic[ESTreeStatementT]):
-    body: list[ESTreeStatementT]
+    body: Sequence[ESTreeStatementT]
 
 
 @dataclasses.dataclass(slots=True)
@@ -130,13 +131,13 @@ class ESTreeIfStatement(ESTreeStatement):
 @dataclasses.dataclass(slots=True)
 class ESTreeSwitchCase(ESTreeNode):
     test: ESTreeExpression | None
-    consequent: list[ESTreeStatement]
+    consequent: Sequence[ESTreeStatement]
 
 
 @dataclasses.dataclass(slots=True)
 class ESTreeSwitchStatement(ESTreeStatement):
     discriminant: ESTreeExpression
-    cases: list[ESTreeSwitchCase]
+    cases: Sequence[ESTreeSwitchCase]
 
 
 @dataclasses.dataclass(slots=True)
@@ -200,7 +201,7 @@ class ESTreeVariableDeclarator(ESTreeNode):
 
 @dataclasses.dataclass(slots=True)
 class ESTreeVariableDeclaration(ESTreeDeclaration):
-    declarations: list[ESTreeVariableDeclarator]
+    declarations: Sequence[ESTreeVariableDeclarator]
     kind: Literal["var"]
 
 
@@ -215,7 +216,7 @@ class ESTreeThisExpression(ESTreeExpression): ...
 
 @dataclasses.dataclass(slots=True)
 class ESTreeArrayExpression(ESTreeExpression):
-    elements: list[ESTreeExpression | None]
+    elements: Sequence[ESTreeExpression | None]
 
 
 @dataclasses.dataclass(slots=True)
@@ -227,7 +228,7 @@ class ESTreeObjectProperty(ESTreeNode):
 
 @dataclasses.dataclass(slots=True)
 class ESTreeObjectExpression(ESTreeExpression):
-    properties: list[ESTreeObjectProperty]
+    properties: Sequence[ESTreeObjectProperty]
 
 
 @dataclasses.dataclass(slots=True)
@@ -326,15 +327,15 @@ class ESTreeConditionalExpression(ESTreeExpression):
 @dataclasses.dataclass(slots=True)
 class ESTreeCallExpression(ESTreeExpression):
     callee: ESTreeExpression
-    arguments: list[ESTreeExpression]
+    arguments: Sequence[ESTreeExpression]
 
 
 @dataclasses.dataclass(slots=True)
 class ESTreeNewExpression(ESTreeExpression):
     callee: ESTreeExpression
-    arguments: list[ESTreeExpression]
+    arguments: Sequence[ESTreeExpression]
 
 
 @dataclasses.dataclass(slots=True)
 class ESTreeSequenceExpression(ESTreeExpression):
-    expressions: list[ESTreeExpression]
+    expressions: Sequence[ESTreeExpression]

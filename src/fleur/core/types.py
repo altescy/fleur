@@ -1,15 +1,26 @@
-from typing import TYPE_CHECKING
+from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING, Union
 
 from typing_extensions import TypeVar
 
 if TYPE_CHECKING:
+    from fleur.types import JsonValue
+
     from .model import Model
     from .msg import MsgGroup
 
-ValueT = TypeVar("ValueT", bound=object)
-ValueT_contra = TypeVar("ValueT_contra", bound=object, contravariant=True)
-StateValueT = TypeVar("StateValueT", bound=object)
-StateValueT_contra = TypeVar("StateValueT_contra", bound=object, contravariant=True)
+
+FleurValue = Union[
+    "JsonValue",
+    "Model",
+    list["FleurValue"],
+    dict[str, "FleurValue"],
+    Sequence["FleurValue"],
+    Mapping[str, "FleurValue"],
+]
+FleurValueT = TypeVar("FleurValueT", bound=FleurValue)
+FleurValueT_co = TypeVar("FleurValueT_co", bound=FleurValue, covariant=True)
+FleurValueU = TypeVar("FleurValueU", bound=FleurValue)
 
 ModelT = TypeVar("ModelT", bound="Model")
 ModelT_co = TypeVar("ModelT_co", bound="Model", covariant=True)

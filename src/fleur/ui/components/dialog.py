@@ -1,6 +1,7 @@
 from typing import TypeAlias
 
 from fleur.core.component import Component
+from fleur.core.cond import Cond
 from fleur.core.events import PointerEvent
 from fleur.core.expr import Expr
 from fleur.core.model import Model, State
@@ -26,20 +27,20 @@ DialogChild: TypeAlias = str | View[DialogModel, DialogMsg] | Expr[JsonValue | V
 
 def dialog(
     *,
-    title: DialogChild = "Dialog",
-    message: DialogChild = "This is a reusable dialog component.",
+    title: str | Expr[str] = "Dialog",
+    message: str | Expr[str] = "This is a reusable dialog component.",
     trigger: DialogChild = "Open dialog",
     close_label: DialogChild = "Close",
     toggle_label: DialogChild = "Toggle",
-    closed_hint: DialogChild = "Dialog is closed",
+    closed_hint: str | Expr[str] = "Dialog is closed",
 ) -> Component[DialogModel, DialogMsg]:
-    status_label = Expr.when(DialogModel.open, "Open", "Closed")
-    status_fg = Expr.when(
+    status_label = Cond.when(DialogModel.open, "Open", "Closed")
+    status_fg = Cond.when(
         DialogModel.open,
         "var(--fleur-color-accent-soft-fg)",
         "var(--fleur-color-fg-muted)",
     )
-    status_bg = Expr.when(
+    status_bg = Cond.when(
         DialogModel.open,
         "var(--fleur-color-accent-soft-bg)",
         "var(--fleur-color-bg-subtle)",
@@ -48,9 +49,9 @@ def dialog(
     return Component(
         DialogModel(open=False),
         DialogMsg.caseof(
-            DialogMsg.OPEN.then(DialogModel.open.set(True)),
-            DialogMsg.CLOSE.then(DialogModel.open.set(False)),
-            DialogMsg.TOGGLE.then(DialogModel.open.set(Expr.when(DialogModel.open, False, True))),
+            DialogMsg.OPEN.then(State.set(DialogModel.open, True)),
+            DialogMsg.CLOSE.then(State.set(DialogModel.open, False)),
+            DialogMsg.TOGGLE.then(State.set(DialogModel.open, Cond.when(DialogModel.open, False, True))),
         ),
         VStack(
             HStack(
@@ -66,7 +67,7 @@ def dialog(
                 align="center",
             ),
             Button(trigger, onclick=DialogMsg.TOGGLE),
-            Expr.when(
+            Cond.when(
                 DialogModel.open,
                 Box(
                     Text(title, font_weight=700),

@@ -1,7 +1,7 @@
-from typing import TypedDict
+from typing import Protocol
 
 
-class PointerEvent(TypedDict):
+class PointerEvent(Protocol):
     type: str
     pointer_id: int
     client_x: int | float
@@ -13,7 +13,7 @@ class PointerEvent(TypedDict):
     meta: bool
 
 
-class KeyboardEvent(TypedDict):
+class KeyboardEvent(Protocol):
     type: str
     key: str
     code: str
@@ -24,15 +24,15 @@ class KeyboardEvent(TypedDict):
     meta: bool
 
 
-class InputEvent(TypedDict):
+class InputEvent(Protocol):
     type: str
-    value: object
+    value: str
     checked: bool
 
 
-class FocusEvent(TypedDict):
+class FocusEvent(Protocol):
     type: str
 
 
-class SubmitEvent(TypedDict):
+class SubmitEvent(Protocol):
     type: str

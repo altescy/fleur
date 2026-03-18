@@ -1,4 +1,4 @@
-from fleur import Component, Model, Msg, MsgGroup, State, Update, View, compile_component, emit
+from fleur import Component, Model, Msg, MsgGroup, State, Update, View, emit
 from fleur.core.events import PointerEvent
 from fleur.ui import Button, Text, VStack
 
@@ -16,8 +16,8 @@ def counter():
     return Component(
         CounterModel(count=0),
         CounterMsg.caseof(
-            CounterMsg.INC.then(CounterModel.count.set(CounterModel.count + 1)),
-            CounterMsg.DEC.then(CounterModel.count.set(CounterModel.count - 1)),
+            CounterMsg.INC.then(State.set(CounterModel.count, CounterModel.count + 1)),
+            CounterMsg.DEC.then(State.set(CounterModel.count, CounterModel.count - 1)),
         ),
         VStack(
             Text(f"Count: {CounterModel.count}"),
@@ -50,7 +50,7 @@ def app():
 
 
 def test_nested_component_compiles_with_message_mapping() -> None:
-    source = emit(compile_component(app))
+    source = emit(app().__compile__())
 
     assert "__fleur.Html.map" in source
     assert "__fleur.Cmd.map" in source
