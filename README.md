@@ -25,6 +25,7 @@ Then open `http://localhost:8000/app.html`.
 
 ```python
 from fleur import Component, Model, Msg, MsgGroup, State, bloom
+from fleur.core import PointerEvent
 from fleur.ui import Button, Text, VStack
 
 
@@ -33,24 +34,24 @@ class CounterModel(Model):
 
 
 class CounterMsg(MsgGroup):
-    INC = Msg()
-    DEC = Msg()
+    INC = Msg[PointerEvent]()
+    DEC = Msg[PointerEvent]()
 
 
 def App() -> Component[CounterModel, CounterMsg]:
-    init = CounterModel(count=0)
-    update = CounterMsg.caseof(
-        CounterMsg.INC(State.set(CounterModel.count, CounterModel.count + 1)),
-        CounterMsg.DEC(State.set(CounterModel.count, CounterModel.count - 1)),
+    return Component(
+        init=CounterModel(count=0),
+        update=CounterMsg.caseof(
+            CounterMsg.INC.then(State.set(CounterModel.count, CounterModel.count + 1)),
+            CounterMsg.DEC.then(State.set(CounterModel.count, CounterModel.count - 1)),
+        ),
+        view=VStack(
+            Text(f"Count: {CounterModel.count}"),
+            Button("+", onclick=CounterMsg.INC),
+            Button("-", onclick=CounterMsg.DEC),
+            gap="sm",
+        ),
     )
-    view = VStack(
-        Text(f"Count: {CounterModel.count}"),
-        Button("+", onclick=CounterMsg.INC),
-        Button("-", onclick=CounterMsg.DEC),
-        gap="sm",
-    )
-    return Component(init, update, view)
-
 
 html = bloom(App)
 ```
