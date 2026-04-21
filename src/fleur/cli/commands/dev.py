@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import argparse
 import errno
-import importlib
-import importlib.util
 import logging
 import os
 import queue
@@ -14,6 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+from ._loader import load_component
 from .base import Subcommand
 
 logger = logging.getLogger(__name__)
@@ -139,42 +138,10 @@ class _DevHandler(BaseHTTPRequestHandler):
                     pass
 
 
-# --- Module loader ---
-
-
-def _load_component(target: str) -> Any:
-    """Load a component callable from 'module:attribute' target string."""
-    if ":" not in target:
-        raise ValueError(f"Invalid target '{target}'. Use 'module:attribute' format, e.g. 'myapp:App'.")
-
-    module_path, attr = target.rsplit(":", 1)
-
-    # Support file paths as well as dotted module names
-    p = Path(module_path)
-    if p.suffix == ".py" or p.exists():
-        # Load as a file
-        p = p.with_suffix(".py") if not p.suffix else p
-        spec = importlib.util.spec_from_file_location("__fleur_dev_module__", p)
-        if spec is None or spec.loader is None:
-            raise ImportError(f"Cannot load module from path: {p}")
-        mod = importlib.util.module_from_spec(spec)
-        mod.__name__ = "__fleur_dev_module__"
-        sys.modules["__fleur_dev_module__"] = mod
-        spec.loader.exec_module(mod)  # type: ignore[union-attr]
-    else:
-        # Remove cached module so we get a fresh import
-        if module_path in sys.modules:
-            del sys.modules[module_path]
-        mod = importlib.import_module(module_path)
-
-    component = getattr(mod, attr)
-    return component
-
-
 def _build_html(target: str, page: Any, theme: Any, template: Any) -> str:
     from fleur import bloom
 
-    component = _load_component(target)
+    component = load_component(target)
     return bloom(component, page=page, theme=theme, template=template)
 
 
