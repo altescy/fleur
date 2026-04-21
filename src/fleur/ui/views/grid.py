@@ -5,15 +5,15 @@ from fleur.core.types import ModelT_co, MsgGroupT_co
 from fleur.js.builder import json_expr
 
 from .base import (
-    ColorArg,
+    Color,
     Element,
-    LengthArg,
+    Length,
     Props,
-    RadiusArg,
-    SpacingArg,
-    StringArg,
+    Radius,
+    Spacing,
+    String,
+    Style,
     StyleMap,
-    StyleValue,
     ViewChild,
     _length,
     _merge_props,
@@ -26,21 +26,21 @@ class Grid(Element[ModelT_co, MsgGroupT_co]):
         *children: ViewChild,
         props: Props | None = None,
         columns: int | Expr[int] | None = None,
-        min_col: LengthArg | None = None,
-        gap: SpacingArg | None = None,
-        bg: ColorArg | None = None,
-        fg: ColorArg | None = None,
-        p: SpacingArg | None = None,
-        px: SpacingArg | None = None,
-        py: SpacingArg | None = None,
-        radius: RadiusArg | None = None,
-        mx: SpacingArg | None = None,
-        my: SpacingArg | None = None,
-        max_w: LengthArg | None = None,
-        border: StringArg | None = None,
-        font_family: StringArg | None = None,
-        justify: StringArg | None = None,
-        align: StringArg | None = None,
+        min_col: Length | None = None,
+        gap: Spacing | None = None,
+        bg: Color | None = None,
+        fg: Color | None = None,
+        p: Spacing | None = None,
+        px: Spacing | None = None,
+        py: Spacing | None = None,
+        radius: Radius | None = None,
+        mx: Spacing | None = None,
+        my: Spacing | None = None,
+        max_w: Length | None = None,
+        border: String | None = None,
+        font_family: String | None = None,
+        justify: String | None = None,
+        align: String | None = None,
         style: StyleMap | None = None,
     ) -> None:
         grid_template_columns = None
@@ -91,11 +91,11 @@ class GridItem(Element[ModelT_co, MsgGroupT_co]):
         props: Props | None = None,
         col_span: int | None | Expr[int] = None,
         row_span: int | None | Expr[int] = None,
-        align_self: StringArg | None = None,
-        justify_self: StringArg | None = None,
+        align_self: String | None = None,
+        justify_self: String | None = None,
         style: StyleMap | None = None,
     ) -> None:
-        item_style: dict[str, StyleValue] = dict(style) if style is not None else {}
+        item_style: dict[str, Style] = dict(style) if style is not None else {}
         if col_span is not None:
             item_style["grid-column"] = (
                 f"span {col_span}" if not isinstance(col_span, Expr) else Expr[str](json_expr("span ")) + col_span

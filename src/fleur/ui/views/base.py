@@ -10,20 +10,26 @@ from fleur.core.view import View, ViewChild, ViewProp
 
 Props = Mapping[str, ViewProp]
 
-SpacingValue = int | float | str
-RadiusValue = int | float | str
-LengthValue = int | float | str
-FontSizeValue = int | float | str
-StyleValue = str | int | float | Expr[str | int | float]
-StyleMap = Mapping[str, StyleValue]
-SpacingArg = SpacingValue | Expr[SpacingValue]
-RadiusArg = RadiusValue | Expr[RadiusValue]
-LengthArg = LengthValue | Expr[LengthValue]
-FontSizeArg = FontSizeValue | Expr[FontSizeValue]
-FontWeightArg = int | str | Expr[int | str]
-StringArg = str | Expr[str]
-FlexDirection = Literal["row", "column", "row-reverse", "column-reverse"]
-FlexWrap = Literal["nowrap", "wrap", "wrap-reverse"]
+_Spacing = int | float | str
+_Radius = int | float | str
+_Length = int | float | str
+_FontSize = int | float | str
+_FontWeight = int | str
+_Style = int | float | str
+_String = str
+_FlexDirection = Literal["row", "column", "row-reverse", "column-reverse"]
+_FlexWrap = Literal["nowrap", "wrap", "wrap-reverse"]
+Style = _Style | Expr[_Style]
+StyleMap = Mapping[str, Style]
+Spacing = _Spacing | Expr[_Spacing]
+Radius = _Radius | Expr[_Radius]
+Length = _Length | Expr[_Length]
+FontSize = _FontSize | Expr[_FontSize]
+FontWeight = _FontWeight | Expr[_FontWeight]
+String = _String | Expr[_String]
+FlexDirection = _FlexDirection | Expr[_FlexDirection]
+FlexWrap = _FlexWrap | Expr[_FlexWrap]
+
 
 RawColor = Literal[
     "black",
@@ -46,7 +52,7 @@ RawColor = Literal[
     "inherit",
 ]
 _RAW_COLORS: Final[set[RawColor]] = set(typing.get_args(RawColor))
-ColorArg = RawColor | str | Expr[RawColor | str]
+Color = RawColor | str | Expr[RawColor | str]
 
 
 def _is_raw_color(value: str) -> bool:
@@ -54,7 +60,7 @@ def _is_raw_color(value: str) -> bool:
     return lower in _RAW_COLORS or lower.startswith(("#", "rgb(", "rgba(", "hsl(", "hsla(", "var("))
 
 
-def _space(value: SpacingArg | None) -> str | Expr[int | float | str] | None:
+def _space(value: Spacing | None) -> str | Expr[int | float | str] | None:
     if value is None:
         return None
     if isinstance(value, Expr):
@@ -78,7 +84,7 @@ def _space(value: SpacingArg | None) -> str | Expr[int | float | str] | None:
     return f"var(--fleur-space-{token})"
 
 
-def _radius(value: RadiusArg | None) -> RadiusArg | None:
+def _radius(value: Radius | None) -> Radius | None:
     if value is None:
         return None
     if isinstance(value, Expr):
@@ -96,11 +102,11 @@ def _radius(value: RadiusArg | None) -> RadiusArg | None:
     return f"var(--fleur-radius-{token})"
 
 
-def _length(value: LengthArg | None) -> LengthArg | None:
+def _length(value: Length | None) -> Length | None:
     return _space(value)
 
 
-def _font_size(value: FontSizeArg | None) -> FontSizeArg | None:
+def _font_size(value: FontSize | None) -> FontSize | None:
     if value is None:
         return None
     if isinstance(value, Expr):
@@ -121,7 +127,7 @@ def _font_size(value: FontSizeArg | None) -> FontSizeArg | None:
     return f"var(--fleur-text-{token})"
 
 
-def _color(value: ColorArg | None) -> ColorArg | None:
+def _color(value: Color | None) -> Color | None:
     if value is None:
         return None
     if isinstance(value, Expr):
@@ -132,37 +138,37 @@ def _color(value: ColorArg | None) -> ColorArg | None:
 def _merge_props(
     props: Props | None,
     *,
-    gap: SpacingArg | None = None,
-    bg: ColorArg | None = None,
-    fg: ColorArg | None = None,
-    p: SpacingArg | None = None,
-    px: SpacingArg | None = None,
-    py: SpacingArg | None = None,
-    radius: RadiusArg | None = None,
-    mx: SpacingArg | None = None,
-    my: SpacingArg | None = None,
-    mt: SpacingArg | None = None,
-    mr: SpacingArg | None = None,
-    mb: SpacingArg | None = None,
-    ml: SpacingArg | None = None,
-    w: LengthArg | None = None,
-    h: LengthArg | None = None,
-    max_w: LengthArg | None = None,
-    border: StringArg | None = None,
-    font_size: FontSizeArg | None = None,
-    font_weight: FontWeightArg | None = None,
-    font_family: StringArg | None = None,
-    display: StringArg | None = None,
-    flex_direction: FlexDirection | Expr | None = None,
-    flex_wrap: FlexWrap | Expr | None = None,
-    justify: StringArg | None = None,
-    align: StringArg | None = None,
+    gap: Spacing | None = None,
+    bg: Color | None = None,
+    fg: Color | None = None,
+    p: Spacing | None = None,
+    px: Spacing | None = None,
+    py: Spacing | None = None,
+    radius: Radius | None = None,
+    mx: Spacing | None = None,
+    my: Spacing | None = None,
+    mt: Spacing | None = None,
+    mr: Spacing | None = None,
+    mb: Spacing | None = None,
+    ml: Spacing | None = None,
+    w: Length | None = None,
+    h: Length | None = None,
+    max_w: Length | None = None,
+    border: String | None = None,
+    font_size: FontSize | None = None,
+    font_weight: FontWeight | None = None,
+    font_family: String | None = None,
+    display: String | None = None,
+    flex_direction: FlexDirection | None = None,
+    flex_wrap: FlexWrap | None = None,
+    justify: String | None = None,
+    align: String | None = None,
     style: StyleMap | None = None,
 ) -> dict[str, ViewProp]:
     merged: dict[str, ViewProp] = dict(props or {})
     existing_style = merged.get("style")
-    style_map: dict[str, StyleValue] = (
-        {key: cast(StyleValue, value) for key, value in existing_style.items()}
+    style_map: dict[str, Style] = (
+        {key: cast(Style, value) for key, value in existing_style.items()}
         if isinstance(existing_style, Mapping)
         else {}
     )

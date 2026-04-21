@@ -8,16 +8,16 @@ from fleur.core.types import ModelT_co, MsgGroupT_co
 from fleur.types import JsonValue
 
 from .base import (
-    ColorArg,
+    Color,
     Element,
-    FontWeightArg,
-    LengthArg,
+    FontWeight,
+    Length,
     Props,
-    RadiusArg,
-    SpacingArg,
-    StringArg,
+    Radius,
+    Spacing,
+    String,
+    Style,
     StyleMap,
-    StyleValue,
     ViewChild,
     _merge_props,
 )
@@ -25,10 +25,10 @@ from .base import (
 TableAlign = Literal["left", "center", "right", "justify", "start", "end"]
 
 
-def _style_props(merged: Mapping[str, object]) -> dict[str, StyleValue]:
+def _style_props(merged: Mapping[str, object]) -> dict[str, Style]:
     existing_style = merged.get("style")
     return (
-        {key: cast(StyleValue, value) for key, value in existing_style.items()}
+        {key: cast(Style, value) for key, value in existing_style.items()}
         if isinstance(existing_style, Mapping)
         else {}
     )
@@ -39,13 +39,13 @@ class Table(Element[ModelT_co, MsgGroupT_co]):
         self,
         *children: ViewChild,
         props: Props | None = None,
-        bg: ColorArg | None = None,
-        fg: ColorArg | None = None,
-        p: SpacingArg | None = None,
-        radius: RadiusArg | None = None,
-        w: LengthArg | None = None,
-        max_w: LengthArg | None = None,
-        border: StringArg | None = None,
+        bg: Color | None = None,
+        fg: Color | None = None,
+        p: Spacing | None = None,
+        radius: Radius | None = None,
+        w: Length | None = None,
+        max_w: Length | None = None,
+        border: String | None = None,
         style: StyleMap | None = None,
     ) -> None:
         merged = _merge_props(
@@ -90,9 +90,9 @@ class TableRow(Element[ModelT_co, MsgGroupT_co]):
         self,
         *children: ViewChild,
         props: Props | None = None,
-        bg: ColorArg | None = None,
-        fg: ColorArg | None = None,
-        border: StringArg | None = None,
+        bg: Color | None = None,
+        fg: Color | None = None,
+        border: String | None = None,
         style: StyleMap | None = None,
     ) -> None:
         merged = _merge_props(props, bg=bg, fg=fg, border=border, style=style)
@@ -110,9 +110,9 @@ class TableHead(Element[ModelT_co, MsgGroupT_co]):
         align: TableAlign | Expr[TableAlign] | None = None,
         colspan: int | Expr[int] | None = None,
         rowspan: int | Expr[int] | None = None,
-        p: SpacingArg | None = "sm",
-        font_weight: FontWeightArg | None = 600,
-        fg: ColorArg | None = "fg-muted",
+        p: Spacing | None = "sm",
+        font_weight: FontWeight | None = 600,
+        fg: Color | None = "fg-muted",
         style: StyleMap | None = None,
     ) -> None:
         merged = _merge_props(props, p=p, font_weight=font_weight, fg=fg, style=style)
@@ -136,7 +136,7 @@ class TableCell(Element[ModelT_co, MsgGroupT_co]):
         align: TableAlign | Expr[TableAlign] | None = None,
         colspan: int | Expr[JsonValue] | None = None,
         rowspan: int | Expr[JsonValue] | None = None,
-        p: SpacingArg | None = "sm",
+        p: Spacing | None = "sm",
         style: StyleMap | None = None,
     ) -> None:
         merged = _merge_props(props, p=p, style=style)
@@ -157,8 +157,8 @@ class TableCaption(Element[ModelT_co, MsgGroupT_co]):
         self,
         *children: ViewChild,
         props: Props | None = None,
-        p: SpacingArg | None = "xs",
-        fg: ColorArg | None = "fg-muted",
+        p: Spacing | None = "xs",
+        fg: Color | None = "fg-muted",
         style: StyleMap | None = None,
     ) -> None:
         merged = _merge_props(props, p=p, fg=fg, style=style)

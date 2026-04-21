@@ -3,7 +3,7 @@ from __future__ import annotations
 from fleur.core.expr import Expr
 from fleur.core.types import ModelT_co, MsgGroupT_co
 
-from .base import ColorArg, Element, FontSizeArg, FontWeightArg, Props, StringArg, _merge_props
+from .base import Color, Element, FontSize, FontWeight, Props, String, _merge_props
 
 
 class Text(Element[ModelT_co, MsgGroupT_co]):
@@ -12,11 +12,11 @@ class Text(Element[ModelT_co, MsgGroupT_co]):
         text: str | None | Expr[str | None],
         *,
         props: Props | None = None,
-        fg: ColorArg | None = None,
-        bg: ColorArg | None = None,
-        font_size: FontSizeArg | None = None,
-        font_weight: FontWeightArg | None = None,
-        font_family: StringArg | None = None,
+        fg: Color | None = None,
+        bg: Color | None = None,
+        font_size: FontSize | None = None,
+        font_weight: FontWeight | None = None,
+        font_family: String | None = None,
     ) -> None:
         super().__init__(
             text,

@@ -3,20 +3,19 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import cast
 
-from fleur.core.expr import Expr
 from fleur.core.types import ModelT_co, MsgGroupT_co
 
 from .base import (
-    ColorArg,
+    Color,
     Element,
     FlexWrap,
-    LengthArg,
+    Length,
     Props,
-    RadiusArg,
-    SpacingArg,
-    StringArg,
+    Radius,
+    Spacing,
+    String,
+    Style,
     StyleMap,
-    StyleValue,
     ViewChild,
     _merge_props,
 )
@@ -27,21 +26,21 @@ class HStack(Element[ModelT_co, MsgGroupT_co]):
         self,
         *children: ViewChild,
         props: Props | None = None,
-        gap: SpacingArg | None = None,
-        bg: ColorArg | None = None,
-        fg: ColorArg | None = None,
-        p: SpacingArg | None = None,
-        px: SpacingArg | None = None,
-        py: SpacingArg | None = None,
-        radius: RadiusArg | None = None,
-        mx: SpacingArg | None = None,
-        my: SpacingArg | None = None,
-        max_w: LengthArg | None = None,
-        border: StringArg | None = None,
-        font_family: StringArg | None = None,
-        flex_wrap: FlexWrap | Expr[FlexWrap] | None = None,
-        justify: StringArg | None = None,
-        align: StringArg | None = None,
+        gap: Spacing | None = None,
+        bg: Color | None = None,
+        fg: Color | None = None,
+        p: Spacing | None = None,
+        px: Spacing | None = None,
+        py: Spacing | None = None,
+        radius: Radius | None = None,
+        mx: Spacing | None = None,
+        my: Spacing | None = None,
+        max_w: Length | None = None,
+        border: String | None = None,
+        font_family: String | None = None,
+        flex_wrap: FlexWrap | None = None,
+        justify: String | None = None,
+        align: String | None = None,
         style: StyleMap | None = None,
     ) -> None:
         merged = _merge_props(
@@ -66,8 +65,8 @@ class HStack(Element[ModelT_co, MsgGroupT_co]):
             style=style,
         )
         existing_style = merged.get("style")
-        style_props: dict[str, StyleValue] = (
-            {key: cast(StyleValue, value) for key, value in existing_style.items()}
+        style_props: dict[str, Style] = (
+            {key: cast(Style, value) for key, value in existing_style.items()}
             if isinstance(existing_style, Mapping)
             else {}
         )

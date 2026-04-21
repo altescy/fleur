@@ -9,15 +9,15 @@ from fleur.core.msg import GroupedMsg
 from fleur.core.types import ModelT_co, MsgGroupT
 
 from .base import (
-    ColorArg,
+    Color,
     Element,
-    LengthArg,
+    Length,
     Props,
-    RadiusArg,
-    SpacingArg,
-    StringArg,
+    Radius,
+    Spacing,
+    String,
+    Style,
     StyleMap,
-    StyleValue,
     _merge_props,
 )
 
@@ -28,20 +28,20 @@ class Checkbox(Element[ModelT_co, MsgGroupT]):
         *,
         props: Props | None = None,
         checked: bool | Expr[bool] | None = None,
-        value: StringArg | None = None,
-        name: StringArg | None = None,
+        value: String | None = None,
+        name: String | None = None,
         disabled: bool | Expr[bool] | None = None,
         required: bool | Expr[bool] | None = None,
         oninput: GroupedMsg[MsgGroupT, InputEvent, Any] | None = None,
         onchange: GroupedMsg[MsgGroupT, InputEvent, Any] | None = None,
         onfocus: GroupedMsg[MsgGroupT, FocusEvent, Any] | None = None,
         onblur: GroupedMsg[MsgGroupT, FocusEvent, Any] | None = None,
-        bg: ColorArg | None = None,
-        p: SpacingArg | None = None,
-        radius: RadiusArg | None = None,
-        w: LengthArg | None = None,
-        h: LengthArg | None = None,
-        border: StringArg | None = None,
+        bg: Color | None = None,
+        p: Spacing | None = None,
+        radius: Radius | None = None,
+        w: Length | None = None,
+        h: Length | None = None,
+        border: String | None = None,
         style: StyleMap | None = None,
     ) -> None:
         merged = _merge_props(
@@ -55,8 +55,8 @@ class Checkbox(Element[ModelT_co, MsgGroupT]):
             style=style,
         )
         existing_style = merged.get("style")
-        style_props: dict[str, StyleValue] = (
-            {key: cast(StyleValue, value) for key, value in existing_style.items()}
+        style_props: dict[str, Style] = (
+            {key: cast(Style, value) for key, value in existing_style.items()}
             if isinstance(existing_style, Mapping)
             else {}
         )

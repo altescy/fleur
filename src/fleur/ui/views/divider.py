@@ -4,7 +4,7 @@ from fleur.core.expr import Expr
 from fleur.core.types import ModelT_co, MsgGroupT_co
 from fleur.js.builder import json_expr
 
-from .base import ColorArg, Element, Props, SpacingArg, _merge_props
+from .base import Color, Element, Props, Spacing, _merge_props
 
 
 class Divider(Element[ModelT_co, MsgGroupT_co]):
@@ -12,8 +12,8 @@ class Divider(Element[ModelT_co, MsgGroupT_co]):
         self,
         *,
         props: Props | None = None,
-        color: ColorArg = "var(--fleur-color-border-default)",
-        my: SpacingArg | None = "sm",
+        color: Color = "var(--fleur-color-border-default)",
+        my: Spacing | None = "sm",
     ) -> None:
         border_top = f"1px solid {color}" if not isinstance(color, Expr) else Expr[str](json_expr("1px solid ")) + color
         merged = _merge_props(

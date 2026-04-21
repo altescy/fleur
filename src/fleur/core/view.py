@@ -24,7 +24,7 @@ ViewChild: TypeAlias = Union[JsonValue, Model, Expr[JsonValue | Model]]
 ViewProp: TypeAlias = Union[
     JsonValue,
     Expr[JsonValue],
-    "GroupedMsg[MsgGroupT_co, Any, Any]",
+    "GroupedMsg[Any, Any, Any]",
     Mapping[str, "ViewProp"],
     Sequence["ViewProp"],
 ]
