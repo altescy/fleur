@@ -13,11 +13,11 @@ from .base import (
     FontSize,
     FontWeight,
     Length,
-    Props,
     Radius,
     Spacing,
     String,
     StyleMap,
+    ViewProps,
     _merge_props,
 )
 
@@ -26,7 +26,7 @@ class Textarea(Element[ModelT_co, MsgGroupT]):
     def __init__(
         self,
         *,
-        props: Props | None = None,
+        props: ViewProps | None = None,
         value: String | None = None,
         placeholder: String | None = None,
         rows: int | Expr[int] | None = None,

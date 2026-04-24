@@ -4,14 +4,14 @@ from fleur.core.expr import Expr
 from fleur.core.types import ModelT_co, MsgGroupT_co
 from fleur.js.builder import json_expr
 
-from .base import Color, Element, Props, Spacing, _merge_props
+from .base import Color, Element, Spacing, ViewProps, _merge_props
 
 
 class Divider(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
         *,
-        props: Props | None = None,
+        props: ViewProps | None = None,
         color: Color = "var(--fleur-color-border-default)",
         my: Spacing | None = "sm",
     ) -> None:

@@ -10,12 +10,12 @@ from .base import (
     Color,
     Element,
     Length,
-    Props,
     Radius,
     Spacing,
     String,
     StyleMap,
     ViewChild,
+    ViewProps,
     _merge_props,
 )
 
@@ -24,7 +24,7 @@ class Form(Element[ModelT_co, MsgGroupT]):
     def __init__(
         self,
         *children: ViewChild,
-        props: Props | None = None,
+        props: ViewProps | None = None,
         onsubmit: GroupedMsg[MsgGroupT, SubmitEvent, Any] | None = None,
         gap: Spacing | None = None,
         bg: Color | None = None,

@@ -2,13 +2,13 @@ from .base import (
     FlexDirection,
     FlexWrap,
     Length,
-    Props,
     Radius,
     RawColor,
     Spacing,
     Style,
     StyleMap,
     ViewChild,
+    ViewProps,
 )
 from .box import Box
 from .button import Button
@@ -36,7 +36,7 @@ __all__ = [
     "Input",
     "Checkbox",
     "Length",
-    "Props",
+    "ViewProps",
     "Radius",
     "RawColor",
     "Spacing",

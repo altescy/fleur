@@ -12,11 +12,11 @@ from .base import (
     FontSize,
     FontWeight,
     Length,
-    Props,
     Radius,
     Spacing,
     String,
     StyleMap,
+    ViewProps,
     _merge_props,
 )
 
@@ -25,7 +25,7 @@ class Input(Element[ModelT_co, MsgGroupT]):
     def __init__(
         self,
         *,
-        props: Props | None = None,
+        props: ViewProps | None = None,
         type: String | None = "text",
         value: String | None = None,
         placeholder: String | None = None,

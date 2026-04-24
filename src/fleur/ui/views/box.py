@@ -6,12 +6,12 @@ from .base import (
     Color,
     Element,
     Length,
-    Props,
     Radius,
     Spacing,
     String,
     StyleMap,
     ViewChild,
+    ViewProps,
     _merge_props,
 )
 
@@ -20,7 +20,7 @@ class Box(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
         *children: ViewChild,
-        props: Props | None = None,
+        props: ViewProps | None = None,
         gap: Spacing | None = None,
         bg: Color | None = None,
         fg: Color | None = None,

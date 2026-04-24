@@ -17,7 +17,7 @@ from fleur.js.builder import call, ident, member_expr
 from fleur.types import JsonValue
 
 from ..views import Box, Button, HStack, Text, VStack
-from ..views.base import Props
+from ..views.base import ViewProps
 
 TabsChild: TypeAlias = str | View["TabsModel", "TabsMsg"] | Expr[JsonValue | View["TabsModel", "TabsMsg"]]
 
@@ -53,8 +53,8 @@ def _on_change_cmd(index: int | Expr[int], on_change: GroupedMsg[TabsMsg, int] |
     return Cmd.task(_ImmediateTask(index), on_change, TabsMsg.NOOP)
 
 
-def _merge_component_props(defaults: Props | None, overrides: Props | None) -> Props:
-    merged: Props = dict(defaults or {})
+def _merge_component_props(defaults: ViewProps | None, overrides: ViewProps | None) -> ViewProps:
+    merged: ViewProps = dict(defaults or {})
     if overrides is None:
         return merged
 
@@ -76,9 +76,9 @@ def tabs(
     initial_index: int = 0,
     on_change: GroupedMsg[TabsMsg, int] | None = None,
     empty_message: str | Expr[str] = "No tab selected",
-    props: Props | None = None,
-    list_props: Props | None = None,
-    panel_props: Props | None = None,
+    props: ViewProps | None = None,
+    list_props: ViewProps | None = None,
+    panel_props: ViewProps | None = None,
 ) -> Component[TabsModel, TabsMsg]:
     if not items:
         items = [TabSpec(label="Empty", content="No tabs configured")]

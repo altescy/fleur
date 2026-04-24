@@ -22,8 +22,10 @@ from .types import ModelT, ModelT_co, MsgGroupT, MsgGroupT_co
 
 _ViewChild = Union[JsonValue, Model]
 _ViewProp = Union[JsonValue, GroupedMsg[Any, Any, Any], Mapping[str, "_ViewProp"], Sequence["_ViewProp"]]
+_ViewProps = Mapping[str, _ViewProp]
 ViewChild: TypeAlias = Union[_ViewChild, Expr[_ViewChild]]
 ViewProp: TypeAlias = Union[_ViewProp, Expr[_ViewProp]]
+ViewProps: TypeAlias = Mapping[str, ViewProp]
 
 
 def _compile_text_expr(text: str) -> ESTreeExpression:

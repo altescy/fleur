@@ -11,12 +11,12 @@ from .base import (
     Element,
     FontSize,
     FontWeight,
-    Props,
     Radius,
     Spacing,
     String,
     StyleMap,
     ViewChild,
+    ViewProps,
     _merge_props,
 )
 
@@ -26,7 +26,7 @@ class Button(Element[ModelT_co, MsgGroupT]):
         self,
         *children: ViewChild,
         onclick: GroupedMsg[MsgGroupT, PointerEvent, Any],
-        props: Props | None = None,
+        props: ViewProps | None = None,
         bg: Color | None = None,
         fg: Color | None = None,
         p: Spacing | None = None,

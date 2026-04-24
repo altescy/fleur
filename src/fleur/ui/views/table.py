@@ -12,13 +12,13 @@ from .base import (
     Element,
     FontWeight,
     Length,
-    Props,
     Radius,
     Spacing,
     String,
     Style,
     StyleMap,
     ViewChild,
+    ViewProps,
     _merge_props,
 )
 
@@ -38,7 +38,7 @@ class Table(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
         *children: ViewChild,
-        props: Props | None = None,
+        props: ViewProps | None = None,
         bg: Color | None = None,
         fg: Color | None = None,
         p: Spacing | None = None,
@@ -68,19 +68,19 @@ class Table(Element[ModelT_co, MsgGroupT_co]):
 
 
 class TableHeader(Element[ModelT_co, MsgGroupT_co]):
-    def __init__(self, *children: ViewChild, props: Props | None = None, style: StyleMap | None = None) -> None:
+    def __init__(self, *children: ViewChild, props: ViewProps | None = None, style: StyleMap | None = None) -> None:
         merged = _merge_props(props, style=style)
         super().__init__(*children, tag="thead", props=merged)
 
 
 class TableBody(Element[ModelT_co, MsgGroupT_co]):
-    def __init__(self, *children: ViewChild, props: Props | None = None, style: StyleMap | None = None) -> None:
+    def __init__(self, *children: ViewChild, props: ViewProps | None = None, style: StyleMap | None = None) -> None:
         merged = _merge_props(props, style=style)
         super().__init__(*children, tag="tbody", props=merged)
 
 
 class TableFooter(Element[ModelT_co, MsgGroupT_co]):
-    def __init__(self, *children: ViewChild, props: Props | None = None, style: StyleMap | None = None) -> None:
+    def __init__(self, *children: ViewChild, props: ViewProps | None = None, style: StyleMap | None = None) -> None:
         merged = _merge_props(props, style=style)
         super().__init__(*children, tag="tfoot", props=merged)
 
@@ -89,7 +89,7 @@ class TableRow(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
         *children: ViewChild,
-        props: Props | None = None,
+        props: ViewProps | None = None,
         bg: Color | None = None,
         fg: Color | None = None,
         border: String | None = None,
@@ -106,7 +106,7 @@ class TableHead(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
         *children: ViewChild,
-        props: Props | None = None,
+        props: ViewProps | None = None,
         align: TableAlign | Expr[TableAlign] | None = None,
         colspan: int | Expr[int] | None = None,
         rowspan: int | Expr[int] | None = None,
@@ -132,7 +132,7 @@ class TableCell(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
         *children: ViewChild,
-        props: Props | None = None,
+        props: ViewProps | None = None,
         align: TableAlign | Expr[TableAlign] | None = None,
         colspan: int | Expr[JsonValue] | None = None,
         rowspan: int | Expr[JsonValue] | None = None,
@@ -156,7 +156,7 @@ class TableCaption(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
         *children: ViewChild,
-        props: Props | None = None,
+        props: ViewProps | None = None,
         p: Spacing | None = "xs",
         fg: Color | None = "fg-muted",
         style: StyleMap | None = None,

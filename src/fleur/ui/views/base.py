@@ -6,9 +6,7 @@ from typing import Final, Generic, Literal, cast
 
 from fleur.core.expr import Expr
 from fleur.core.types import ModelT_co, MsgGroupT_co
-from fleur.core.view import View, ViewChild, ViewProp
-
-Props = Mapping[str, ViewProp]
+from fleur.core.view import View, ViewChild, ViewProp, ViewProps
 
 _Spacing = int | float | str
 _Radius = int | float | str
@@ -136,7 +134,7 @@ def _color(value: Color | None) -> Color | None:
 
 
 def _merge_props(
-    props: Props | None,
+    props: ViewProps | None,
     *,
     gap: Spacing | None = None,
     bg: Color | None = None,
@@ -259,6 +257,6 @@ class Element(View[ModelT_co, MsgGroupT_co], Generic[ModelT_co, MsgGroupT_co]):
         self,
         *children: ViewChild,
         tag: str,
-        props: Props,
+        props: ViewProps,
     ) -> None:
         super().__init__(*children, tag=tag, props=props)

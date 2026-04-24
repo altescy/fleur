@@ -8,13 +8,13 @@ from .base import (
     Color,
     Element,
     Length,
-    Props,
     Radius,
     Spacing,
     String,
     Style,
     StyleMap,
     ViewChild,
+    ViewProps,
     _length,
     _merge_props,
 )
@@ -24,7 +24,7 @@ class Grid(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
         *children: ViewChild,
-        props: Props | None = None,
+        props: ViewProps | None = None,
         columns: int | Expr[int] | None = None,
         min_col: Length | None = None,
         gap: Spacing | None = None,
@@ -88,7 +88,7 @@ class GridItem(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
         *children: ViewChild,
-        props: Props | None = None,
+        props: ViewProps | None = None,
         col_span: int | None | Expr[int] = None,
         row_span: int | None | Expr[int] = None,
         align_self: String | None = None,

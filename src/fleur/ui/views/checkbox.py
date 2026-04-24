@@ -12,12 +12,12 @@ from .base import (
     Color,
     Element,
     Length,
-    Props,
     Radius,
     Spacing,
     String,
     Style,
     StyleMap,
+    ViewProps,
     _merge_props,
 )
 
@@ -26,7 +26,7 @@ class Checkbox(Element[ModelT_co, MsgGroupT]):
     def __init__(
         self,
         *,
-        props: Props | None = None,
+        props: ViewProps | None = None,
         checked: bool | Expr[bool] | None = None,
         value: String | None = None,
         name: String | None = None,

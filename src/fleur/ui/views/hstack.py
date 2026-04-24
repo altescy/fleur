@@ -10,13 +10,13 @@ from .base import (
     Element,
     FlexWrap,
     Length,
-    Props,
     Radius,
     Spacing,
     String,
     Style,
     StyleMap,
     ViewChild,
+    ViewProps,
     _merge_props,
 )
 
@@ -25,7 +25,7 @@ class HStack(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
         *children: ViewChild,
-        props: Props | None = None,
+        props: ViewProps | None = None,
         gap: Spacing | None = None,
         bg: Color | None = None,
         fg: Color | None = None,
