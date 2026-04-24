@@ -63,7 +63,7 @@ class Checkbox(Element[ModelT_co, MsgGroupT]):
         style_props.setdefault("width", "1rem")
         style_props.setdefault("height", "1rem")
         style_props.setdefault("accent-color", "var(--fleur-color-accent-solid-bg)")
-        merged["style"] = style_props
+        merged = {**merged, "style": style_props}
 
         merged["type"] = "checkbox"
         if checked is not None:

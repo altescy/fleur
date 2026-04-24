@@ -63,7 +63,7 @@ class Table(Element[ModelT_co, MsgGroupT_co]):
         style_props.setdefault("width", "100%")
         style_props.setdefault("border-collapse", "collapse")
         style_props.setdefault("caption-side", "bottom")
-        merged["style"] = style_props
+        merged = {**merged, "style": style_props}
         super().__init__(*children, tag="table", props=merged)
 
 
@@ -98,7 +98,7 @@ class TableRow(Element[ModelT_co, MsgGroupT_co]):
         merged = _merge_props(props, bg=bg, fg=fg, border=border, style=style)
         style_props = _style_props(merged)
         style_props.setdefault("border-bottom", "1px solid var(--fleur-color-border-default)")
-        merged["style"] = style_props
+        merged = {**merged, "style": style_props}
         super().__init__(*children, tag="tr", props=merged)
 
 
@@ -120,7 +120,7 @@ class TableHead(Element[ModelT_co, MsgGroupT_co]):
         if align is not None:
             style_props["text-align"] = align
         style_props.setdefault("vertical-align", "middle")
-        merged["style"] = style_props
+        merged = {**merged, "style": style_props}
         if colspan is not None:
             merged["colspan"] = colspan
         if rowspan is not None:
@@ -144,7 +144,7 @@ class TableCell(Element[ModelT_co, MsgGroupT_co]):
         if align is not None:
             style_props["text-align"] = align
         style_props.setdefault("vertical-align", "middle")
-        merged["style"] = style_props
+        merged = {**merged, "style": style_props}
         if colspan is not None:
             merged["colspan"] = colspan
         if rowspan is not None:
@@ -165,5 +165,5 @@ class TableCaption(Element[ModelT_co, MsgGroupT_co]):
         style_props = _style_props(merged)
         style_props.setdefault("text-align", "left")
         style_props.setdefault("caption-side", "bottom")
-        merged["style"] = style_props
+        merged = {**merged, "style": style_props}
         super().__init__(*children, tag="caption", props=merged)

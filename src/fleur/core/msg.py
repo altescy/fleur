@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, Generic, Type, cast
 
 from typing_extensions import Self, TypeVar
@@ -9,7 +8,7 @@ from fleur.js.ast import ESTreeExpression, ESTreeFunctionBody, ESTreeFunctionExp
 from fleur.js.builder import ident, json_expr, member_expr, object_expr
 from fleur.types import ICompilable
 
-from .expr import Expr
+from .model import Model
 from .runtime import MESSAGE_CONTEXT, MESSAGE_EVENT, MESSAGE_IDENT, MESSAGE_TYPE
 from .types import ModelT, MsgGroupT, OptionalContextT, OptionalEventT
 
@@ -67,7 +66,10 @@ class MessageContextRef(Generic[OptionalContextT], ICompilable[ESTreeExpression]
         return expr
 
 
-class GroupedMsg(Expr[Mapping[str, Any]], Generic[MsgGroupT, OptionalEventT, OptionalContextT]):
+class GroupedMsg(Model, Generic[MsgGroupT, OptionalEventT, OptionalContextT]):
+    group: type[MsgGroupT]
+    name: str
+
     def __init__(
         self,
         group: type[MsgGroupT],

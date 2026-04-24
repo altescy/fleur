@@ -165,7 +165,7 @@ def _merge_props(
     align: String | None = None,
     style: StyleMap | None = None,
 ) -> dict[str, ViewProp]:
-    merged: dict[str, ViewProp] = dict(props or {})
+    merged = dict(props or {})
     existing_style = merged.get("style")
     style_map: dict[str, Style] = (
         {key: cast(Style, value) for key, value in existing_style.items()}
@@ -250,7 +250,7 @@ def _merge_props(
         style_map.update(style)
 
     if style_map:
-        merged["style"] = style_map
+        merged = {**merged, "style": style_map}
     return merged
 
 

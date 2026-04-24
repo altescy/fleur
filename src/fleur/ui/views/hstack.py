@@ -72,5 +72,5 @@ class HStack(Element[ModelT_co, MsgGroupT_co]):
         )
         style_props.setdefault("display", "flex")
         style_props.setdefault("flex-direction", "row")
-        merged["style"] = style_props
+        merged = {**merged, "style": style_props}
         super().__init__(*children, tag="div", props=merged)

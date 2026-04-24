@@ -1,6 +1,6 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Sequence, TypeAlias, cast
+from typing import Any, Sequence, TypeAlias
 
 from fleur.core.cmd import Cmd
 from fleur.core.component import Component
@@ -17,7 +17,7 @@ from fleur.js.builder import call, ident, member_expr
 from fleur.types import JsonValue
 
 from ..views import Box, Button, HStack, Text, VStack
-from ..views.base import Props, ViewProp
+from ..views.base import Props
 
 TabsChild: TypeAlias = str | View["TabsModel", "TabsMsg"] | Expr[JsonValue | View["TabsModel", "TabsMsg"]]
 
@@ -60,9 +60,10 @@ def _merge_component_props(defaults: Props | None, overrides: Props | None) -> P
 
     for key, value in overrides.items():
         if key == "style" and isinstance(value, Mapping) and isinstance(merged.get("style"), Mapping):
-            style = dict(cast(Mapping[str, ViewProp], merged["style"]))
-            style.update(cast(Mapping[str, ViewProp], value))
-            merged["style"] = style
+            style = merged["style"]
+            assert isinstance(style, Mapping)
+            style = {**style, **value}
+            merged = {**merged, "style": style}
             continue
         merged[key] = value
     return merged

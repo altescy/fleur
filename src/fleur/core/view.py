@@ -20,14 +20,10 @@ from .msg import GroupedMsg
 from .runtime import MODEL_IDENT, RUNTIME_H, RUNTIME_HTML, RUNTIME_MAP, runtime_call, runtime_ref
 from .types import ModelT, ModelT_co, MsgGroupT, MsgGroupT_co
 
-ViewChild: TypeAlias = Union[JsonValue, Model, Expr[JsonValue | Model]]
-ViewProp: TypeAlias = Union[
-    JsonValue,
-    Expr[JsonValue],
-    "GroupedMsg[Any, Any, Any]",
-    Mapping[str, "ViewProp"],
-    Sequence["ViewProp"],
-]
+_ViewChild = Union[JsonValue, Model]
+_ViewProp = Union[JsonValue, GroupedMsg[Any, Any, Any], Mapping[str, "_ViewProp"], Sequence["_ViewProp"]]
+ViewChild: TypeAlias = Union[_ViewChild, Expr[_ViewChild]]
+ViewProp: TypeAlias = Union[_ViewProp, Expr[_ViewProp]]
 
 
 def _compile_text_expr(text: str) -> ESTreeExpression:
