@@ -16,6 +16,7 @@ from .base import (
     StyleMap,
     ViewChild,
     ViewProps,
+    _extend_props,
     _merge_props,
 )
 
@@ -55,5 +56,5 @@ class Form(Element[ModelT_co, MsgGroupT]):
             style=style,
         )
         if onsubmit is not None:
-            merged["onsubmit"] = onsubmit
+            merged = _extend_props(merged, {"onsubmit": onsubmit})
         super().__init__(*children, tag="form", props=merged)

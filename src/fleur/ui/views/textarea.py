@@ -18,6 +18,7 @@ from .base import (
     String,
     StyleMap,
     ViewProps,
+    _extend_props,
     _merge_props,
 )
 
@@ -67,24 +68,26 @@ class Textarea(Element[ModelT_co, MsgGroupT]):
             font_family=font_family,
             style=style,
         )
+        extra: dict[str, Any] = {}
         if value is not None:
-            merged["value"] = value
+            extra["value"] = value
         if placeholder is not None:
-            merged["placeholder"] = placeholder
+            extra["placeholder"] = placeholder
         if rows is not None:
-            merged["rows"] = rows
+            extra["rows"] = rows
         if cols is not None:
-            merged["cols"] = cols
+            extra["cols"] = cols
         if oninput is not None:
-            merged["oninput"] = oninput
+            extra["oninput"] = oninput
         if onchange is not None:
-            merged["onchange"] = onchange
+            extra["onchange"] = onchange
         if onfocus is not None:
-            merged["onfocus"] = onfocus
+            extra["onfocus"] = onfocus
         if onblur is not None:
-            merged["onblur"] = onblur
+            extra["onblur"] = onblur
         if onkeydown is not None:
-            merged["onkeydown"] = onkeydown
+            extra["onkeydown"] = onkeydown
         if onkeyup is not None:
-            merged["onkeyup"] = onkeyup
+            extra["onkeyup"] = onkeyup
+        merged = _extend_props(merged, extra)
         super().__init__(tag="textarea", props=merged)

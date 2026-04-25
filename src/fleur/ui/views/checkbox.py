@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
 from typing import Any, cast
 
 from fleur.core.events import FocusEvent, InputEvent
@@ -15,10 +14,11 @@ from .base import (
     Radius,
     Spacing,
     String,
-    Style,
     StyleMap,
     ViewProps,
+    _extend_props,
     _merge_props,
+    _set_default_style,
 )
 
 
@@ -54,34 +54,32 @@ class Checkbox(Element[ModelT_co, MsgGroupT]):
             border=border,
             style=style,
         )
-        existing_style = merged.get("style")
-        style_props: dict[str, Style] = (
-            {key: cast(Style, value) for key, value in existing_style.items()}
-            if isinstance(existing_style, Mapping)
-            else {}
+        merged = _set_default_style(
+            merged,
+            {
+                "width": "1rem",
+                "height": "1rem",
+                "accent-color": "var(--fleur-color-accent-solid-bg)",
+            },
         )
-        style_props.setdefault("width", "1rem")
-        style_props.setdefault("height", "1rem")
-        style_props.setdefault("accent-color", "var(--fleur-color-accent-solid-bg)")
-        merged = {**merged, "style": style_props}
-
-        merged["type"] = "checkbox"
+        extra: dict[str, Any] = {"type": "checkbox"}
         if checked is not None:
-            merged["checked"] = cast(Any, checked)
+            extra["checked"] = cast(Any, checked)
         if value is not None:
-            merged["value"] = value
+            extra["value"] = value
         if name is not None:
-            merged["name"] = name
+            extra["name"] = name
         if disabled is not None:
-            merged["disabled"] = cast(Any, disabled)
+            extra["disabled"] = cast(Any, disabled)
         if required is not None:
-            merged["required"] = cast(Any, required)
+            extra["required"] = cast(Any, required)
         if oninput is not None:
-            merged["oninput"] = oninput
+            extra["oninput"] = oninput
         if onchange is not None:
-            merged["onchange"] = onchange
+            extra["onchange"] = onchange
         if onfocus is not None:
-            merged["onfocus"] = onfocus
+            extra["onfocus"] = onfocus
         if onblur is not None:
-            merged["onblur"] = onblur
+            extra["onblur"] = onblur
+        merged = _extend_props(merged, extra)
         super().__init__(tag="input", props=merged)

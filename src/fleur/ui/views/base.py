@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import typing
 from collections.abc import Mapping
-from typing import Final, Generic, Literal, cast
+from typing import Any, Final, Generic, Literal, cast
 
 from fleur.core.expr import Expr
 from fleur.core.types import ModelT_co, MsgGroupT_co
-from fleur.core.view import View, ViewChild, ViewProp, ViewProps
+from fleur.core.view import View, ViewChild, ViewProp, ViewProps, _compile_prop_value
+from fleur.js.ast import ESTreeExpression
+from fleur.js.builder import call, ident, json_expr, member_expr, object_expr
 
 _Spacing = int | float | str
 _Radius = int | float | str
@@ -133,6 +135,17 @@ def _color(value: Color | None) -> Color | None:
     return value if _is_raw_color(value) else f"var(--fleur-color-{value})"
 
 
+def _compile_style_value(v: Style) -> ESTreeExpression:
+    if isinstance(v, Expr):
+        return v.__compile__()
+    return json_expr(v)
+
+
+def _js_assign(*sources: ESTreeExpression) -> ESTreeExpression:
+    """Build Object.assign({}, ...sources) expression."""
+    return call(member_expr(ident("Object"), "assign"), object_expr([]), *sources)
+
+
 def _merge_props(
     props: ViewProps | None,
     *,
@@ -162,15 +175,7 @@ def _merge_props(
     justify: String | None = None,
     align: String | None = None,
     style: StyleMap | None = None,
-) -> dict[str, ViewProp]:
-    merged = dict(props or {})
-    existing_style = merged.get("style")
-    style_map: dict[str, Style] = (
-        {key: cast(Style, value) for key, value in existing_style.items()}
-        if isinstance(existing_style, Mapping)
-        else {}
-    )
-
+) -> ViewProps:
     gap_value = _space(gap)
     p_value = _space(p)
     px_value = _space(px)
@@ -189,67 +194,120 @@ def _merge_props(
     max_width_value = _length(max_w)
     font_size_value = _font_size(font_size)
 
+    style_kwargs: dict[str, Style] = {}
     if gap_value is not None:
-        style_map["gap"] = gap_value
+        style_kwargs["gap"] = gap_value
     if bg_value is not None:
-        style_map["background"] = bg_value
+        style_kwargs["background"] = bg_value
     if fg_value is not None:
-        style_map["color"] = fg_value
+        style_kwargs["color"] = fg_value
     if p_value is not None:
-        style_map["padding"] = p_value
+        style_kwargs["padding"] = p_value
     if px_value is not None:
-        style_map["padding-left"] = px_value
-        style_map["padding-right"] = px_value
+        style_kwargs["padding-left"] = px_value
+        style_kwargs["padding-right"] = px_value
     if py_value is not None:
-        style_map["padding-top"] = py_value
-        style_map["padding-bottom"] = py_value
+        style_kwargs["padding-top"] = py_value
+        style_kwargs["padding-bottom"] = py_value
     if radius_value is not None:
-        style_map["border-radius"] = radius_value
+        style_kwargs["border-radius"] = radius_value
     if mx_value is not None:
-        style_map["margin-left"] = mx_value
-        style_map["margin-right"] = mx_value
+        style_kwargs["margin-left"] = mx_value
+        style_kwargs["margin-right"] = mx_value
     if my_value is not None:
-        style_map["margin-top"] = my_value
-        style_map["margin-bottom"] = my_value
+        style_kwargs["margin-top"] = my_value
+        style_kwargs["margin-bottom"] = my_value
     if mt_value is not None:
-        style_map["margin-top"] = mt_value
+        style_kwargs["margin-top"] = mt_value
     if mr_value is not None:
-        style_map["margin-right"] = mr_value
+        style_kwargs["margin-right"] = mr_value
     if mb_value is not None:
-        style_map["margin-bottom"] = mb_value
+        style_kwargs["margin-bottom"] = mb_value
     if ml_value is not None:
-        style_map["margin-left"] = ml_value
+        style_kwargs["margin-left"] = ml_value
     if width_value is not None:
-        style_map["width"] = width_value
+        style_kwargs["width"] = width_value
     if height_value is not None:
-        style_map["height"] = height_value
+        style_kwargs["height"] = height_value
     if max_width_value is not None:
-        style_map["max-width"] = max_width_value
+        style_kwargs["max-width"] = max_width_value
     if border is not None:
-        style_map["border"] = border
+        style_kwargs["border"] = border
     if font_size_value is not None:
-        style_map["font-size"] = font_size_value
+        style_kwargs["font-size"] = font_size_value
     if font_weight is not None:
-        style_map["font-weight"] = font_weight if isinstance(font_weight, Expr) else str(font_weight)
+        style_kwargs["font-weight"] = font_weight if isinstance(font_weight, Expr) else str(font_weight)
     if font_family is not None:
-        style_map["font-family"] = font_family
+        style_kwargs["font-family"] = font_family
     if display is not None:
-        style_map["display"] = display
+        style_kwargs["display"] = display
     if flex_direction is not None:
-        style_map["flex-direction"] = flex_direction
+        style_kwargs["flex-direction"] = flex_direction
     if flex_wrap is not None:
-        style_map["flex-wrap"] = flex_wrap
+        style_kwargs["flex-wrap"] = flex_wrap
     if justify is not None:
-        style_map["justify-content"] = justify
+        style_kwargs["justify-content"] = justify
     if align is not None:
-        style_map["align-items"] = align
-
+        style_kwargs["align-items"] = align
     if style is not None:
-        style_map.update(style)
+        style_kwargs.update(style)
+
+    if isinstance(props, Expr):
+        if not style_kwargs:
+            return props
+        props_expr = props.__compile__()
+        compiled_style_kwargs = object_expr((k, _compile_style_value(v)) for k, v in style_kwargs.items())
+        # Object.assign({}, propsExpr, {style: Object.assign({}, propsExpr.style, styleKwargs)})
+        merged_style = _js_assign(member_expr(props_expr, "style"), compiled_style_kwargs)
+        return Expr(_js_assign(props_expr, object_expr([("style", merged_style)])))
+
+    merged = dict(props or {})
+    existing_style = merged.get("style")
+    style_map: dict[str, Style] = (
+        {key: cast(Style, value) for key, value in existing_style.items()}
+        if isinstance(existing_style, Mapping)
+        else {}
+    )
+    style_map.update(style_kwargs)
 
     if style_map:
         merged = {**merged, "style": style_map}
     return merged
+
+
+def _extend_props(props: ViewProps, extra: dict[str, Any]) -> ViewProps:
+    """Add extra top-level properties (e.g. event handlers, HTML attributes) to ViewProps."""
+    if not extra:
+        return props
+    if isinstance(props, Expr):
+        compiled_extra = object_expr((k, _compile_prop_value(v)) for k, v in extra.items())
+        return Expr(_js_assign(props.__compile__(), compiled_extra))
+    merged: dict[str, ViewProp] = dict(props)
+    merged.update(extra)
+    return cast(ViewProps, merged)
+
+
+def _set_default_style(props: ViewProps, defaults: dict[str, Style]) -> ViewProps:
+    """Apply style defaults (setdefault semantics) to ViewProps."""
+    if not defaults:
+        return props
+    if isinstance(props, Expr):
+        # defaults are the base; props.style overwrites them (setdefault semantics)
+        props_expr = props.__compile__()
+        compiled_defaults = object_expr((k, _compile_style_value(v)) for k, v in defaults.items())
+        # Object.assign(defaults, props.style) — props.style wins over defaults
+        merged_style = call(member_expr(ident("Object"), "assign"), compiled_defaults, member_expr(props_expr, "style"))
+        return Expr(_js_assign(props_expr, object_expr([("style", merged_style)])))
+    merged: dict[str, ViewProp] = dict(props)
+    existing_style = merged.get("style")
+    style_map: dict[str, Style] = (
+        {key: cast(Style, value) for key, value in existing_style.items()}
+        if isinstance(existing_style, Mapping)
+        else {}
+    )
+    for k, v in defaults.items():
+        style_map.setdefault(k, v)
+    return cast(ViewProps, {**merged, "style": style_map})
 
 
 class Element(View[ModelT_co, MsgGroupT_co], Generic[ModelT_co, MsgGroupT_co]):

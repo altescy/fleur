@@ -11,13 +11,13 @@ from fleur.core.model import Model, State
 from fleur.core.msg import GroupedMsg, Msg, MsgGroup
 from fleur.core.task import TaskLike
 from fleur.core.types import FleurValue
-from fleur.core.view import View
+from fleur.core.view import View, _compile_prop_value
 from fleur.js.ast import ESTreeExpression
-from fleur.js.builder import call, ident, member_expr
+from fleur.js.builder import call, ident, member_expr, object_expr
 from fleur.types import JsonValue
 
 from ..views import Box, Button, HStack, Text, VStack
-from ..views.base import ViewProps
+from ..views.base import ViewProps, _js_assign
 
 TabsChild: TypeAlias = str | View["TabsModel", "TabsMsg"] | Expr[JsonValue | View["TabsModel", "TabsMsg"]]
 
@@ -53,7 +53,18 @@ def _on_change_cmd(index: int | Expr[int], on_change: GroupedMsg[TabsMsg, int] |
     return Cmd.task(_ImmediateTask(index), on_change, TabsMsg.NOOP)
 
 
+def _compile_props_to_expr(props: ViewProps) -> ESTreeExpression:
+    if isinstance(props, Expr):
+        return props.__compile__()
+    return object_expr((k, _compile_prop_value(v)) for k, v in props.items())
+
+
 def _merge_component_props(defaults: ViewProps | None, overrides: ViewProps | None) -> ViewProps:
+    if isinstance(defaults, Expr) or isinstance(overrides, Expr):
+        compiled_defaults = _compile_props_to_expr(defaults) if defaults is not None else object_expr([])
+        compiled_overrides = _compile_props_to_expr(overrides) if overrides is not None else object_expr([])
+        return Expr(_js_assign(compiled_defaults, compiled_overrides))
+
     merged: ViewProps = dict(defaults or {})
     if overrides is None:
         return merged

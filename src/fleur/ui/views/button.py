@@ -17,6 +17,7 @@ from .base import (
     StyleMap,
     ViewChild,
     ViewProps,
+    _extend_props,
     _merge_props,
 )
 
@@ -51,5 +52,5 @@ class Button(Element[ModelT_co, MsgGroupT]):
             font_weight=font_weight if font_weight is not None else "var(--fleur-comp-button-font-weight)",
             style=style,
         )
-        merged["onclick"] = onclick
+        merged = _extend_props(merged, {"onclick": onclick})
         super().__init__(*children, tag="button", props=merged)

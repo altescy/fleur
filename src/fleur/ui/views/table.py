@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import Literal, cast
+from typing import Any, Literal
 
 from fleur.core.expr import Expr
 from fleur.core.types import ModelT_co, MsgGroupT_co
@@ -15,23 +14,15 @@ from .base import (
     Radius,
     Spacing,
     String,
-    Style,
     StyleMap,
     ViewChild,
     ViewProps,
+    _extend_props,
     _merge_props,
+    _set_default_style,
 )
 
 TableAlign = Literal["left", "center", "right", "justify", "start", "end"]
-
-
-def _style_props(merged: Mapping[str, object]) -> dict[str, Style]:
-    existing_style = merged.get("style")
-    return (
-        {key: cast(Style, value) for key, value in existing_style.items()}
-        if isinstance(existing_style, Mapping)
-        else {}
-    )
 
 
 class Table(Element[ModelT_co, MsgGroupT_co]):
@@ -59,11 +50,14 @@ class Table(Element[ModelT_co, MsgGroupT_co]):
             border=border,
             style=style,
         )
-        style_props = _style_props(merged)
-        style_props.setdefault("width", "100%")
-        style_props.setdefault("border-collapse", "collapse")
-        style_props.setdefault("caption-side", "bottom")
-        merged = {**merged, "style": style_props}
+        merged = _set_default_style(
+            merged,
+            {
+                "width": "100%",
+                "border-collapse": "collapse",
+                "caption-side": "bottom",
+            },
+        )
         super().__init__(*children, tag="table", props=merged)
 
 
@@ -96,9 +90,7 @@ class TableRow(Element[ModelT_co, MsgGroupT_co]):
         style: StyleMap | None = None,
     ) -> None:
         merged = _merge_props(props, bg=bg, fg=fg, border=border, style=style)
-        style_props = _style_props(merged)
-        style_props.setdefault("border-bottom", "1px solid var(--fleur-color-border-default)")
-        merged = {**merged, "style": style_props}
+        merged = _set_default_style(merged, {"border-bottom": "1px solid var(--fleur-color-border-default)"})
         super().__init__(*children, tag="tr", props=merged)
 
 
@@ -115,16 +107,17 @@ class TableHead(Element[ModelT_co, MsgGroupT_co]):
         fg: Color | None = "fg-muted",
         style: StyleMap | None = None,
     ) -> None:
-        merged = _merge_props(props, p=p, font_weight=font_weight, fg=fg, style=style)
-        style_props = _style_props(merged)
+        style_override: dict[str, Any] = dict(style or {})
         if align is not None:
-            style_props["text-align"] = align
-        style_props.setdefault("vertical-align", "middle")
-        merged = {**merged, "style": style_props}
+            style_override["text-align"] = align
+        merged = _merge_props(props, p=p, font_weight=font_weight, fg=fg, style=style_override or None)
+        merged = _set_default_style(merged, {"vertical-align": "middle"})
+        extra: dict[str, Any] = {}
         if colspan is not None:
-            merged["colspan"] = colspan
+            extra["colspan"] = colspan
         if rowspan is not None:
-            merged["rowspan"] = rowspan
+            extra["rowspan"] = rowspan
+        merged = _extend_props(merged, extra)
         super().__init__(*children, tag="th", props=merged)
 
 
@@ -139,16 +132,17 @@ class TableCell(Element[ModelT_co, MsgGroupT_co]):
         p: Spacing | None = "sm",
         style: StyleMap | None = None,
     ) -> None:
-        merged = _merge_props(props, p=p, style=style)
-        style_props = _style_props(merged)
+        style_override: dict[str, Any] = dict(style or {})
         if align is not None:
-            style_props["text-align"] = align
-        style_props.setdefault("vertical-align", "middle")
-        merged = {**merged, "style": style_props}
+            style_override["text-align"] = align
+        merged = _merge_props(props, p=p, style=style_override or None)
+        merged = _set_default_style(merged, {"vertical-align": "middle"})
+        extra: dict[str, Any] = {}
         if colspan is not None:
-            merged["colspan"] = colspan
+            extra["colspan"] = colspan
         if rowspan is not None:
-            merged["rowspan"] = rowspan
+            extra["rowspan"] = rowspan
+        merged = _extend_props(merged, extra)
         super().__init__(*children, tag="td", props=merged)
 
 
@@ -162,8 +156,5 @@ class TableCaption(Element[ModelT_co, MsgGroupT_co]):
         style: StyleMap | None = None,
     ) -> None:
         merged = _merge_props(props, p=p, fg=fg, style=style)
-        style_props = _style_props(merged)
-        style_props.setdefault("text-align", "left")
-        style_props.setdefault("caption-side", "bottom")
-        merged = {**merged, "style": style_props}
+        merged = _set_default_style(merged, {"text-align": "left", "caption-side": "bottom"})
         super().__init__(*children, tag="caption", props=merged)

@@ -25,7 +25,7 @@ _ViewProp = Union[JsonValue, GroupedMsg[Any, Any, Any], Mapping[str, "_ViewProp"
 _ViewProps = Mapping[str, _ViewProp]
 ViewChild: TypeAlias = Union[_ViewChild, Expr[_ViewChild]]
 ViewProp: TypeAlias = Union[_ViewProp, Expr[_ViewProp]]
-ViewProps: TypeAlias = Mapping[str, ViewProp]
+ViewProps: TypeAlias = Union[_ViewProps, Expr[_ViewProps]]
 
 
 def _compile_text_expr(text: str) -> ESTreeExpression:
@@ -76,17 +76,21 @@ class View(Model, Generic[ModelT_co, MsgGroupT_co]):
         self,
         *children: ViewChild,
         tag: str,
-        props: Mapping[str, ViewProp],
+        props: ViewProps,
     ) -> None:
         self._tag = tag
         self._props = props
         self._children = children
 
     def __compile__(self) -> ESTreeExpression:
+        if isinstance(self._props, Expr):
+            compiled_props = self._props.__compile__()
+        else:
+            compiled_props = object_expr((k, _compile_prop_value(v)) for k, v in self._props.items())
         return call(
             runtime_ref(RUNTIME_H),
             literal(self._tag),
-            object_expr((k, _compile_prop_value(v)) for k, v in self._props.items()),
+            compiled_props,
             *(_compile_child(child) for child in self._children),
         )
 

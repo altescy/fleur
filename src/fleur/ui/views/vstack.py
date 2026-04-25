@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import cast
-
 from fleur.core.types import ModelT_co, MsgGroupT_co
 
 from .base import (
@@ -14,11 +11,11 @@ from .base import (
     Radius,
     Spacing,
     String,
-    Style,
     StyleMap,
     ViewChild,
     ViewProps,
     _merge_props,
+    _set_default_style,
 )
 
 
@@ -66,13 +63,5 @@ class VStack(Element[ModelT_co, MsgGroupT_co]):
             align=align,
             style=style,
         )
-        existing_style = merged.get("style")
-        style_props: dict[str, Style] = (
-            {key: cast(Style, value) for key, value in existing_style.items()}
-            if isinstance(existing_style, Mapping)
-            else {}
-        )
-        style_props.setdefault("display", "flex")
-        style_props.setdefault("flex-direction", "column")
-        merged = {**merged, "style": style_props}
+        merged = _set_default_style(merged, {"flex-direction": "column"})
         super().__init__(*children, tag="div", props=merged)
