@@ -13,6 +13,7 @@ from fleur.js.ast import (
 from fleur.js.builder import call, ident, json_expr, member_expr, object_expr
 from fleur.types import ICompilable
 
+from .function import Function
 from .types import FleurValue, FleurValueT, FleurValueT_co
 
 
@@ -29,6 +30,8 @@ def ensure_expr(value: FleurValue | ICompilable) -> "ESTreeExpression":
         return ESTreeArrayExpression(elements=[ensure_expr(elem) for elem in value])
     if isinstance(value, Mapping):
         return object_expr((key, ensure_expr(val)) for key, val in value.items())
+    if isinstance(value, Function):
+        return ident(value.name)
     return json_expr(value)
 
 
@@ -206,3 +209,9 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
 
     def split(self: "Expr[str]", separator: FleurValue | Expr) -> "Expr[list[str]]":
         return Expr[list[str]](call(member_expr(self.__compile__(), "split"), ensure_expr(separator)))
+
+    #
+    # Function
+    #
+    def __call__(self: "Expr[Function]", *args: FleurValue | Expr) -> "Expr":
+        return Expr(call(self.__compile__(), *(ensure_expr(arg) for arg in args)))

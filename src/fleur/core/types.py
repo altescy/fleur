@@ -6,12 +6,14 @@ from typing_extensions import TypeVar
 if TYPE_CHECKING:
     from fleur.types import JsonValue
 
+    from .function import Function
     from .model import Model
     from .msg import MsgGroup
 
 
 FleurValue = Union[
     "JsonValue",
+    "Function",
     "Model",
     list["FleurValue"],
     dict[str, "FleurValue"],
