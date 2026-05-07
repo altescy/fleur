@@ -20,7 +20,7 @@ from .msg import GroupedMsg
 from .runtime import MODEL_IDENT, RUNTIME_H, RUNTIME_HTML, RUNTIME_MAP, runtime_call, runtime_ref
 from .types import ModelT, ModelT_co, MsgGroupT, MsgGroupT_co
 
-_ViewChild = Union[JsonValue, Model]
+_ViewChild = Union[JsonValue, Model, Sequence["_ViewChild"]]
 _ViewProp = Union[JsonValue, GroupedMsg[Any, Any, Any], Mapping[str, "_ViewProp"], Sequence["_ViewProp"]]
 _ViewProps = Mapping[str, _ViewProp]
 ViewChild: TypeAlias = Union[_ViewChild, Expr[_ViewChild]]
@@ -68,6 +68,8 @@ def _compile_child(child: ViewChild) -> ESTreeExpression:
         return child.__compile__()
     if isinstance(child, str):
         return _compile_text_expr(child)
+    if isinstance(child, Sequence):
+        return ESTreeArrayExpression(elements=[_compile_child(item) for item in child])
     return json_expr(child)
 
 

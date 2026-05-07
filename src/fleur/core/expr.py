@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-from typing import Any, Generic, overload
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any, Generic, cast, overload
 
 from fleur.js.ast import (
     ESTreeArrayExpression,
@@ -13,8 +13,8 @@ from fleur.js.ast import (
 from fleur.js.builder import call, ident, json_expr, member_expr, object_expr
 from fleur.types import ICompilable
 
-from .function import Function
-from .types import FleurValue, FleurValueT, FleurValueT_co
+from .function import Function, function
+from .types import FleurValue, FleurValueT, FleurValueT_co, FleurValueU
 
 
 def ensure_expr(value: FleurValue | ICompilable) -> "ESTreeExpression":
@@ -181,6 +181,32 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
         return Expr[FleurValueT_co](
             call(member_expr(self.__compile__(), "with"), ensure_expr(index), ensure_expr(value))
         )
+
+    def concat(
+        self: "Expr[Sequence[FleurValueT]]",
+        *sequences: Sequence[FleurValueT | Expr[FleurValueT]] | Expr[Sequence[FleurValueT]],
+    ) -> "Expr[Sequence[FleurValueT]]":
+        expr = self.__compile__()
+        for seq in sequences:
+            seq = cast(Expr | FleurValue, seq)
+            expr = call(member_expr(expr, "concat"), seq.__compile__() if isinstance(seq, Expr) else ensure_expr(seq))
+        return Expr[Sequence[FleurValueT]](expr)
+
+    def map(
+        self: "Expr[Sequence[FleurValueT]]",
+        fn: Function[[Expr[FleurValueT]], FleurValueU] | Callable[[Expr[FleurValueT]], FleurValueU | Expr[FleurValueU]],
+    ) -> "Expr[Sequence[FleurValueU]]":
+        if not isinstance(fn, Function):
+            fn = function(fn)
+        return Expr(call(member_expr(self.__compile__(), "map"), fn.ast))
+
+    def filter(
+        self: "Expr[Sequence[FleurValueT]]",
+        fn: Function[[Expr[FleurValueT]], FleurValueU] | Callable[[Expr[FleurValueT]], FleurValueU | Expr[FleurValueU]],
+    ) -> "Expr[Sequence[FleurValueT]]":
+        if not isinstance(fn, Function):
+            fn = function(fn)
+        return Expr(call(member_expr(self.__compile__(), "filter"), fn.ast))
 
     #
     # Number methods
