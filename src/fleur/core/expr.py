@@ -224,5 +224,5 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
     #
     # Function
     #
-    def __call__(self: "Expr[Function[..., Expr[FleurValueT]]]", *args: FleurValue | Expr) -> "Expr[FleurValueT]":
+    def __call__(self: "Expr[Function[..., FleurValueT]]", *args: FleurValue | Expr) -> "Expr[FleurValueT]":
         return Expr(call(self.__compile__(), *(ensure_expr(arg) for arg in args)))
