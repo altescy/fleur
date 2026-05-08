@@ -1,25 +1,15 @@
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any, Unpack, cast
 
 from fleur.core.events import FocusEvent, InputEvent
 from fleur.core.expr import Expr
 from fleur.core.msg import GroupedMsg
 from fleur.core.types import ModelT_co, MsgGroupT
 
-from .base import (
-    Color,
-    Element,
-    Length,
-    Radius,
-    Spacing,
-    String,
-    StyleMap,
-    ViewProps,
-    _extend_props,
-    _merge_props,
-    _set_default_style,
-)
+from . import _utils
+from .base import Element, ViewProps
+from .types import String, ViewStyleArgs
 
 
 class Checkbox(Element[ModelT_co, MsgGroupT]):
@@ -36,25 +26,10 @@ class Checkbox(Element[ModelT_co, MsgGroupT]):
         onchange: GroupedMsg[MsgGroupT, InputEvent, Any] | None = None,
         onfocus: GroupedMsg[MsgGroupT, FocusEvent, Any] | None = None,
         onblur: GroupedMsg[MsgGroupT, FocusEvent, Any] | None = None,
-        bg: Color | None = None,
-        p: Spacing | None = None,
-        radius: Radius | None = None,
-        w: Length | None = None,
-        h: Length | None = None,
-        border: String | None = None,
-        style: StyleMap | None = None,
+        **style_args: Unpack[ViewStyleArgs],
     ) -> None:
-        merged = _merge_props(
-            props,
-            bg=bg,
-            p=p,
-            radius=radius,
-            w=w,
-            h=h,
-            border=border,
-            style=style,
-        )
-        merged = _set_default_style(
+        merged = _utils.merge_props(props, **style_args)
+        merged = _utils.set_default_style(
             merged,
             {
                 "width": "1rem",
@@ -81,5 +56,5 @@ class Checkbox(Element[ModelT_co, MsgGroupT]):
             extra["onfocus"] = onfocus
         if onblur is not None:
             extra["onblur"] = onblur
-        merged = _extend_props(merged, extra)
+        merged = _utils.extend_props(merged, extra)
         super().__init__(tag="input", props=merged)

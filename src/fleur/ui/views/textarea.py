@@ -1,26 +1,18 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Unpack
 
 from fleur.core.events import FocusEvent, InputEvent, KeyboardEvent
 from fleur.core.expr import Expr
 from fleur.core.msg import GroupedMsg
 from fleur.core.types import ModelT_co, MsgGroupT
 
+from . import _utils
 from .base import (
-    Color,
     Element,
-    FontSize,
-    FontWeight,
-    Length,
-    Radius,
-    Spacing,
-    String,
-    StyleMap,
     ViewProps,
-    _extend_props,
-    _merge_props,
 )
+from .types import String, ViewStyleArgs
 
 
 class Textarea(Element[ModelT_co, MsgGroupT]):
@@ -38,36 +30,9 @@ class Textarea(Element[ModelT_co, MsgGroupT]):
         onblur: GroupedMsg[MsgGroupT, FocusEvent, Any] | None = None,
         onkeydown: GroupedMsg[MsgGroupT, KeyboardEvent, Any] | None = None,
         onkeyup: GroupedMsg[MsgGroupT, KeyboardEvent, Any] | None = None,
-        bg: Color | None = None,
-        fg: Color | None = None,
-        p: Spacing | None = None,
-        px: Spacing | None = None,
-        py: Spacing | None = None,
-        radius: Radius | None = None,
-        w: Length | None = None,
-        h: Length | None = None,
-        border: String | None = None,
-        font_size: FontSize | None = None,
-        font_weight: FontWeight | None = None,
-        font_family: String | None = None,
-        style: StyleMap | None = None,
+        **style_args: Unpack[ViewStyleArgs],
     ) -> None:
-        merged = _merge_props(
-            props,
-            bg=bg,
-            fg=fg,
-            p=p,
-            px=px,
-            py=py,
-            radius=radius,
-            w=w,
-            h=h,
-            border=border,
-            font_size=font_size,
-            font_weight=font_weight,
-            font_family=font_family,
-            style=style,
-        )
+        merged = _utils.merge_props(props, **style_args)
         extra: dict[str, Any] = {}
         if value is not None:
             extra["value"] = value
@@ -89,5 +54,5 @@ class Textarea(Element[ModelT_co, MsgGroupT]):
             extra["onkeydown"] = onkeydown
         if onkeyup is not None:
             extra["onkeyup"] = onkeyup
-        merged = _extend_props(merged, extra)
+        merged = _utils.extend_props(merged, extra)
         super().__init__(tag="textarea", props=merged)

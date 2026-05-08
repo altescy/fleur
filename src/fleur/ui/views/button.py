@@ -1,25 +1,14 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Unpack, cast
 
 from fleur.core.events import PointerEvent
 from fleur.core.msg import GroupedMsg
 from fleur.core.types import ModelT_co, MsgGroupT
 
-from .base import (
-    Color,
-    Element,
-    FontSize,
-    FontWeight,
-    Radius,
-    Spacing,
-    String,
-    StyleMap,
-    ViewChild,
-    ViewProps,
-    _extend_props,
-    _merge_props,
-)
+from . import _utils
+from .base import Element, ViewChild, ViewProps
+from .types import ViewStyleArgs
 
 
 class Button(Element[ModelT_co, MsgGroupT]):
@@ -28,29 +17,19 @@ class Button(Element[ModelT_co, MsgGroupT]):
         *children: ViewChild,
         onclick: GroupedMsg[MsgGroupT, PointerEvent, Any],
         props: ViewProps | None = None,
-        bg: Color | None = None,
-        fg: Color | None = None,
-        p: Spacing | None = None,
-        px: Spacing | None = None,
-        py: Spacing | None = None,
-        radius: Radius | None = None,
-        border: String | None = None,
-        font_size: FontSize | None = None,
-        font_weight: FontWeight | None = None,
-        style: StyleMap | None = None,
+        **style_args: Unpack[ViewStyleArgs],
     ) -> None:
-        merged = _merge_props(
+        merged_style_args = cast(ViewStyleArgs, dict(style_args))
+        merged_style_args.setdefault("bg", "var(--fleur-comp-button-bg)")
+        merged_style_args.setdefault("fg", "var(--fleur-comp-button-fg)")
+        merged_style_args.setdefault("px", "sm")
+        merged_style_args.setdefault("py", "xs")
+        merged_style_args.setdefault("radius", "var(--fleur-comp-button-radius)")
+        merged_style_args.setdefault("border", "var(--fleur-comp-button-border)")
+        merged_style_args.setdefault("font_weight", "var(--fleur-comp-button-font-weight)")
+        merged = _utils.merge_props(
             props,
-            bg=bg if bg is not None else "var(--fleur-comp-button-bg)",
-            fg=fg if fg is not None else "var(--fleur-comp-button-fg)",
-            p=p,
-            px=px if px is not None else "sm",
-            py=py if py is not None else "xs",
-            radius=radius if radius is not None else "var(--fleur-comp-button-radius)",
-            border=border if border is not None else "var(--fleur-comp-button-border)",
-            font_size=font_size,
-            font_weight=font_weight if font_weight is not None else "var(--fleur-comp-button-font-weight)",
-            style=style,
+            **merged_style_args,
         )
-        merged = _extend_props(merged, {"onclick": onclick})
+        merged = _utils.extend_props(merged, {"onclick": onclick})
         super().__init__(*children, tag="button", props=merged)

@@ -17,7 +17,8 @@ from fleur.js.builder import call, ident, member_expr, object_expr
 from fleur.types import JsonValue
 
 from ..views import Box, Button, HStack, Text, VStack
-from ..views.base import ViewProps, _js_assign
+from ..views._utils import _js_assign
+from ..views.base import ViewProps
 
 TabsChild: TypeAlias = str | View["TabsModel", "TabsMsg"] | Expr[JsonValue | View["TabsModel", "TabsMsg"]]
 

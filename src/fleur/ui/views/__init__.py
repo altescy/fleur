@@ -1,15 +1,6 @@
-from .base import (
-    FlexDirection,
-    FlexWrap,
-    Length,
-    Radius,
-    RawColor,
-    Spacing,
-    Style,
-    StyleMap,
-    ViewChild,
-    ViewProps,
-)
+from fleur.core.view import ViewChild, ViewProps
+
+from .types import FlexDirection, FlexWrap, Length, Radius, RawColor, Spacing, Style, StyleMap
 from .box import Box
 from .button import Button
 from .checkbox import Checkbox

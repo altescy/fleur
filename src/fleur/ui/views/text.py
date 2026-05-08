@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+from typing import Unpack
+
 from fleur.core.expr import Expr
 from fleur.core.types import ModelT_co, MsgGroupT_co
 
-from .base import Color, Element, FontSize, FontWeight, String, ViewProps, _merge_props
+from . import _utils
+from .base import Element, ViewProps
+from .types import ViewStyleArgs
 
 
 class Text(Element[ModelT_co, MsgGroupT_co]):
@@ -12,21 +16,10 @@ class Text(Element[ModelT_co, MsgGroupT_co]):
         text: str | None | Expr[str | None],
         *,
         props: ViewProps | None = None,
-        fg: Color | None = None,
-        bg: Color | None = None,
-        font_size: FontSize | None = None,
-        font_weight: FontWeight | None = None,
-        font_family: String | None = None,
+        **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         super().__init__(
             text,
             tag="span",
-            props=_merge_props(
-                props,
-                fg=fg,
-                bg=bg,
-                font_size=font_size,
-                font_weight=font_weight,
-                font_family=font_family,
-            ),
+            props=_utils.merge_props(props, **style_args),
         )

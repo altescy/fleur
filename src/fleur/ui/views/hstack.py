@@ -1,20 +1,16 @@
 from __future__ import annotations
 
+from typing import Unpack
+
 from fleur.core.types import ModelT_co, MsgGroupT_co
 
+from . import _utils
 from .base import (
-    Color,
     Element,
-    FlexWrap,
-    Length,
-    Radius,
-    Spacing,
-    String,
-    StyleMap,
     ViewChild,
     ViewProps,
-    _merge_props,
 )
+from .types import ViewStyleArgs
 
 
 class HStack(Element[ModelT_co, MsgGroupT_co]):
@@ -22,42 +18,14 @@ class HStack(Element[ModelT_co, MsgGroupT_co]):
         self,
         *children: ViewChild,
         props: ViewProps | None = None,
-        gap: Spacing | None = None,
-        bg: Color | None = None,
-        fg: Color | None = None,
-        p: Spacing | None = None,
-        px: Spacing | None = None,
-        py: Spacing | None = None,
-        radius: Radius | None = None,
-        mx: Spacing | None = None,
-        my: Spacing | None = None,
-        max_w: Length | None = None,
-        border: String | None = None,
-        font_family: String | None = None,
-        flex_wrap: FlexWrap | None = None,
-        justify: String | None = None,
-        align: String | None = None,
-        style: StyleMap | None = None,
+        **style_args: Unpack[ViewStyleArgs],
     ) -> None:
-        merged = _merge_props(
-            props,
-            gap=gap,
-            bg=bg,
-            fg=fg,
-            p=p,
-            px=px,
-            py=py,
-            radius=radius,
-            mx=mx,
-            my=my,
-            max_w=max_w,
-            border=border,
-            font_family=font_family,
+        style_overrides = ViewStyleArgs(
             display="flex",
             flex_direction="row",
-            flex_wrap=flex_wrap,
-            justify=justify,
-            align=align,
-            style=style,
+        )
+        merged = _utils.merge_props(
+            props,
+            **{**style_args, **style_overrides},
         )
         super().__init__(*children, tag="div", props=merged)

@@ -1,24 +1,14 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Unpack
 
 from fleur.core.events import SubmitEvent
 from fleur.core.msg import GroupedMsg
 from fleur.core.types import ModelT_co, MsgGroupT
 
-from .base import (
-    Color,
-    Element,
-    Length,
-    Radius,
-    Spacing,
-    String,
-    StyleMap,
-    ViewChild,
-    ViewProps,
-    _extend_props,
-    _merge_props,
-)
+from . import _utils
+from .base import Element, ViewChild, ViewProps
+from .types import ViewStyleArgs
 
 
 class Form(Element[ModelT_co, MsgGroupT]):
@@ -27,34 +17,9 @@ class Form(Element[ModelT_co, MsgGroupT]):
         *children: ViewChild,
         props: ViewProps | None = None,
         onsubmit: GroupedMsg[MsgGroupT, SubmitEvent, Any] | None = None,
-        gap: Spacing | None = None,
-        bg: Color | None = None,
-        fg: Color | None = None,
-        p: Spacing | None = None,
-        px: Spacing | None = None,
-        py: Spacing | None = None,
-        radius: Radius | None = None,
-        w: Length | None = None,
-        h: Length | None = None,
-        border: String | None = None,
-        font_family: String | None = None,
-        style: StyleMap | None = None,
+        **style_args: Unpack[ViewStyleArgs],
     ) -> None:
-        merged = _merge_props(
-            props,
-            gap=gap,
-            bg=bg,
-            fg=fg,
-            p=p,
-            px=px,
-            py=py,
-            radius=radius,
-            w=w,
-            h=h,
-            border=border,
-            font_family=font_family,
-            style=style,
-        )
+        merged = _utils.merge_props(props, **style_args)
         if onsubmit is not None:
-            merged = _extend_props(merged, {"onsubmit": onsubmit})
+            merged = _utils.extend_props(merged, {"onsubmit": onsubmit})
         super().__init__(*children, tag="form", props=merged)
