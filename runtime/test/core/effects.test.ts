@@ -34,7 +34,7 @@ describe("Cmd.task", () => {
   })
 })
 
-describe("Http.get", () => {
+describe("Http.request", () => {
   test("returns parsed json when expect is json", async () => {
     const originalFetch = globalThis.fetch
     globalThis.fetch = (() =>
@@ -46,7 +46,7 @@ describe("Http.get", () => {
       } as Response)) as typeof fetch
 
     try {
-      await expect(Http.get("https://example.com/todo", "json")).resolves.toEqual({ ok: true })
+      await expect(Http.request({ method: "GET", url: "https://example.com/todo", expect: "json" })).resolves.toEqual({ ok: true })
     } finally {
       globalThis.fetch = originalFetch
     }
@@ -62,7 +62,7 @@ describe("Http.get", () => {
       } as Response)) as typeof fetch
 
     try {
-      await expect(Http.get("https://example.com/todo", "json")).rejects.toMatchObject({
+      await expect(Http.request({ method: "GET", url: "https://example.com/todo", expect: "json" })).rejects.toMatchObject({
         kind: "http_status",
         status: 404,
         statusText: "Not Found",
