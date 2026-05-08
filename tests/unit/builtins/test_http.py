@@ -1,4 +1,6 @@
 from fleur import Cmd, Msg, MsgGroup, builtins, emit
+from fleur.core.task import TaskLike
+from fleur.types import JsonValue
 
 
 class HttpMsg(MsgGroup):
@@ -46,3 +48,40 @@ def test_http_request_with_options_compiles_all_fields() -> None:
     assert 'body: {title: "Buy milk"}' in source
     assert "timeoutMs: 3000" in source
     assert 'credentials: "include"' in source
+
+
+def test_http_post_compiles_to_runtime_http_request_with_body() -> None:
+    cmd = Cmd.task(
+        builtins.Http.post(
+            "https://example.com/todo",
+            expect=builtins.Http.expectText(),
+            body={"title": "Buy milk"},
+        ),
+        HttpMsg.OK,
+        HttpMsg.ERR,
+    )
+
+    source = emit(cmd.__compile__())
+
+    assert "__fleur.Http.request" in source
+    assert 'method: "POST"' in source
+    assert 'body: {title: "Buy milk"}' in source
+
+
+def test_http_other_method_helpers_compile_to_runtime_http_request() -> None:
+    cases: list[tuple[str, TaskLike[JsonValue | str, builtins.HttpError]]] = [
+        ("PUT", builtins.Http.put("https://example.com/todo", expect=builtins.Http.expectJson(), body={"done": True})),
+        (
+            "PATCH",
+            builtins.Http.patch("https://example.com/todo", expect=builtins.Http.expectJson(), body={"done": True}),
+        ),
+        ("DELETE", builtins.Http.delete("https://example.com/todo", expect=builtins.Http.expectJson())),
+        ("HEAD", builtins.Http.head("https://example.com/todo", expect=builtins.Http.expectText())),
+        ("OPTIONS", builtins.Http.options("https://example.com/todo", expect=builtins.Http.expectText())),
+    ]
+
+    for method, task in cases:
+        cmd = Cmd.task(task, HttpMsg.OK, HttpMsg.ERR)
+        source = emit(cmd.__compile__())
+        assert "__fleur.Http.request" in source
+        assert f'method: "{method}"' in source

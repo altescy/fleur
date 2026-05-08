@@ -91,3 +91,119 @@ class Http:
             timeout_ms=timeout_ms,
             credentials=credentials,
         )
+
+    @staticmethod
+    def post(
+        url: str,
+        *,
+        expect: _Expect[TaskValueT],
+        body: JsonValue | None = None,
+        headers: dict[str, str] | None = None,
+        timeout_ms: int | None = None,
+        credentials: HttpCredentials | None = None,
+    ) -> TaskLike[TaskValueT, HttpError]:
+        return Http.request(
+            "POST",
+            url,
+            expect=expect,
+            headers=headers,
+            body=body,
+            timeout_ms=timeout_ms,
+            credentials=credentials,
+        )
+
+    @staticmethod
+    def put(
+        url: str,
+        *,
+        expect: _Expect[TaskValueT],
+        body: JsonValue | None = None,
+        headers: dict[str, str] | None = None,
+        timeout_ms: int | None = None,
+        credentials: HttpCredentials | None = None,
+    ) -> TaskLike[TaskValueT, HttpError]:
+        return Http.request(
+            "PUT",
+            url,
+            expect=expect,
+            headers=headers,
+            body=body,
+            timeout_ms=timeout_ms,
+            credentials=credentials,
+        )
+
+    @staticmethod
+    def patch(
+        url: str,
+        *,
+        expect: _Expect[TaskValueT],
+        body: JsonValue | None = None,
+        headers: dict[str, str] | None = None,
+        timeout_ms: int | None = None,
+        credentials: HttpCredentials | None = None,
+    ) -> TaskLike[TaskValueT, HttpError]:
+        return Http.request(
+            "PATCH",
+            url,
+            expect=expect,
+            headers=headers,
+            body=body,
+            timeout_ms=timeout_ms,
+            credentials=credentials,
+        )
+
+    @staticmethod
+    def delete(
+        url: str,
+        *,
+        expect: _Expect[TaskValueT],
+        body: JsonValue | None = None,
+        headers: dict[str, str] | None = None,
+        timeout_ms: int | None = None,
+        credentials: HttpCredentials | None = None,
+    ) -> TaskLike[TaskValueT, HttpError]:
+        return Http.request(
+            "DELETE",
+            url,
+            expect=expect,
+            headers=headers,
+            body=body,
+            timeout_ms=timeout_ms,
+            credentials=credentials,
+        )
+
+    @staticmethod
+    def head(
+        url: str,
+        *,
+        expect: _Expect[TaskValueT],
+        headers: dict[str, str] | None = None,
+        timeout_ms: int | None = None,
+        credentials: HttpCredentials | None = None,
+    ) -> TaskLike[TaskValueT, HttpError]:
+        return Http.request(
+            "HEAD",
+            url,
+            expect=expect,
+            headers=headers,
+            timeout_ms=timeout_ms,
+            credentials=credentials,
+        )
+
+    @staticmethod
+    def options(
+        url: str,
+        *,
+        expect: _Expect[TaskValueT],
+        headers: dict[str, str] | None = None,
+        timeout_ms: int | None = None,
+        credentials: HttpCredentials | None = None,
+    ) -> TaskLike[TaskValueT, HttpError]:
+        return Http.request(
+            "OPTIONS",
+            url,
+            expect=expect,
+            headers=headers,
+            timeout_ms=timeout_ms,
+            credentials=credentials,
+        )
