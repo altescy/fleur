@@ -1,13 +1,19 @@
+import { JsonValue } from "../core/types"
+
 export type HttpExpect = "json" | "text"
 export type HttpCredentials = "omit" | "same-origin" | "include"
 export type HttpErrorKind = "network" | "timeout" | "abort" | "http_status" | "decode" | "unknown"
 
-export type HttpRequest = {
+export type HttpResponse<TExpect extends HttpExpect> = TExpect extends "json" ? JsonValue : string
+
+export type HttpBody = BodyInit | JsonValue | null
+
+export type HttpRequest<TExpect extends HttpExpect = HttpExpect> = {
   method: string
   url: string
-  expect: HttpExpect
+  expect: TExpect
   headers?: Record<string, string>
-  body?: unknown
+  body?: HttpBody
   timeoutMs?: number
   credentials?: HttpCredentials
 }

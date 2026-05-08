@@ -1,8 +1,14 @@
-import { VNode, VNodeType } from "./types"
+import { EventHandler, EventPayload, RuntimeEventHandler, StyleProps, VNode, VNodeType } from "./types"
 import { asVNode, resolveLazy } from "./vdom"
 import { normalizeEventPayload } from "./events"
 
-export const setProp = (el: Element & { __listeners?: Record<string, EventListener> }, key: string, value: unknown): void => {
+type ElementWithListeners = Element & { __listeners?: Record<string, EventListener> }
+
+export const setProp = (
+  el: ElementWithListeners,
+  key: string,
+  value: string | number | boolean | null | undefined | StyleProps | EventHandler | RuntimeEventHandler,
+): void => {
   if (key === "className") {
     el.setAttribute("class", String(value))
     return
@@ -11,7 +17,7 @@ export const setProp = (el: Element & { __listeners?: Record<string, EventListen
   if (key === "style" && value && typeof value === "object") {
     const style = el as HTMLElement
     style.removeAttribute("style")
-    for (const [styleKey, styleValue] of Object.entries(value as Record<string, unknown>)) {
+    for (const [styleKey, styleValue] of Object.entries(value as StyleProps)) {
       if (styleValue == null) continue
       style.style.setProperty(styleKey, String(styleValue))
     }
@@ -22,7 +28,7 @@ export const setProp = (el: Element & { __listeners?: Record<string, EventListen
     const type = key.slice(2).toLowerCase()
     if (el.__listeners?.[key]) el.removeEventListener(type, el.__listeners[key])
     const listener = ((event: Event) => {
-      ;(value as (payload: unknown) => unknown)(normalizeEventPayload(type, event))
+      ;(value as (payload: EventPayload) => void)(normalizeEventPayload(type, event))
     }) as EventListener
     el.addEventListener(type, listener)
     el.__listeners = { ...el.__listeners, [key]: listener }

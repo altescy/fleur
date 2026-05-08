@@ -1,4 +1,8 @@
-import { HttpError, HttpExpect, HttpRequest } from "./types"
+import { HttpBody, HttpError, HttpExpect, HttpRequest, HttpResponse } from "./types"
+
+const isHttpError = (error: unknown): error is HttpError => {
+  return typeof error === "object" && error !== null && "kind" in error && "message" in error
+}
 
 const isAbortError = (error: unknown): boolean => {
   if (!(error instanceof Error)) return false
@@ -25,18 +29,32 @@ const withDefaultContentType = (headers: Record<string, string> | undefined): Re
   return next
 }
 
-const buildFetchBody = (body: unknown): BodyInit | undefined => {
+const buildFetchBody = (body: HttpBody | undefined): BodyInit | undefined => {
   if (body === undefined || body === null) return undefined
   if (typeof body === "string") return body
+  if (
+    body instanceof Blob
+    || body instanceof FormData
+    || body instanceof URLSearchParams
+    || body instanceof ReadableStream
+    || body instanceof ArrayBuffer
+    || ArrayBuffer.isView(body)
+  ) {
+    return body
+  }
   return JSON.stringify(body)
 }
 
-const decodeResponse = async (response: Response, expect: HttpExpect, url: string): Promise<unknown> => {
+const decodeResponse = async <TExpect extends HttpExpect>(
+  response: Response,
+  expect: TExpect,
+  url: string,
+): Promise<HttpResponse<TExpect>> => {
   try {
     if (expect === "json") {
-      return await response.json()
+      return (await response.json()) as HttpResponse<TExpect>
     }
-    return await response.text()
+    return (await response.text()) as HttpResponse<TExpect>
   } catch (error) {
     const httpError: HttpError = {
       kind: "decode",
@@ -57,7 +75,7 @@ const buildHttpStatusError = (response: Response, url: string): HttpError => ({
   statusText: response.statusText,
 })
 
-const buildFetchError = (error: unknown, request: HttpRequest): HttpError => {
+const buildFetchError = (error: unknown, request: HttpRequest<HttpExpect>): HttpError => {
   if (isAbortError(error)) {
     return {
       kind: request.timeoutMs !== undefined ? "timeout" : "abort",
@@ -81,7 +99,7 @@ const buildFetchError = (error: unknown, request: HttpRequest): HttpError => {
   }
 }
 
-const executeRequest = async (request: HttpRequest): Promise<unknown> => {
+const executeRequest = async <TExpect extends HttpExpect>(request: HttpRequest<TExpect>): Promise<HttpResponse<TExpect>> => {
   const controller = request.timeoutMs !== undefined ? new AbortController() : undefined
   const timeoutId =
     request.timeoutMs !== undefined
@@ -110,7 +128,7 @@ const executeRequest = async (request: HttpRequest): Promise<unknown> => {
 
     return await decodeResponse(response, request.expect, request.url)
   } catch (error) {
-    if (typeof error === "object" && error !== null && "kind" in error) {
+    if (isHttpError(error)) {
       throw error
     }
     throw buildFetchError(error, request)
@@ -120,8 +138,12 @@ const executeRequest = async (request: HttpRequest): Promise<unknown> => {
 }
 
 const Http = {
-  request: (request: HttpRequest): Promise<unknown> => executeRequest(request),
-  get: (url: string, expect: HttpExpect, options?: Omit<HttpRequest, "method" | "url" | "expect" | "body">): Promise<unknown> => {
+  request: <TExpect extends HttpExpect>(request: HttpRequest<TExpect>): Promise<HttpResponse<TExpect>> => executeRequest(request),
+  get: <TExpect extends HttpExpect>(
+    url: string,
+    expect: TExpect,
+    options?: Omit<HttpRequest<TExpect>, "method" | "url" | "expect" | "body">,
+  ): Promise<HttpResponse<TExpect>> => {
     return executeRequest({
       method: "GET",
       url,

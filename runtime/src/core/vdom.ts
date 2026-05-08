@@ -1,6 +1,6 @@
-import { Dispatch, Msg, VElement, VLazy, VNode, VNodeType, VText } from "./types"
+import { Dispatch, EventHandler, Msg, VElement, VLazy, VNode, VNodeLike, VNodeType, VProps, VText } from "./types"
 
-export const shallowArgsEqual = (a: unknown[], b: unknown[]): boolean => {
+export const shallowArgsEqual = (a: readonly unknown[], b: readonly unknown[]): boolean => {
   if (a.length !== b.length) return false
   for (let i = 0; i < a.length; i++) {
     if (a[i] !== b[i]) return false
@@ -8,20 +8,23 @@ export const shallowArgsEqual = (a: unknown[], b: unknown[]): boolean => {
   return true
 }
 
-export const isVNode = (v: unknown): v is VNode => v != null && typeof v === "object" && "__isVNode" in v
+export const isVNode = (v: VNodeLike): v is VNode => v != null && typeof v === "object" && "__isVNode" in v
 
-export const text = (value: unknown): VText => ({ type: VNodeType.TEXT, value: String(value), __isVNode: true })
-export const asVNode = (value: unknown): VNode => (isVNode(value) ? value : text(value))
+export const text = (value: VNodeLike): VText => ({ type: VNodeType.TEXT, value: String(value ?? ""), __isVNode: true })
+export const asVNode = (value: VNodeLike): VNode => (isVNode(value) ? value : text(value))
 
-export const h = (tag: string, props: Record<string, unknown> = {}, ...children: unknown[]): VElement => ({
+const flattenChildren = (children: readonly VNodeLike[]): VNodeLike[] =>
+  children.flatMap((child) => (Array.isArray(child) ? flattenChildren(child as readonly VNodeLike[]) : [child]))
+
+export const h = (tag: string, props: VProps = {}, ...children: VNodeLike[]): VElement => ({
   type: VNodeType.ELEMENT,
   tag,
   props,
-  children: children.flat().map(asVNode),
+  children: flattenChildren(children).map(asVNode),
   __isVNode: true,
 })
 
-export const lazy = (fn: (...args: unknown[]) => unknown, ...args: unknown[]): VLazy => ({
+export const lazy = (fn: (...args: readonly unknown[]) => VNodeLike, ...args: readonly unknown[]): VLazy => ({
   type: VNodeType.LAZY,
   fn,
   args,
@@ -32,11 +35,16 @@ export const lazy = (fn: (...args: unknown[]) => unknown, ...args: unknown[]): V
 export const wrapDispatch = (dispatch: Dispatch, vnode: VNode): VNode => {
   switch (vnode.type) {
     case VNodeType.LAZY:
-      return { ...vnode, fn: (...args: unknown[]) => wrapDispatch(dispatch, asVNode(vnode.fn(...args))) }
+      return { ...vnode, fn: (...args: readonly unknown[]) => wrapDispatch(dispatch, asVNode(vnode.fn(...args))) }
     case VNodeType.ELEMENT: {
-      const newProps: Record<string, unknown> = {}
+      const newProps: VProps = {}
       for (const [k, v] of Object.entries(vnode.props || {})) {
-        newProps[k] = k.startsWith("on") && typeof v === "function" ? (...args: unknown[]) => dispatch((v as (...args: unknown[]) => Msg)(...args)) : v
+        if (k.startsWith("on") && typeof v === "function") {
+          const handler = v as EventHandler
+          newProps[k] = (payload) => dispatch(handler(payload))
+          continue
+        }
+        newProps[k] = v
       }
       const newChildren = vnode.children.map((c) => wrapDispatch(dispatch, c))
       return { ...vnode, props: newProps, children: newChildren }

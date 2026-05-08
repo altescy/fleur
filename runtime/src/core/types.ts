@@ -1,5 +1,18 @@
-export type Msg = { type: string; [key: string]: unknown }
+export type JsonPrimitive = string | number | boolean | null
+export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue }
+
+export type Msg = { type: string; [key: string]: JsonValue | undefined }
 export type Dispatch = (msg: Msg) => void
+
+export type EventPayloadValue = string | number | boolean
+export type EventPayload = { type: string } & Record<string, EventPayloadValue>
+
+export type StyleValue = string | number | null | undefined
+export type StyleProps = Record<string, StyleValue>
+export type EventHandler = (payload: EventPayload) => Msg
+export type RuntimeEventHandler = (payload: EventPayload) => void
+export type VPropValue = string | number | boolean | null | undefined | StyleProps | EventHandler | RuntimeEventHandler
+export type VProps = Record<string, VPropValue>
 
 export type VText = {
   type: "TEXT"
@@ -10,25 +23,26 @@ export type VText = {
 export type VElement = {
   type: "ELEMENT"
   tag: string
-  props: Record<string, unknown>
+  props: VProps
   children: VNode[]
   __isVNode: true
 }
 
 export type VLazy = {
   type: "LAZY"
-  fn: (...args: unknown[]) => unknown
-  args: unknown[]
+  fn: (...args: readonly unknown[]) => VNodeLike
+  args: readonly unknown[]
   vnode: VNode | null
   __isVNode: true
 }
 
 export type VNode = VText | VElement | VLazy
+export type VNodeLike = VNode | string | number | boolean | null | undefined
 
 export type Patch =
   | { type: "REPLACE"; path: number[]; vnode: VNode }
   | { type: "TEXT"; path: number[]; value: string }
-  | { type: "PROPS"; path: number[]; props: Record<string, unknown> }
+  | { type: "PROPS"; path: number[]; props: VProps }
   | { type: "INSERT"; path: number[]; vnode: VNode }
   | { type: "MOVE"; path: number[]; to: number[] }
   | { type: "REMOVE"; path: number[] }

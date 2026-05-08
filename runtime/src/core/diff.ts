@@ -1,6 +1,13 @@
 import { Patch, PatchType, VElement, VNode, VNodeType } from "./types"
 import { resolveLazy, shallowArgsEqual } from "./vdom"
 
+const getKey = (node: VNode): string | number | null => {
+  if (node.type !== VNodeType.ELEMENT) return null
+  const key = node.props.key
+  if (typeof key === "string" || typeof key === "number") return key
+  return null
+}
+
 export const diff = (oldV: VNode | undefined, newV: VNode | undefined, path: number[] = []): Patch[] => {
   if (oldV?.type === VNodeType.LAZY && newV?.type === VNodeType.LAZY) {
     if (oldV.fn === newV.fn && shallowArgsEqual(oldV.args, newV.args)) return []
@@ -32,17 +39,17 @@ export const diff = (oldV: VNode | undefined, newV: VNode | undefined, path: num
   const newElement = newV as VElement
   const patches: Patch[] = []
 
-  if (oldElement.children.some((c) => (c as VElement)?.props?.key != null) || newElement.children.some((c) => (c as VElement)?.props?.key != null)) {
-    const oldKeyIndex = new Map<unknown, number>()
+  if (oldElement.children.some((c) => getKey(c) != null) || newElement.children.some((c) => getKey(c) != null)) {
+    const oldKeyIndex = new Map<string | number, number>()
     for (let i = 0; i < oldElement.children.length; i++) {
-      const key = (oldElement.children[i] as VElement)?.props?.key
+      const key = getKey(oldElement.children[i])
       if (key != null) oldKeyIndex.set(key, i)
     }
 
     const used = new Set<number>()
     for (let i = 0; i < newElement.children.length; i++) {
       const newChild = newElement.children[i]
-      const key = (newChild as VElement)?.props?.key
+      const key = getKey(newChild)
       if (key != null && oldKeyIndex.has(key)) {
         const oldIndex = oldKeyIndex.get(key) as number
         used.add(oldIndex)
@@ -75,7 +82,7 @@ export const diff = (oldV: VNode | undefined, newV: VNode | undefined, path: num
     }
   }
 
-  const propPatches: Record<string, unknown> = {}
+  const propPatches = {} as VElement["props"]
   for (const k in { ...oldElement.props, ...newElement.props }) {
     if (oldElement.props[k] !== newElement.props[k]) {
       propPatches[k] = newElement.props[k]
