@@ -11,7 +11,7 @@ from fleur.js.builder import json_expr
 from fleur.types import JsonValue
 
 HttpMethod = Literal["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
-HttpErrorKind = Literal["network", "timeout", "abort", "http_status", "decode", "unknown"]
+HttpErrorKind = Literal["network", "timeout", "abort", "decode", "unknown"]
 HttpCredentials = Literal["omit", "same-origin", "include"]
 
 
@@ -22,6 +22,16 @@ class HttpError(Model):
     url: str | None = None
     status: int | None = None
     status_text: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class HttpResponse(Model, Generic[TaskValueT]):
+    ok: bool
+    status: int
+    status_text: str
+    url: str
+    headers: dict[str, str]
+    body: TaskValueT
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,7 +66,7 @@ class Http:
         body: JsonValue | None = None,
         timeout_ms: int | None = None,
         credentials: HttpCredentials | None = None,
-    ) -> TaskLike[TaskValueT, HttpError]:
+    ) -> TaskLike[HttpResponse[TaskValueT], HttpError]:
         request: dict[str, JsonValue] = {
             "method": method.upper(),
             "url": url,
@@ -72,7 +82,7 @@ class Http:
             request["credentials"] = credentials
 
         compiled = runtime_call((RUNTIME_HTTP, RUNTIME_REQUEST), json_expr(request))
-        return cast(TaskLike[TaskValueT, HttpError], _HttpTask(compiled))
+        return cast(TaskLike[HttpResponse[TaskValueT], HttpError], _HttpTask(compiled))
 
     @staticmethod
     def get(
@@ -82,7 +92,7 @@ class Http:
         headers: dict[str, str] | None = None,
         timeout_ms: int | None = None,
         credentials: HttpCredentials | None = None,
-    ) -> TaskLike[TaskValueT, HttpError]:
+    ) -> TaskLike[HttpResponse[TaskValueT], HttpError]:
         return Http.request(
             "GET",
             url,
@@ -101,7 +111,7 @@ class Http:
         headers: dict[str, str] | None = None,
         timeout_ms: int | None = None,
         credentials: HttpCredentials | None = None,
-    ) -> TaskLike[TaskValueT, HttpError]:
+    ) -> TaskLike[HttpResponse[TaskValueT], HttpError]:
         return Http.request(
             "POST",
             url,
@@ -121,7 +131,7 @@ class Http:
         headers: dict[str, str] | None = None,
         timeout_ms: int | None = None,
         credentials: HttpCredentials | None = None,
-    ) -> TaskLike[TaskValueT, HttpError]:
+    ) -> TaskLike[HttpResponse[TaskValueT], HttpError]:
         return Http.request(
             "PUT",
             url,
@@ -141,7 +151,7 @@ class Http:
         headers: dict[str, str] | None = None,
         timeout_ms: int | None = None,
         credentials: HttpCredentials | None = None,
-    ) -> TaskLike[TaskValueT, HttpError]:
+    ) -> TaskLike[HttpResponse[TaskValueT], HttpError]:
         return Http.request(
             "PATCH",
             url,
@@ -161,7 +171,7 @@ class Http:
         headers: dict[str, str] | None = None,
         timeout_ms: int | None = None,
         credentials: HttpCredentials | None = None,
-    ) -> TaskLike[TaskValueT, HttpError]:
+    ) -> TaskLike[HttpResponse[TaskValueT], HttpError]:
         return Http.request(
             "DELETE",
             url,
@@ -180,7 +190,7 @@ class Http:
         headers: dict[str, str] | None = None,
         timeout_ms: int | None = None,
         credentials: HttpCredentials | None = None,
-    ) -> TaskLike[TaskValueT, HttpError]:
+    ) -> TaskLike[HttpResponse[TaskValueT], HttpError]:
         return Http.request(
             "HEAD",
             url,
@@ -198,7 +208,7 @@ class Http:
         headers: dict[str, str] | None = None,
         timeout_ms: int | None = None,
         credentials: HttpCredentials | None = None,
-    ) -> TaskLike[TaskValueT, HttpError]:
+    ) -> TaskLike[HttpResponse[TaskValueT], HttpError]:
         return Http.request(
             "OPTIONS",
             url,

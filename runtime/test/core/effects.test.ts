@@ -35,37 +35,50 @@ describe("Cmd.task", () => {
 })
 
 describe("Http.request", () => {
-  test("returns parsed json when expect is json", async () => {
+  test("returns response object with parsed json body", async () => {
     const originalFetch = globalThis.fetch
     globalThis.fetch = (() =>
       Promise.resolve({
         ok: true,
         status: 200,
         statusText: "OK",
+        url: "https://example.com/todo",
+        headers: new Headers({ "content-type": "application/json" }),
         json: () => Promise.resolve({ ok: true }),
       } as Response)) as typeof fetch
 
     try {
-      await expect(Http.request({ method: "GET", url: "https://example.com/todo", expect: "json" })).resolves.toEqual({ ok: true })
+      await expect(Http.request({ method: "GET", url: "https://example.com/todo", expect: "json" })).resolves.toEqual({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        url: "https://example.com/todo",
+        headers: { "content-type": "application/json" },
+        body: { ok: true },
+      })
     } finally {
       globalThis.fetch = originalFetch
     }
   })
 
-  test("rejects with http_status error on non-2xx response", async () => {
+  test("returns non-2xx response without rejecting", async () => {
     const originalFetch = globalThis.fetch
     globalThis.fetch = (() =>
       Promise.resolve({
         ok: false,
         status: 404,
         statusText: "Not Found",
+        url: "https://example.com/todo",
+        headers: new Headers({ "content-type": "application/json" }),
+        json: () => Promise.resolve({ code: "not_found" }),
       } as Response)) as typeof fetch
 
     try {
-      await expect(Http.request({ method: "GET", url: "https://example.com/todo", expect: "json" })).rejects.toMatchObject({
-        kind: "http_status",
+      await expect(Http.request({ method: "GET", url: "https://example.com/todo", expect: "json" })).resolves.toMatchObject({
+        ok: false,
         status: 404,
         statusText: "Not Found",
+        body: { code: "not_found" },
       })
     } finally {
       globalThis.fetch = originalFetch
@@ -100,13 +113,20 @@ describe("Http.request", () => {
     let capturedInit: RequestInit | undefined
     globalThis.fetch = ((_: string | URL | Request, init?: RequestInit) => {
       capturedInit = init
-      return Promise.resolve({ ok: true, status: 200, statusText: "OK", text: () => Promise.resolve("ok") } as Response)
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        url: "https://example.com/todo",
+        headers: new Headers({ "content-type": "text/plain" }),
+        text: () => Promise.resolve("ok"),
+      } as Response)
     }) as typeof fetch
 
     try {
       await expect(
         Http.request({ method: "POST", url: "https://example.com/todo", expect: "text", body: { done: false } }),
-      ).resolves.toBe("ok")
+      ).resolves.toMatchObject({ body: "ok" })
       expect(capturedInit?.body).toBe('{"done":false}')
       expect(capturedInit?.headers).toMatchObject({ "Content-Type": "application/json" })
     } finally {

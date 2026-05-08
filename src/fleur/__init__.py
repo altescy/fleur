@@ -1,6 +1,6 @@
 from collections.abc import Callable
 
-from fleur.builtins import Http, HttpError
+from fleur.builtins import Http, HttpError, HttpResponse
 from fleur.core import (
     Cmd,
     Component,
@@ -79,6 +79,7 @@ __all__ = [
     "EmitterSettings",
     "Http",
     "HttpError",
+    "HttpResponse",
     "bloom",
     "emit",
 ]

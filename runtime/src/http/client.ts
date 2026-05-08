@@ -1,4 +1,4 @@
-import { HttpBody, HttpError, HttpExpect, HttpRequest, HttpResponse } from "./types"
+import { DecodedBody, HttpBody, HttpError, HttpExpect, HttpRequest, HttpResponse } from "./types"
 
 const isHttpError = (error: unknown): error is HttpError => {
   return typeof error === "object" && error !== null && "kind" in error && "message" in error
@@ -45,16 +45,16 @@ const buildFetchBody = (body: HttpBody | undefined): BodyInit | undefined => {
   return JSON.stringify(body)
 }
 
-const decodeResponse = async <TExpect extends HttpExpect>(
+const decodeResponseBody = async <TExpect extends HttpExpect>(
   response: Response,
   expect: TExpect,
   url: string,
-): Promise<HttpResponse<TExpect>> => {
+): Promise<DecodedBody<TExpect>> => {
   try {
     if (expect === "json") {
-      return (await response.json()) as HttpResponse<TExpect>
+      return (await response.json()) as DecodedBody<TExpect>
     }
-    return (await response.text()) as HttpResponse<TExpect>
+    return (await response.text()) as DecodedBody<TExpect>
   } catch (error) {
     const httpError: HttpError = {
       kind: "decode",
@@ -67,13 +67,13 @@ const decodeResponse = async <TExpect extends HttpExpect>(
   }
 }
 
-const buildHttpStatusError = (response: Response, url: string): HttpError => ({
-  kind: "http_status",
-  message: `HTTP ${response.status} ${response.statusText}`,
-  url,
-  status: response.status,
-  statusText: response.statusText,
-})
+const responseHeaders = (response: Response): Record<string, string> => {
+  const headers: Record<string, string> = {}
+  response.headers.forEach((value, key) => {
+    headers[key] = value
+  })
+  return headers
+}
 
 const buildFetchError = (error: unknown, request: HttpRequest<HttpExpect>): HttpError => {
   if (isAbortError(error)) {
@@ -122,11 +122,15 @@ const executeRequest = async <TExpect extends HttpExpect>(request: HttpRequest<T
       signal: controller?.signal,
     })
 
-    if (!response.ok) {
-      throw buildHttpStatusError(response, request.url)
+    const body = await decodeResponseBody(response, request.expect, request.url)
+    return {
+      ok: response.ok,
+      status: response.status,
+      statusText: response.statusText,
+      url: response.url,
+      headers: responseHeaders(response),
+      body,
     }
-
-    return await decodeResponse(response, request.expect, request.url)
   } catch (error) {
     if (isHttpError(error)) {
       throw error

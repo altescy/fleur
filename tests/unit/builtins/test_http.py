@@ -1,6 +1,4 @@
 from fleur import Cmd, Msg, MsgGroup, builtins, emit
-from fleur.core.task import TaskLike
-from fleur.types import JsonValue
 
 
 class HttpMsg(MsgGroup):
@@ -69,7 +67,7 @@ def test_http_post_compiles_to_runtime_http_request_with_body() -> None:
 
 
 def test_http_other_method_helpers_compile_to_runtime_http_request() -> None:
-    cases: list[tuple[str, TaskLike[JsonValue | str, builtins.HttpError]]] = [
+    cases = [
         ("PUT", builtins.Http.put("https://example.com/todo", expect=builtins.Http.expectJson(), body={"done": True})),
         (
             "PATCH",
