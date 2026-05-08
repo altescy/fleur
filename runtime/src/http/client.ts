@@ -104,8 +104,8 @@ const executeRequest = async <TExpect extends HttpExpect>(request: HttpRequest<T
   const timeoutId =
     request.timeoutMs !== undefined
       ? setTimeout(() => {
-          controller?.abort()
-        }, request.timeoutMs)
+        controller?.abort()
+      }, request.timeoutMs)
       : undefined
 
   const headers =
@@ -139,20 +139,6 @@ const executeRequest = async <TExpect extends HttpExpect>(request: HttpRequest<T
 
 const Http = {
   request: <TExpect extends HttpExpect>(request: HttpRequest<TExpect>): Promise<HttpResponse<TExpect>> => executeRequest(request),
-  get: <TExpect extends HttpExpect>(
-    url: string,
-    expect: TExpect,
-    options?: Omit<HttpRequest<TExpect>, "method" | "url" | "expect" | "body">,
-  ): Promise<HttpResponse<TExpect>> => {
-    return executeRequest({
-      method: "GET",
-      url,
-      expect,
-      headers: options?.headers,
-      timeoutMs: options?.timeoutMs,
-      credentials: options?.credentials,
-    })
-  },
 }
 
 export { Http }
