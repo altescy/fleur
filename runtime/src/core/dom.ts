@@ -26,7 +26,13 @@ export const setProp = (el: Element & { __listeners?: Record<string, EventListen
     }) as EventListener
     el.addEventListener(type, listener)
     el.__listeners = { ...el.__listeners, [key]: listener }
-  } else if (value) {
+  } else if (key === "value") {
+    ;(el as HTMLInputElement | HTMLTextAreaElement | HTMLOptionElement).value = String(value ?? "")
+  } else if (key === "checked") {
+    ;(el as HTMLInputElement).checked = Boolean(value)
+  } else if (key === "selected") {
+    ;(el as HTMLOptionElement).selected = Boolean(value)
+  } else if (value != null && value !== false) {
     el.setAttribute(key, String(value))
   }
 }
@@ -50,6 +56,13 @@ export const removeProp = (el: Element & { __listeners?: Record<string, EventLis
       delete el.__listeners?.[key]
     }
   } else {
+    if (key === "value") {
+      ;(el as HTMLInputElement | HTMLTextAreaElement | HTMLOptionElement).value = ""
+    } else if (key === "checked") {
+      ;(el as HTMLInputElement).checked = false
+    } else if (key === "selected") {
+      ;(el as HTMLOptionElement).selected = false
+    }
     el.removeAttribute(key)
   }
 }

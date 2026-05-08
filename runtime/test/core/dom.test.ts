@@ -10,6 +10,9 @@ type FakeStyle = {
 type FakeElement = {
   style: FakeStyle
   attrs: Record<string, string>
+  value: string
+  checked: boolean
+  selected: boolean
   setAttribute: (name: string, value: string) => void
   removeAttribute: (name: string) => void
 }
@@ -25,6 +28,9 @@ const createFakeElement = (): FakeElement => {
   return {
     style,
     attrs: {},
+    value: "",
+    checked: false,
+    selected: false,
     setAttribute(name: string, value: string): void {
       this.attrs[name] = value
     },
@@ -45,5 +51,24 @@ describe("setProp", () => {
     setProp(el as unknown as Element, "style", { gap: "8px" })
 
     expect(el.style.values).toEqual({ gap: "8px" })
+  })
+
+  test("updates value property for controlled inputs", () => {
+    const el = createFakeElement()
+
+    setProp(el as unknown as Element, "value", "hello")
+    setProp(el as unknown as Element, "value", "")
+
+    expect(el.value).toBe("")
+  })
+
+  test("sets falsy attributes except false/null", () => {
+    const el = createFakeElement()
+
+    setProp(el as unknown as Element, "tabindex", 0)
+    setProp(el as unknown as Element, "aria-label", "")
+
+    expect(el.attrs.tabindex).toBe("0")
+    expect(el.attrs["aria-label"]).toBe("")
   })
 })
