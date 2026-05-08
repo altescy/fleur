@@ -153,9 +153,10 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
     #
 
     def __getitem__(
-        self: "Expr[Sequence[FleurValueT_co] | Mapping[str, FleurValueT_co]]", key: int | str | Expr[int | str]
-    ) -> "Expr[FleurValueT_co]":
-        return Expr[FleurValueT_co](
+        self: "Expr[Sequence[FleurValueT] | Mapping[str, FleurValueT]]",
+        key: int | str | Expr[int | str],
+    ) -> "Expr[FleurValueT]":
+        return Expr(
             ESTreeMemberExpression(
                 object=self.__compile__(),
                 property=ensure_expr(key),
@@ -202,7 +203,7 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
 
     def filter(
         self: "Expr[Sequence[FleurValueT]]",
-        fn: Function[[Expr[FleurValueT]], FleurValueU] | Callable[[Expr[FleurValueT]], FleurValueU | Expr[FleurValueU]],
+        fn: Function[[Expr[FleurValueT]], bool] | Callable[[Expr[FleurValueT]], bool | Expr[bool]],
     ) -> "Expr[Sequence[FleurValueT]]":
         if not isinstance(fn, Function):
             fn = function(fn)
@@ -246,6 +247,30 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
 
     def split(self: "Expr[str]", separator: FleurValue | Expr) -> "Expr[list[str]]":
         return Expr[list[str]](call(member_expr(self.__compile__(), "split"), ensure_expr(separator)))
+
+    #
+    # Object methods
+    #
+    def keys(self: "Expr[Mapping[str, Any]]") -> "Expr[Sequence[str]]":
+        return Expr[Sequence[str]](call(member_expr(ident("Object"), "keys"), self.__compile__()))
+
+    def values(self: "Expr[Mapping[str, FleurValueT]]") -> "Expr[Sequence[FleurValueT]]":
+        return Expr[Sequence[FleurValueT]](call(member_expr(ident("Object"), "values"), self.__compile__()))
+
+    def entries(self: "Expr[Mapping[str, FleurValueT]]") -> "Expr[Sequence[tuple[str, FleurValueT]]]":
+        return Expr[Sequence[tuple[str, FleurValueT]]](
+            call(member_expr(ident("Object"), "entries"), self.__compile__())
+        )
+
+    def assign(
+        self: "Expr[Mapping[str, FleurValueT]]",
+        *sources: Mapping[str, FleurValueT] | Expr[Mapping[str, FleurValueT]],
+    ) -> "Expr[Mapping[str, FleurValueT]]":
+        expr = self.__compile__()
+        for source in sources:
+            source_expr = ensure_expr(source)
+            expr = call(member_expr(ident("Object"), "assign"), expr, source_expr)
+        return Expr[Mapping[str, FleurValueT]](expr)
 
     #
     # Function

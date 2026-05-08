@@ -15,7 +15,7 @@ class Button(Element[ModelT_co, MsgGroupT]):
     def __init__(
         self,
         *children: ViewChild,
-        onclick: GroupedMsg[MsgGroupT, PointerEvent, Any],
+        onclick: GroupedMsg[MsgGroupT, PointerEvent, Any] | None = None,
         props: ViewProps | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
@@ -31,5 +31,6 @@ class Button(Element[ModelT_co, MsgGroupT]):
             props,
             **merged_style_args,
         )
-        merged = _utils.extend_props(merged, {"onclick": onclick})
+        if onclick is not None:
+            merged = _utils.extend_props(merged, {"onclick": onclick})
         super().__init__(*children, tag="button", props=merged)

@@ -10,6 +10,7 @@ from fleur.js.ast import ESTreeExpression, ESTreeFunctionBody, ESTreeFunctionExp
 from fleur.js.builder import ident, json_expr, member_expr, object_expr
 from fleur.types import ICompilable
 
+from .expr import Expr, ensure_expr
 from .model import Model
 from .runtime import MESSAGE_CONTEXT, MESSAGE_EVENT, MESSAGE_IDENT, MESSAGE_TYPE
 from .types import ModelT, MsgGroupT, OptionalContextT, OptionalEventT
@@ -24,10 +25,7 @@ class MsgGroup:
     @classmethod
     def caseof(
         cls,
-        *cases: tuple[
-            "GroupedMsg[Self, Any, Any]",
-            "CaseValue[ModelT, Self]",
-        ],
+        *cases: tuple["GroupedMsg[Self, Any, Any]", "CaseValue[ModelT, Self]"],
     ) -> "Update[ModelT, Self]":
         from .update import Update
 
@@ -77,7 +75,7 @@ class GroupedMsg(Model, Generic[MsgGroupT, OptionalEventT, OptionalContextT]):
         group: type[MsgGroupT],
         name: str,
         event_payload: OptionalEventT | None = None,
-        context_payload: OptionalContextT | None = None,
+        context_payload: OptionalContextT | Expr[OptionalContextT] | None = None,
     ) -> None:
         self.group = group
         self.name = name
@@ -95,7 +93,7 @@ class GroupedMsg(Model, Generic[MsgGroupT, OptionalEventT, OptionalContextT]):
     def context(self) -> OptionalContextT:
         return cast(OptionalContextT, MessageContextRef())
 
-    def bind(self, context: OptionalContextT) -> Self:
+    def bind(self, context: OptionalContextT | Expr[OptionalContextT]) -> Self:
         return self.__class__(self.group, self.name, self._event_payload, context)
 
     def then(
@@ -110,16 +108,10 @@ class GroupedMsg(Model, Generic[MsgGroupT, OptionalEventT, OptionalContextT]):
         context_expr: ESTreeExpression = json_expr(None)
 
         if self._event_payload is not None:
-            if isinstance(self._event_payload, ICompilable):
-                event_expr = self._event_payload.__compile__()
-            else:
-                event_expr = json_expr(cast(Any, self._event_payload))
+            event_expr = ensure_expr(cast(Any, self._event_payload))
 
         if self._context_payload is not None:
-            if isinstance(self._context_payload, ICompilable):
-                context_expr = self._context_payload.__compile__()
-            else:
-                context_expr = json_expr(cast(Any, self._context_payload))
+            context_expr = ensure_expr(self._context_payload)
 
         return ESTreeFunctionExpression(
             id=None,
