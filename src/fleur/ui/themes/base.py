@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal, TypeAlias, TypedDict, cast
+from typing import Literal, TypeAlias, TypedDict
 
 ThemeColorName: TypeAlias = Literal[
     "background",
@@ -223,15 +223,15 @@ ThemeVariables = TypedDict(
 
 
 def _default_theme_core_tokens() -> ThemeCoreTokens:
-    return cast(ThemeCoreTokens, {})
+    return {}
 
 
 def _default_theme_palette() -> ThemePalette:
-    return cast(ThemePalette, {})
+    return {}
 
 
 def _default_theme_variables() -> ThemeVariables:
-    return cast(ThemeVariables, {})
+    return {}
 
 
 @dataclass(slots=True)
@@ -260,13 +260,3 @@ class _ResolvedTheme:
     variables: ThemeVariables
     custom_variables: dict[str, str]
     extra_css: list[str]
-
-
-def _normalize_name(name: str | int) -> str:
-    return str(name).strip().replace("_", "-")
-
-
-def _normalize_length(value: int | float | str) -> str:
-    if isinstance(value, (int, float)):
-        return f"{value}px"
-    return value

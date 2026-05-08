@@ -5,6 +5,7 @@ from typing import cast
 
 from fleur.core.template import Page
 
+from . import _utils
 from .base import (
     Theme,
     ThemeColorName,
@@ -19,8 +20,6 @@ from .base import (
     ThemeSpaceName,
     ThemeTypographyName,
     ThemeVariables,
-    _normalize_length,
-    _normalize_name,
     _ResolvedTheme,
 )
 from .basic import BASIC_THEME
@@ -158,9 +157,13 @@ def _theme_with_defaults(theme: Theme, base_theme: Theme) -> _ResolvedTheme:
 
     # Backfill spacing/radius/font vars derived from shadcn tokens.
     for key, value in _derive_scale(spacing).items():
-        resolved.custom_variables.setdefault(f"--fleur-space-{_normalize_name(key)}", _normalize_length(value))
+        resolved.custom_variables.setdefault(
+            f"--fleur-space-{_utils.normalize_name(key)}", _utils.normalize_length(value)
+        )
     for key, value in _derive_radii(radius).items():
-        resolved.custom_variables.setdefault(f"--fleur-radius-{_normalize_name(key)}", _normalize_length(value))
+        resolved.custom_variables.setdefault(
+            f"--fleur-radius-{_utils.normalize_name(key)}", _utils.normalize_length(value)
+        )
     if body_font is not None:
         resolved.custom_variables.setdefault("--fleur-font-body", body_font)
     if mono_font is not None:
@@ -175,8 +178,8 @@ def theme_variables(theme: Theme, *, base_theme: Theme | None = None) -> dict[st
     variables: dict[str, str] = {}
     for key, value in merged.colors.items():
         color = cast(str, value)
-        variables[f"--{_normalize_name(key)}"] = color
-        variables[f"--fleur-color-{_normalize_name(key)}"] = color
+        variables[f"--{_utils.normalize_name(key)}"] = color
+        variables[f"--fleur-color-{_utils.normalize_name(key)}"] = color
 
     alias_map: dict[str, ThemeColorName] = {
         "bg-canvas": "background",
@@ -196,11 +199,11 @@ def theme_variables(theme: Theme, *, base_theme: Theme | None = None) -> dict[st
         if shadcn_name in merged.colors:
             variables[f"--fleur-color-{fleur_name}"] = merged.colors[shadcn_name]
     for key, value in merged.font_sizes.items():
-        variables[f"--fleur-text-{_normalize_name(key)}"] = _normalize_length(value)
+        variables[f"--fleur-text-{_utils.normalize_name(key)}"] = _utils.normalize_length(value)
     for comp_name, values in merged.components.items():
-        comp_key = _normalize_name(comp_name)
+        comp_key = _utils.normalize_name(comp_name)
         for key, value in values.items():
-            variables[f"--fleur-comp-{comp_key}-{_normalize_name(key)}"] = value
+            variables[f"--fleur-comp-{comp_key}-{_utils.normalize_name(key)}"] = value
     variables.update(cast(dict[str, str], merged.variables))
     variables.update(merged.custom_variables)
     return variables

@@ -30,7 +30,7 @@ class ShadcnRegistryItem(TypedDict, total=False):
 def _get_mapping(value: object, path: str) -> Mapping[str, object]:
     if not isinstance(value, Mapping):
         raise ValueError(f"{path} must be an object")
-    return cast(Mapping[str, object], value)
+    return value
 
 
 def _get_str(mapping: Mapping[str, object], key: str) -> str | None:
@@ -47,7 +47,7 @@ def _render_css_object(node: Mapping[str, object]) -> str:
             chunks.append(f"{key}:{value};")
             continue
         if isinstance(value, Mapping):
-            nested = _render_css_object(cast(Mapping[str, object], value))
+            nested = _render_css_object(value)
             chunks.append(f"{key}{{{nested}}}")
     return "".join(chunks)
 
@@ -69,18 +69,14 @@ def _theme_from_token_maps(global_tokens: Mapping[str, object], mode_tokens: Map
     font_mono = _get_str(mode_tokens, "font-mono") or _get_str(global_tokens, "font-mono")
 
     return Theme(
-        theme=cast(
-            ThemeCoreTokens,
-            {
-                **({"font-sans": font_sans} if font_sans is not None else {}),
-                **({"font-mono": font_mono} if font_mono is not None else {}),
-                "radius": radius,
-                "spacing": spacing,
-            },
+        theme=ThemeCoreTokens(
+            **({"font-sans": font_sans} if font_sans is not None else {}),
+            **({"font-mono": font_mono} if font_mono is not None else {}),
+            **{"radius": radius},
+            **{"spacing": spacing},
         ),
-        light=cast(
-            ThemePalette,
-            {
+        light=ThemePalette(
+            **{
                 "background": _get_str(mode_tokens, "background") or "oklch(1 0 0)",
                 "foreground": _get_str(mode_tokens, "foreground") or "oklch(0.145 0 0)",
                 "card": _get_str(mode_tokens, "card") or _get_str(mode_tokens, "popover") or "oklch(1 0 0)",
@@ -168,12 +164,12 @@ def theme_from_shadcn_registry_item(item: ShadcnRegistryItem, *, mode: ShadcnReg
     theme = _theme_from_token_maps(global_tokens, mode_tokens)
     theme.mode = mode
     if mode == "dark":
-        theme.dark = cast(ThemePalette, dict(theme.light))
-        theme.light = cast(ThemePalette, {})
+        theme.dark = theme.light
+        theme.light = {}
 
     css = item.get("css")
     if isinstance(css, Mapping):
-        rendered = _render_css_object(cast(Mapping[str, object], css))
+        rendered = _render_css_object(css)
         if rendered:
             theme.extra_css.append(rendered)
     return theme
