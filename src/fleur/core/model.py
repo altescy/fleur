@@ -104,27 +104,32 @@ class State(Generic[FleurValueT]):
         values[self._name] = value if isinstance(value, Expr) else Expr(ensure_expr(value))
 
     @staticmethod
-    def set(state: "ModelState[ModelT, FleurValueU]", value: FleurValueU | Expr[FleurValueU]) -> ModelUpdate[ModelT]:
+    def set(
+        state: "ModelState[ModelT, FleurValueU]",
+        value: FleurValueU | Expr[FleurValueU],
+    ) -> ModelUpdate[ModelT]:
         nested_path = state._path[1:]
         if not nested_path:
-            return ModelUpdate(state._field_name, value)
+            return ModelUpdate((state._field_name, value))
 
         model_field_expr = member(MODEL_IDENT, state._field_name)
         next_value = _assign_path(model_field_expr, nested_path, ensure_expr(value))
-        return ModelUpdate(state._field_name, Expr(next_value))
+        return ModelUpdate((state._field_name, Expr(next_value)))
 
 
 class ModelUpdate(Generic[ModelT_co]):
-    def __init__(self, field_name: str, value: FleurValue | Expr) -> None:
-        self.field_name = field_name
-        self.value = value
+    def __init__(self, *updates: tuple[str, FleurValue | Expr]) -> None:
+        self.updates = updates
+
+    def __and__(self, other: "ModelUpdate[ModelT_co]") -> "ModelUpdate[ModelT_co]":
+        return ModelUpdate(*self.updates, *other.updates)
 
     def __compile__(self) -> ESTreeExpression:
         return call(
             member("Object", "assign"),
             json_expr({}),
             ident(MODEL_IDENT),
-            object_expr([(self.field_name, ensure_expr(self.value))]),
+            object_expr([(field_name, ensure_expr(value)) for field_name, value in self.updates]),
         )
 
 

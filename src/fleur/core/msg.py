@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import operator
+from functools import reduce
 from typing import TYPE_CHECKING, Any, Generic, Type, cast
 
 from typing_extensions import Self, TypeVar
@@ -82,6 +84,9 @@ class GroupedMsg(Model, Generic[MsgGroupT, OptionalEventT, OptionalContextT]):
         self._event_payload = event_payload
         self._context_payload = context_payload
 
+    def __hash__(self) -> int:
+        return hash((self.group, self.name))
+
     @property
     def event(self) -> OptionalEventT:
         return cast(OptionalEventT, MessageEventRef())
@@ -96,8 +101,9 @@ class GroupedMsg(Model, Generic[MsgGroupT, OptionalEventT, OptionalContextT]):
     def then(
         self,
         update: "CaseValue[ModelT, MsgGroupT]",
+        *updates: "CaseValue[ModelT, MsgGroupT]",
     ) -> tuple[Self, "CaseValue[ModelT, MsgGroupT]"]:
-        return self, update
+        return self, reduce(operator.and_, updates, update)
 
     def __compile__(self) -> ESTreeExpression:
         event_expr: ESTreeExpression = ident(MESSAGE_EVENT)

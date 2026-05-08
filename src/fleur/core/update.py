@@ -57,7 +57,7 @@ class ForwardedUpdate(Generic[ModelT_co, MsgGroupT_co]):
             kind="var",
         )
 
-        model_expr = ModelUpdate(self.field_name, Expr(index_expr(result_ident, 0))).__compile__()
+        model_expr = ModelUpdate((self.field_name, Expr(index_expr(result_ident, 0)))).__compile__()
         cmd_expr = Cmd.map(self.tagger, Cmd(index_expr(result_ident, 1))).__compile__()
         result_pair = ESTreeArrayExpression(elements=[model_expr, cmd_expr])
 
@@ -101,12 +101,7 @@ class Update(Generic[ModelT_co, MsgGroupT_co]):
 
     def __init__(
         self,
-        cases: list[
-            tuple[
-                "GroupedMsg[MsgGroupT_co, Any, Any]",
-                CaseValue,
-            ]
-        ],
+        cases: list[tuple["GroupedMsg[MsgGroupT_co, Any, Any]", CaseValue]],
     ) -> None:
         self._cases = cases
 
