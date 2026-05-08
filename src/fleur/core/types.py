@@ -17,7 +17,7 @@ FleurValue: TypeAlias = Union[
     "Function",
     "Model",
     list["FleurValue[KeyT]"],
-    dict[str, "FleurValue[KeyT]"],
+    dict[KeyT, "FleurValue[KeyT]"],
     Sequence["FleurValue[KeyT]"],
     Mapping[KeyT, "FleurValue[KeyT]"],
 ]
