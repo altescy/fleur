@@ -10,7 +10,7 @@ from fleur.js.builder import call, ident, json_expr, member, member_expr, object
 
 from .expr import Expr, ensure_expr
 from .runtime import MODEL_IDENT
-from .types import FleurValue, FleurValueT, FleurValueT_co, FleurValueU
+from .types import FleurValue, FleurValueT, FleurValueT_co, FleurValueU, KeyT
 
 ModelT = TypeVar("ModelT", bound="Model")
 ModelT_co = TypeVar("ModelT_co", bound="Model", covariant=True)
@@ -159,8 +159,8 @@ class ModelState(Expr[FleurValueT_co], Generic[ModelT_co, FleurValueT_co]):
     ) -> "Expr[FleurValueT]": ...
     @overload
     def __getitem__(
-        self: "ModelState[ModelT_co, Mapping[str, FleurValueT]]",
-        key: "str | Expr[str]",
+        self: "ModelState[ModelT_co, Mapping[KeyT, FleurValueT]]",
+        key: "KeyT | Expr[KeyT]",
     ) -> "Expr[FleurValueT]": ...
     @overload
     def __getitem__(

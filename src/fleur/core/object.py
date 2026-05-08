@@ -4,7 +4,7 @@ from typing import Any
 from fleur.js.builder import call, ident, member_expr
 
 from .expr import Expr, ensure_expr
-from .types import FleurValueT
+from .types import FleurValueT, KeyT
 
 
 class Object:
@@ -26,8 +26,8 @@ class Object:
 
     @staticmethod
     def assign(
-        target: Expr[Mapping[str, FleurValueT]],
-        *sources: Mapping[str, FleurValueT] | Expr[Mapping[str, FleurValueT]],
+        target: Expr[Mapping[KeyT, FleurValueT]],
+        *sources: Mapping[KeyT, FleurValueT] | Expr[Mapping[str, FleurValueT]],
     ) -> Expr[Mapping[str, FleurValueT]]:
         expr = target.__compile__()
         for source in sources:

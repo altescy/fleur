@@ -14,7 +14,7 @@ from fleur.js.builder import call, ident, json_expr, member_expr, object_expr
 from fleur.types import ICompilable
 
 from .function import Function
-from .types import FleurValue, FleurValueT, FleurValueT_co
+from .types import FleurValue, FleurValueT, FleurValueT_co, KeyT
 
 
 def ensure_expr(value: FleurValue | ICompilable) -> "ESTreeExpression":
@@ -56,7 +56,7 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
     @overload
     def __add__(self: "Expr[int | float]", other: "int | Expr[int | float]") -> "Expr[int | float]": ...
     @overload
-    def __add__(self: "Expr[str]", other: "int | float | str | Expr[int | float | str]") -> "Expr[str]": ...
+    def __add__(self: "Expr[str]", other: "str | Expr[str]") -> "Expr[str]": ...
     def __add__(self, other: "FleurValue | Expr") -> "Expr":
         return Expr(ESTreeBinaryExpression(operator="+", left=self.__compile__(), right=ensure_expr(other)))
 
@@ -142,6 +142,18 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
     #
     # Indexing and member access
     #
+
+    @overload
+    def __getitem__(
+        self: "Expr[Sequence[FleurValueT]]",
+        key: int | Expr[int],
+    ) -> "Expr[FleurValueT]": ...
+
+    @overload
+    def __getitem__(
+        self: "Expr[Mapping[KeyT, FleurValueT]]",
+        key: KeyT | Expr[KeyT],
+    ) -> "Expr[FleurValueT]": ...
 
     def __getitem__(
         self: "Expr[Sequence[FleurValueT] | Mapping[str, FleurValueT]]",

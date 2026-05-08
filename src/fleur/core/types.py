@@ -1,7 +1,7 @@
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Union
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeAlias, TypeVar
 
 if TYPE_CHECKING:
     from fleur.types import JsonValue
@@ -11,14 +11,15 @@ if TYPE_CHECKING:
     from .msg import MsgGroup
 
 
-FleurValue = Union[
+KeyT = TypeVar("KeyT", bound=str)
+FleurValue: TypeAlias = Union[
     "JsonValue",
     "Function",
     "Model",
-    list["FleurValue"],
-    dict[str, "FleurValue"],
-    Sequence["FleurValue"],
-    Mapping[str, "FleurValue"],
+    list["FleurValue[KeyT]"],
+    dict[str, "FleurValue[KeyT]"],
+    Sequence["FleurValue[KeyT]"],
+    Mapping[KeyT, "FleurValue[KeyT]"],
 ]
 FleurValueT = TypeVar("FleurValueT", bound=FleurValue)
 FleurValueT_co = TypeVar("FleurValueT_co", bound=FleurValue, covariant=True)
