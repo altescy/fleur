@@ -1,6 +1,5 @@
 from fleur.core.view import ViewChild, ViewProps
 
-from .types import FlexDirection, FlexWrap, Length, Radius, RawColor, Spacing, Style, StyleMap
 from .box import Box
 from .button import Button
 from .checkbox import Checkbox
@@ -12,6 +11,7 @@ from .input import Input
 from .table import Table, TableBody, TableCaption, TableCell, TableFooter, TableHead, TableHeader, TableRow
 from .text import Text
 from .textarea import Textarea
+from .types import FlexDirection, FlexWrap, Length, Radius, RawColor, Spacing, Style, StyleMap
 from .vstack import VStack
 
 __all__ = [

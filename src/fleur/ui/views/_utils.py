@@ -9,18 +9,18 @@ from fleur.js.builder import call, ident, json_expr, member_expr, object_expr
 from ._constants import COLOR_KEYWORDS
 from .types import (
     Color,
-    FontSize,
-    FontWeight,
     FlexDirection,
     FlexWrap,
+    FontSize,
+    FontWeight,
     Length,
     Radius,
     Spacing,
+    String,
+    Style,
     StyleField,
     StyleTransform,
     StyleTransformValue,
-    Style,
-    String,
     ViewStyleArgs,
 )
 

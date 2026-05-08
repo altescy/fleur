@@ -68,16 +68,7 @@ JustifyContent: TypeAlias = _JustifyContent | Expr[_JustifyContent]
 AlignItems: TypeAlias = _AlignItems | Expr[_AlignItems]
 StyleTransform: TypeAlias = Literal["color", "space", "radius", "length", "font_size", "font_weight", "identity"]
 StyleTransformValue: TypeAlias = (
-    Color
-    | Spacing
-    | Radius
-    | Length
-    | FontSize
-    | FontWeight
-    | String
-    | FlexDirection
-    | FlexWrap
-    | None
+    Color | Spacing | Radius | Length | FontSize | FontWeight | String | FlexDirection | FlexWrap | None
 )
 
 
