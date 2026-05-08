@@ -1,7 +1,12 @@
-from fleur.js.ast import ESTreeConditionalExpression, ESTreeLogicalExpression
+from fleur.js.ast import (
+    ESTreeBinaryExpression,
+    ESTreeConditionalExpression,
+    ESTreeLogicalExpression,
+    ESTreeUnaryExpression,
+)
 
 from .expr import Expr, ensure_expr
-from .types import FleurValueT, FleurValueU
+from .types import FleurValue, FleurValueT, FleurValueU
 
 
 class Cond:
@@ -42,3 +47,41 @@ class Cond:
         for condition in conditions[1:]:
             expr = ESTreeLogicalExpression(operator="&&", left=expr, right=ensure_expr(condition))
         return Expr[bool](expr)
+
+    @staticmethod
+    def equal(
+        left: FleurValue | Expr,
+        right: FleurValue | Expr,
+    ) -> "Expr[bool]":
+        return Expr[bool](
+            ESTreeBinaryExpression(
+                operator="===",
+                left=ensure_expr(left),
+                right=ensure_expr(right),
+            )
+        )
+
+    @staticmethod
+    def not_equal(
+        left: FleurValue | Expr,
+        right: FleurValue | Expr,
+    ) -> "Expr[bool]":
+        return Expr[bool](
+            ESTreeBinaryExpression(
+                operator="!==",
+                left=ensure_expr(left),
+                right=ensure_expr(right),
+            )
+        )
+
+    @staticmethod
+    def negate(
+        condition: bool | Expr[bool],
+    ) -> "Expr[bool]":
+        return Expr[bool](
+            ESTreeUnaryExpression(
+                operator="!",
+                prefix=True,
+                argument=ensure_expr(condition),
+            )
+        )

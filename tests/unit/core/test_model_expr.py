@@ -109,7 +109,7 @@ def test_number_state_exposes_abs() -> None:
 
 
 def test_boolean_state_exposes_not_operator() -> None:
-    source = emit(BoolModel.enabled.neg().__compile__())
+    source = emit(Cond.negate(BoolModel.enabled).__compile__())
 
     assert source == "(!model.enabled)"
 

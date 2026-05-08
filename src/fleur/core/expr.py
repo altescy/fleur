@@ -87,12 +87,6 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
     def __mod__(self: "Expr[int | float]", other: "int | Expr[int | float]") -> "Expr[int | float]":
         return Expr(ESTreeBinaryExpression(operator="%", left=self.__compile__(), right=ensure_expr(other)))
 
-    def eq(self, other: FleurValue | Expr) -> "Expr[bool]":
-        return Expr[bool](ESTreeBinaryExpression(operator="===", left=self.__compile__(), right=ensure_expr(other)))
-
-    def ne(self, other: FleurValue | Expr) -> "Expr[bool]":
-        return Expr[bool](ESTreeBinaryExpression(operator="!=", left=self.__compile__(), right=ensure_expr(other)))
-
     @overload
     def __lt__(self: "Expr[int | float]", other: "int | Expr[int | float]") -> "Expr[bool]": ...
     @overload
@@ -144,9 +138,6 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
 
     def __invert__(self: "Expr[int]") -> "Expr[int]":
         return Expr(ESTreeUnaryExpression(operator="~", argument=self.__compile__(), prefix=True))
-
-    def neg(self: "Expr[bool]") -> "Expr[bool]":
-        return Expr(ESTreeUnaryExpression(operator="!", argument=self.__compile__(), prefix=True))
 
     #
     # Indexing and member access

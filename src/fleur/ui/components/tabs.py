@@ -137,7 +137,7 @@ def tabs(
     panel_expr = Box(Text(empty_message), props=resolved_panel_props)
     for index in range(max_index, -1, -1):
         panel_expr = Cond.when(
-            TabsModel.active_index.eq(index),
+            Cond.equal(TabsModel.active_index, index),
             Box(items[index].content, props=resolved_panel_props),
             panel_expr,
         )
@@ -147,27 +147,27 @@ def tabs(
             item.label,
             onclick=TabsMsg.SELECT.bind(index),
             bg=Cond.when(
-                TabsModel.active_index.eq(index),
+                Cond.equal(TabsModel.active_index, index),
                 "var(--fleur-color-bg-surface)",
                 "transparent",
             ),
             fg=Cond.when(
-                TabsModel.active_index.eq(index),
+                Cond.equal(TabsModel.active_index, index),
                 "var(--fleur-color-fg-default)",
                 "var(--fleur-color-fg-muted)",
             ),
             border=Cond.when(
-                TabsModel.active_index.eq(index),
+                Cond.equal(TabsModel.active_index, index),
                 "1px solid var(--fleur-color-border-default)",
                 "1px solid transparent",
             ),
             px="sm",
             py="xs",
             radius="sm",
-            font_weight=Cond.when(TabsModel.active_index.eq(index), "600", "500"),
+            font_weight=Cond.when(Cond.equal(TabsModel.active_index, index), "600", "500"),
             style={
                 "box-shadow": Cond.when(
-                    TabsModel.active_index.eq(index),
+                    Cond.equal(TabsModel.active_index, index),
                     "0 1px 2px rgba(10, 10, 10, 0.08)",
                     "none",
                 )

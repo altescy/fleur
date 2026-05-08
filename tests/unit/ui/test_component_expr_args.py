@@ -21,12 +21,12 @@ def test_tabs_supports_expr_arguments() -> None:
         tabs(
             [
                 TabSpec(
-                    label=Cond.when(TabsModel.active_index.eq(0), "Home*", "Home"),
-                    content=Cond.when(TabsModel.active_index.eq(0), "Active", "Inactive"),
+                    label=Cond.when(Cond.equal(TabsModel.active_index, 0), "Home*", "Home"),
+                    content=Cond.when(Cond.equal(TabsModel.active_index, 0), "Active", "Inactive"),
                 )
             ],
-            title=Cond.when(TabsModel.active_index.eq(0), "Tabs*", "Tabs"),
-            empty_message=Cond.when(TabsModel.active_index.eq(0), "None*", "None"),
+            title=Cond.when(Cond.equal(TabsModel.active_index, 0), "Tabs*", "Tabs"),
+            empty_message=Cond.when(Cond.equal(TabsModel.active_index, 0), "None*", "None"),
         ).__compile__()
     )
 
