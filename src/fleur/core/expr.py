@@ -87,10 +87,10 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
     def __mod__(self: "Expr[int | float]", other: "int | Expr[int | float]") -> "Expr[int | float]":
         return Expr(ESTreeBinaryExpression(operator="%", left=self.__compile__(), right=ensure_expr(other)))
 
-    def eq(self, other: FleurValue) -> "Expr[bool]":
+    def eq(self, other: FleurValue | Expr) -> "Expr[bool]":
         return Expr[bool](ESTreeBinaryExpression(operator="===", left=self.__compile__(), right=ensure_expr(other)))
 
-    def ne(self, other: FleurValue) -> "Expr[bool]":
+    def ne(self, other: FleurValue | Expr) -> "Expr[bool]":
         return Expr[bool](ESTreeBinaryExpression(operator="!=", left=self.__compile__(), right=ensure_expr(other)))
 
     @overload
@@ -277,3 +277,25 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
     #
     def __call__(self: "Expr[Function[..., FleurValueT]]", *args: FleurValue | Expr) -> "Expr[FleurValueT]":
         return Expr(call(self.__compile__(), *(ensure_expr(arg) for arg in args)))
+
+
+def boolean(value: bool) -> Expr[bool]:
+    return Expr(json_expr(value))
+
+
+def number(value: int | float) -> Expr[int | float]:
+    return Expr(json_expr(value))
+
+
+def string(value: str) -> Expr[str]:
+    return Expr(json_expr(value))
+
+
+def array(value: Sequence[FleurValueT | Expr[FleurValueT]]) -> Expr[Sequence[FleurValueT]]:
+    exprs = [ensure_expr(elem) for elem in value]
+    return Expr(ESTreeArrayExpression(elements=exprs))
+
+
+def record(value: Mapping[str, FleurValueT | Expr[FleurValueT]]) -> Expr[Mapping[str, FleurValueT]]:
+    properties = ((key, ensure_expr(val)) for key, val in value.items())
+    return Expr(object_expr(properties))

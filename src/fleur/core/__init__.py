@@ -2,7 +2,7 @@ from .cmd import Cmd
 from .component import Component
 from .cond import Cond
 from .events import FocusEvent, InputEvent, KeyboardEvent, PointerEvent, SubmitEvent
-from .expr import Expr
+from .expr import Expr, array, boolean, number, record, string
 from .model import (
     Model,
     ModelState,
@@ -42,4 +42,9 @@ __all__ = [
     "View",
     "PointerEvent",
     "BloomContext",
+    "array",
+    "boolean",
+    "number",
+    "record",
+    "string",
 ]
