@@ -43,6 +43,8 @@ def test_theme_from_shadcn_registry_item_maps_light_tokens() -> None:
     assert variables["--fleur-radius-md"] == "0.5rem"
     assert variables["--fleur-space-lg"] == "calc(0.25rem * 4)"
     assert variables["--tracking-normal"] == "0.01em"
+    assert variables["--fleur-color-destructive"] == "oklch(0.577 0.245 27.325)"
+    assert variables["--fleur-color-surface"] == "oklch(0.83 0.02 87)"
 
 
 def test_theme_from_shadcn_registry_json_parses_payload() -> None:

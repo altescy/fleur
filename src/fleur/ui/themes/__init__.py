@@ -53,6 +53,10 @@ def _resolved_shadcn_tokens(theme: Theme) -> dict[str, str]:
 
 
 def _shadcn_color_overrides(tokens: dict[str, str]) -> dict[ThemeColorName, str]:
+    surface = tokens.get("surface", "")
+    surface_foreground = tokens.get("surface-foreground", "")
+    code = tokens.get("code", "")
+    code_foreground = tokens.get("code-foreground", "")
     return {
         "background": tokens.get("background", "oklch(1 0 0)"),
         "foreground": tokens.get("foreground", "oklch(0.145 0 0)"),
@@ -90,6 +94,14 @@ def _shadcn_color_overrides(tokens: dict[str, str]) -> dict[ThemeColorName, str]
         ),
         "sidebar-border": tokens.get("sidebar-border", tokens.get("border", "oklch(0.922 0 0)")),
         "sidebar-ring": tokens.get("sidebar-ring", tokens.get("ring", "oklch(0.708 0 0)")),
+        "surface": surface or tokens.get("muted", "oklch(0.97 0 0)"),
+        "surface-foreground": surface_foreground or tokens.get("foreground", "oklch(0.145 0 0)"),
+        "code": code or surface or tokens.get("muted", "oklch(0.97 0 0)"),
+        "code-foreground": code_foreground or surface_foreground or tokens.get("foreground", "oklch(0.145 0 0)"),
+        "code-highlight": tokens.get("code-highlight", tokens.get("accent", "oklch(0.97 0 0)")),
+        "code-number": tokens.get("code-number", tokens.get("muted-foreground", "oklch(0.556 0 0)")),
+        "selection": tokens.get("selection", tokens.get("foreground", "oklch(0.145 0 0)")),
+        "selection-foreground": tokens.get("selection-foreground", tokens.get("background", "oklch(1 0 0)")),
     }
 
 
@@ -200,7 +212,9 @@ def theme_style_tag(theme: Theme, *, base_theme: Theme | None = None) -> str:
     declarations = "".join(f"{name}: {value};" for name, value in variables.items())
     base = (
         "*,:before,:after{box-sizing:border-box;}"
+        "*{border-color:var(--fleur-color-border);outline-color:color-mix(in srgb,var(--fleur-color-ring) 50%,transparent);}"
         "html,body{margin:0;padding:0;}"
+        "html{line-height:1.5;-webkit-text-size-adjust:100%;tab-size:4;font-family:var(--fleur-font-body);}"
         "body{"
         "font-size:var(--fleur-text-base);"
         "font-family:var(--fleur-font-body);"
@@ -211,9 +225,36 @@ def theme_style_tag(theme: Theme, *, base_theme: Theme | None = None) -> str:
         "-webkit-font-smoothing:antialiased;"
         "-moz-osx-font-smoothing:grayscale;"
         "}"
+        "::selection{background:var(--fleur-color-selection);color:var(--fleur-color-selection-foreground);}"
+        "a{color:inherit;text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--fleur-color-foreground) 35%,transparent);text-underline-offset:.2em;}"
+        "a:hover{text-decoration-color:currentColor;}"
+        "h1,h2,h3,h4,h5,h6,p,figure,blockquote,dl,dd{margin:0;}"
+        "p{line-height:1.7;}"
+        "small{font-size:var(--fleur-text-sm);}"
+        "strong,b{font-weight:600;}"
+        "em,i{font-style:italic;}"
+        "code,kbd,samp,pre{font-family:var(--fleur-font-mono);}"
+        "code,kbd,samp{font-size:.9em;}"
+        "code{background:var(--fleur-color-code);color:var(--fleur-color-code-foreground);border-radius:var(--fleur-radius-sm);padding:.125em .375em;}"
+        "pre{margin:0;overflow:auto;background:var(--fleur-color-code);color:var(--fleur-color-code-foreground);border-radius:var(--fleur-radius-md);padding:calc(var(--fleur-space-md) + var(--fleur-space-xs));}"
+        "pre code{background:transparent;color:inherit;padding:0;border-radius:0;}"
+        "kbd{background:var(--fleur-color-surface);border:1px solid var(--fleur-color-border);border-bottom-width:2px;border-radius:var(--fleur-radius-sm);padding:.125em .375em;}"
+        "mark{background:color-mix(in srgb,var(--fleur-color-accent) 55%,transparent);color:inherit;}"
+        "blockquote{margin:0;padding-left:1rem;border-left:3px solid var(--fleur-color-border);color:var(--fleur-color-muted-foreground);font-style:italic;}"
+        "ul,ol{margin:0;padding-left:1.375rem;}"
+        "li{margin:0;}"
+        "table{border-collapse:collapse;border-spacing:0;width:100%;}"
+        "caption{caption-side:bottom;color:var(--fleur-color-muted-foreground);font-size:var(--fleur-text-sm);padding-top:var(--fleur-space-sm);text-align:left;}"
+        "th,td{padding:calc(var(--fleur-space-sm) + var(--fleur-space-xs)) var(--fleur-space-md);border-bottom:1px solid var(--fleur-color-border);text-align:left;vertical-align:top;}"
+        "th{font-weight:600;color:var(--fleur-color-fg-default);}"
+        "img,svg,video,canvas,audio,iframe,embed,object{display:block;max-width:100%;}"
+        "img,video{height:auto;}"
         "button,input,select,textarea{font:inherit;color:inherit;}"
+        "input,select,textarea{background:var(--fleur-color-card);border:1px solid var(--fleur-color-input);border-radius:var(--fleur-radius-sm);padding:var(--fleur-space-sm) var(--fleur-space-md);}"
         "button{appearance:none;-webkit-appearance:none;background:none;border:0;cursor:pointer;transition:background-color .15s ease,color .15s ease,border-color .15s ease,box-shadow .15s ease;}"
         "button:disabled{cursor:not-allowed;opacity:.55;}"
+        "fieldset{margin:0;padding:0;border:0;min-width:0;}"
+        "legend{padding:0;}"
         "hr{border:0;border-top:1px solid var(--fleur-color-border-default);margin:0;}"
         ":focus-visible{outline:none;box-shadow:var(--fleur-comp-button-focus-ring);border-radius:var(--fleur-radius-sm);}"
     )

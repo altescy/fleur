@@ -96,6 +96,61 @@ def _theme_from_token_maps(global_tokens: Mapping[str, object], mode_tokens: Map
                 or _get_str(mode_tokens, "secondary-foreground")
                 or "oklch(0.205 0 0)",
                 "ring": _get_str(mode_tokens, "ring") or "oklch(0.708 0 0)",
+                "destructive": _get_str(mode_tokens, "destructive") or "oklch(0.577 0.245 27.325)",
+                "destructive-foreground": _get_str(mode_tokens, "destructive-foreground") or "oklch(0.97 0.01 17)",
+                "chart-1": _get_str(mode_tokens, "chart-1") or "oklch(0.87 0 0)",
+                "chart-2": _get_str(mode_tokens, "chart-2") or "oklch(0.556 0 0)",
+                "chart-3": _get_str(mode_tokens, "chart-3") or "oklch(0.439 0 0)",
+                "chart-4": _get_str(mode_tokens, "chart-4") or "oklch(0.371 0 0)",
+                "chart-5": _get_str(mode_tokens, "chart-5") or "oklch(0.269 0 0)",
+                "sidebar": _get_str(mode_tokens, "sidebar")
+                or _get_str(mode_tokens, "background")
+                or "oklch(0.985 0 0)",
+                "sidebar-foreground": _get_str(mode_tokens, "sidebar-foreground")
+                or _get_str(mode_tokens, "foreground")
+                or "oklch(0.145 0 0)",
+                "sidebar-primary": _get_str(mode_tokens, "sidebar-primary")
+                or _get_str(mode_tokens, "primary")
+                or "oklch(0.205 0 0)",
+                "sidebar-primary-foreground": _get_str(mode_tokens, "sidebar-primary-foreground")
+                or _get_str(mode_tokens, "primary-foreground")
+                or "oklch(0.985 0 0)",
+                "sidebar-accent": _get_str(mode_tokens, "sidebar-accent")
+                or _get_str(mode_tokens, "accent")
+                or "oklch(0.97 0 0)",
+                "sidebar-accent-foreground": _get_str(mode_tokens, "sidebar-accent-foreground")
+                or _get_str(mode_tokens, "accent-foreground")
+                or "oklch(0.205 0 0)",
+                "sidebar-border": _get_str(mode_tokens, "sidebar-border")
+                or _get_str(mode_tokens, "border")
+                or "oklch(0.922 0 0)",
+                "sidebar-ring": _get_str(mode_tokens, "sidebar-ring")
+                or _get_str(mode_tokens, "ring")
+                or "oklch(0.708 0 0)",
+                "surface": _get_str(mode_tokens, "surface") or _get_str(mode_tokens, "muted") or "oklch(0.98 0 0)",
+                "surface-foreground": _get_str(mode_tokens, "surface-foreground")
+                or _get_str(mode_tokens, "foreground")
+                or "oklch(0.145 0 0)",
+                "code": _get_str(mode_tokens, "code")
+                or _get_str(mode_tokens, "surface")
+                or _get_str(mode_tokens, "muted")
+                or "oklch(0.98 0 0)",
+                "code-foreground": _get_str(mode_tokens, "code-foreground")
+                or _get_str(mode_tokens, "surface-foreground")
+                or _get_str(mode_tokens, "foreground")
+                or "oklch(0.145 0 0)",
+                "code-highlight": _get_str(mode_tokens, "code-highlight")
+                or _get_str(mode_tokens, "accent")
+                or "oklch(0.96 0 0)",
+                "code-number": _get_str(mode_tokens, "code-number")
+                or _get_str(mode_tokens, "muted-foreground")
+                or "oklch(0.556 0 0)",
+                "selection": _get_str(mode_tokens, "selection")
+                or _get_str(mode_tokens, "foreground")
+                or "oklch(0.145 0 0)",
+                "selection-foreground": _get_str(mode_tokens, "selection-foreground")
+                or _get_str(mode_tokens, "background")
+                or "oklch(1 0 0)",
                 "spacing": spacing,
                 "radius": radius,
             },

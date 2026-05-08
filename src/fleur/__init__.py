@@ -39,11 +39,13 @@ def bloom(
 ) -> str:
     from pathlib import Path
 
+    from fleur.ui import DEFAULT_THEME
+
     fleur_js_path = Path(__file__).parent / "assets" / "fleur.js"
     runtime_js = fleur_js_path.read_text()
 
     resolved_page = page or Page()
-    resolved_page = apply_theme(resolved_page, theme or Theme())
+    resolved_page = apply_theme(resolved_page, theme or DEFAULT_THEME)
 
     component_js = emit((component() if callable(component) else component).__compile__())
     context = BloomContext(
