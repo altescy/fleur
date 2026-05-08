@@ -2,7 +2,6 @@ from fleur.js.ast import (
     ESTreeBinaryExpression,
     ESTreeConditionalExpression,
     ESTreeLogicalExpression,
-    ESTreeUnaryExpression,
 )
 
 from .expr import Expr, ensure_expr
@@ -71,17 +70,5 @@ class Cond:
                 operator="!==",
                 left=ensure_expr(left),
                 right=ensure_expr(right),
-            )
-        )
-
-    @staticmethod
-    def negate(
-        condition: bool | Expr[bool],
-    ) -> "Expr[bool]":
-        return Expr[bool](
-            ESTreeUnaryExpression(
-                operator="!",
-                prefix=True,
-                argument=ensure_expr(condition),
             )
         )

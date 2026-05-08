@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
-from typing import Any, Generic, cast, overload
+from collections.abc import Mapping, Sequence
+from typing import Any, Generic, overload
 
 from fleur.js.ast import (
     ESTreeArrayExpression,
@@ -13,8 +13,8 @@ from fleur.js.ast import (
 from fleur.js.builder import call, ident, json_expr, member_expr, object_expr
 from fleur.types import ICompilable
 
-from .function import Function, function
-from .types import FleurValue, FleurValueT, FleurValueT_co, FleurValueU
+from .function import Function
+from .types import FleurValue, FleurValueT, FleurValueT_co
 
 
 def ensure_expr(value: FleurValue | ICompilable) -> "ESTreeExpression":
@@ -154,114 +154,6 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
                 computed=True,
             )
         )
-
-    def has(self: "Expr[Mapping[str, Any]]", key: str | Expr[str]) -> "Expr[bool]":
-        return Expr[bool](call(member_expr(self.__compile__(), "hasOwnProperty"), ensure_expr(key)))
-
-    #
-    # Sequence methods
-    #
-
-    def includes(self: "Expr[FleurValueT]", substring: FleurValueT | Expr[FleurValueT]) -> "Expr[bool]":
-        return Expr[bool](call(member_expr(self.__compile__(), "includes"), ensure_expr(substring)))
-
-    def update_at(
-        self: "Expr[Sequence[FleurValueT]]",
-        index: int | Expr[int],
-        value: FleurValueT | Expr[FleurValueT],
-    ) -> "Expr[FleurValueT_co]":
-        return Expr[FleurValueT_co](
-            call(member_expr(self.__compile__(), "with"), ensure_expr(index), ensure_expr(value))
-        )
-
-    def concat(
-        self: "Expr[Sequence[FleurValueT]]",
-        *sequences: Sequence[FleurValueT | Expr[FleurValueT]] | Expr[Sequence[FleurValueT]],
-    ) -> "Expr[Sequence[FleurValueT]]":
-        expr = self.__compile__()
-        for seq in sequences:
-            seq = cast(Expr | FleurValue, seq)
-            expr = call(member_expr(expr, "concat"), seq.__compile__() if isinstance(seq, Expr) else ensure_expr(seq))
-        return Expr[Sequence[FleurValueT]](expr)
-
-    def map(
-        self: "Expr[Sequence[FleurValueT]]",
-        fn: Function[[Expr[FleurValueT]], FleurValueU] | Callable[[Expr[FleurValueT]], FleurValueU | Expr[FleurValueU]],
-    ) -> "Expr[Sequence[FleurValueU]]":
-        if not isinstance(fn, Function):
-            fn = function(fn)
-        return Expr(call(member_expr(self.__compile__(), "map"), fn.ast))
-
-    def filter(
-        self: "Expr[Sequence[FleurValueT]]",
-        fn: Function[[Expr[FleurValueT]], bool] | Callable[[Expr[FleurValueT]], bool | Expr[bool]],
-    ) -> "Expr[Sequence[FleurValueT]]":
-        if not isinstance(fn, Function):
-            fn = function(fn)
-        return Expr(call(member_expr(self.__compile__(), "filter"), fn.ast))
-
-    #
-    # Number methods
-    #
-
-    @overload
-    def abs(self: "Expr[int]") -> "Expr[int]": ...
-    @overload
-    def abs(self: "Expr[float]") -> "Expr[float]": ...
-    def abs(self: "Expr[int | float]") -> "Expr[int | float]":
-        return Expr[int | float](call(member_expr(ident("Math"), "abs"), self.__compile__()))
-
-    def floor(self: "Expr[int | float]") -> "Expr[int]":
-        return Expr[int](call(member_expr(ident("Math"), "floor"), self.__compile__()))
-
-    def ceil(self: "Expr[int | float]") -> "Expr[int]":
-        return Expr[int](call(member_expr(ident("Math"), "ceil"), self.__compile__()))
-
-    def round(self: "Expr[int | float]") -> "Expr[int]":
-        return Expr[int](call(member_expr(ident("Math"), "round"), self.__compile__()))
-
-    def sign(self: "Expr[int | float]") -> "Expr[int]":
-        return Expr[int](call(member_expr(ident("Math"), "sign"), self.__compile__()))
-
-    #
-    # String methods
-    #
-
-    def lower(self: "Expr[str]") -> "Expr[str]":
-        return Expr[str](call(member_expr(self.__compile__(), "toLowerCase")))
-
-    def upper(self: "Expr[str]") -> "Expr[str]":
-        return Expr[str](call(member_expr(self.__compile__(), "toUpperCase")))
-
-    def trim(self: "Expr[str]") -> "Expr[str]":
-        return Expr[str](call(member_expr(self.__compile__(), "trim")))
-
-    def split(self: "Expr[str]", separator: FleurValue | Expr) -> "Expr[list[str]]":
-        return Expr[list[str]](call(member_expr(self.__compile__(), "split"), ensure_expr(separator)))
-
-    #
-    # Object methods
-    #
-    def keys(self: "Expr[Mapping[str, Any]]") -> "Expr[Sequence[str]]":
-        return Expr[Sequence[str]](call(member_expr(ident("Object"), "keys"), self.__compile__()))
-
-    def values(self: "Expr[Mapping[str, FleurValueT]]") -> "Expr[Sequence[FleurValueT]]":
-        return Expr[Sequence[FleurValueT]](call(member_expr(ident("Object"), "values"), self.__compile__()))
-
-    def entries(self: "Expr[Mapping[str, FleurValueT]]") -> "Expr[Sequence[tuple[str, FleurValueT]]]":
-        return Expr[Sequence[tuple[str, FleurValueT]]](
-            call(member_expr(ident("Object"), "entries"), self.__compile__())
-        )
-
-    def assign(
-        self: "Expr[Mapping[str, FleurValueT]]",
-        *sources: Mapping[str, FleurValueT] | Expr[Mapping[str, FleurValueT]],
-    ) -> "Expr[Mapping[str, FleurValueT]]":
-        expr = self.__compile__()
-        for source in sources:
-            source_expr = ensure_expr(source)
-            expr = call(member_expr(ident("Object"), "assign"), expr, source_expr)
-        return Expr[Mapping[str, FleurValueT]](expr)
 
     #
     # Function

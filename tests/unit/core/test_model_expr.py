@@ -2,7 +2,7 @@ from typing import Any, cast
 
 import pytest
 
-from fleur import Cond, Model, Msg, MsgGroup, State, emit
+from fleur import Array, Boolean, Cond, Model, Msg, MsgGroup, Number, Object, State, String, emit
 from fleur.core.component import Component
 from fleur.ui import Text
 
@@ -84,7 +84,7 @@ def test_update_requires_explicit_set() -> None:
 
 
 def test_string_state_exposes_js_like_operations() -> None:
-    source = emit(TextModel.title.includes("Fleur").__compile__())
+    source = emit(String.includes(TextModel.title, "Fleur").__compile__())
 
     assert 'model.title.includes("Fleur")' in source
 
@@ -98,25 +98,25 @@ def test_nested_model_state_compiles_property_access_and_update() -> None:
 
 
 def test_array_state_update_at_compiles_map_expression() -> None:
-    source = emit(ListModel.flags.update_at(1, True).__compile__())
+    source = emit(Array.update_at(ListModel.flags, 1, True).__compile__())
 
     assert source == "model.flags.with(1,true)"
 
 
 def test_number_state_exposes_abs() -> None:
-    abs_source = emit(NumericModel.value.abs().__compile__())
+    abs_source = emit(Number.abs(NumericModel.value).__compile__())
     assert "Math.abs(model.value)" in abs_source
 
 
 def test_boolean_state_exposes_not_operator() -> None:
-    source = emit(Cond.negate(BoolModel.enabled).__compile__())
+    source = emit(Boolean.negate(BoolModel.enabled).__compile__())
 
     assert source == "(!model.enabled)"
 
 
 def test_record_state_exposes_get_and_has() -> None:
     get_source = emit(RecordModel.mapping["count"].__compile__())
-    has_source = emit(RecordModel.mapping.has("count").__compile__())
+    has_source = emit(Object.has(RecordModel.mapping, "count").__compile__())
 
     assert get_source == 'model.mapping["count"]'
     assert has_source == 'model.mapping.hasOwnProperty("count")'

@@ -2,6 +2,8 @@ from collections.abc import Callable
 
 from fleur.builtins import Http, HttpError, HttpResponse
 from fleur.core import (
+    Array,
+    Boolean,
     Cmd,
     Component,
     Cond,
@@ -10,7 +12,10 @@ from fleur.core import (
     ModelUpdate,
     Msg,
     MsgGroup,
+    Number,
+    Object,
     State,
+    String,
     Sub,
     TaskLike,
     Update,
@@ -62,6 +67,8 @@ def bloom(
 
 
 __all__ = [
+    "Array",
+    "Boolean",
     "Cmd",
     "Component",
     "Cond",
@@ -70,8 +77,11 @@ __all__ = [
     "ModelUpdate",
     "Msg",
     "MsgGroup",
+    "Number",
+    "Object",
     "State",
     "Sub",
+    "String",
     "TaskLike",
     "Update",
     "View",
