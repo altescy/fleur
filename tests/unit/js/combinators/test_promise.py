@@ -3,14 +3,15 @@ from fleur.js.combinators import Promise, TaskValueRef
 from fleur.js.emitter import emit
 
 
-def test_promise_then_compiles_mapper_function() -> None:
-    promise = Promise[object, object, TaskValueRef[object]](
-        ident("promise"),
-        value_ref_factory=lambda expr: TaskValueRef(expr),
-    )
+class TestPromise:
+    def test_promise_then_compiles_mapper_function(self) -> None:
+        promise = Promise[object, object, TaskValueRef[object]](
+            ident("promise"),
+            value_ref_factory=lambda expr: TaskValueRef(expr),
+        )
 
-    mapped = promise.then(lambda value: value)
-    source = emit(mapped.__compile__())
+        mapped = promise.then(lambda value: value)
+        source = emit(mapped.__compile__())
 
-    assert "promise.then" in source
-    assert "function(value) {return value;}" in source
+        assert "promise.then" in source
+        assert "function(value) {return value;}" in source
