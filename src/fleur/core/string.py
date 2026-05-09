@@ -24,3 +24,11 @@ class String:
     @staticmethod
     def split(value: Expr[str], separator: FleurValue | Expr) -> Expr[list[str]]:
         return Expr[list[str]](call(member_expr(value.__compile__(), "split"), ensure_expr(separator)))
+
+    @staticmethod
+    def starts_with(value: Expr[str], prefix: str | Expr[str]) -> Expr[bool]:
+        return Expr[bool](call(member_expr(value.__compile__(), "startsWith"), ensure_expr(prefix)))
+
+    @staticmethod
+    def ends_with(value: Expr[str], suffix: str | Expr[str]) -> Expr[bool]:
+        return Expr[bool](call(member_expr(value.__compile__(), "endsWith"), ensure_expr(suffix)))

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generic, Protocol
+from typing import TYPE_CHECKING, Any, Generic, Protocol, runtime_checkable
 
 from fleur.js.ast import (
     ESTreeArrayExpression,
@@ -27,12 +27,13 @@ if TYPE_CHECKING:
     from .msg import GroupedMsg
 
 
-class CompiledUpdateResult(Protocol):
+@runtime_checkable
+class _CompiledUpdateResult(Protocol):
     def __compile_update_result__(self) -> ESTreeExpression: ...
 
 
 CaseValue = (
-    ModelUpdate["ModelT_co"] | tuple[ModelUpdate["ModelT_co"], Cmd["ModelT_co", "MsgGroupT_co"]] | CompiledUpdateResult
+    ModelUpdate["ModelT_co"] | tuple[ModelUpdate["ModelT_co"], Cmd["ModelT_co", "MsgGroupT_co"]] | _CompiledUpdateResult
 )
 
 
@@ -83,7 +84,7 @@ def _compile_case_result(value: CaseValue) -> ESTreeExpression:
     if isinstance(value, ModelUpdate):
         return ESTreeArrayExpression(elements=[value.__compile__(), Cmd.none().__compile__()])
 
-    if hasattr(value, "__compile_update_result__"):
+    if isinstance(value, _CompiledUpdateResult):
         return value.__compile_update_result__()
 
     raise TypeError("Update case must return ModelState.set(...), (ModelUpdate, Cmd), or Update.forward(...)")

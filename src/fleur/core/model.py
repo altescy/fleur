@@ -97,7 +97,7 @@ class State(Generic[FleurValueT]):
         except KeyError as exc:
             raise AttributeError(f"State '{self._name}' is not initialized") from exc
 
-    def __set__(self, instance: Model, value: FleurValueT) -> None:
+    def __set__(self, instance: Model, value: FleurValueT | Expr[FleurValueT]) -> None:
         if self._name is None:
             raise AttributeError("State descriptor is not initialized")
         values = cast(dict[str, Expr[FleurValueT]], instance.__dict__)
