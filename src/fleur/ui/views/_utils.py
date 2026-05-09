@@ -1,7 +1,10 @@
 from collections.abc import Mapping
 from typing import Annotated, Unpack, assert_never, cast, get_args, get_origin, get_type_hints
 
+from fleur.core.cond import Cond
 from fleur.core.expr import Expr, ensure_expr
+from fleur.core.number import Number
+from fleur.core.string import String as CoreString
 from fleur.core.view import ViewProp, ViewProps, _compile_prop_value
 from fleur.js.ast import ESTreeExpression
 from fleur.js.builder import call, ident, json_expr, member_expr, object_expr
@@ -30,11 +33,45 @@ def _is_raw_color(value: str) -> bool:
     return lower in COLOR_KEYWORDS or lower.startswith(("#", "rgb(", "rgba(", "hsl(", "hsla(", "var("))
 
 
+def _is_raw_color_expr(value: Expr[str]) -> Expr[bool]:
+    lower = CoreString.lower(value)
+    is_keyword = Cond.some(*(Cond.equal(lower, keyword) for keyword in COLOR_KEYWORDS))
+    has_css_prefix = Cond.some(
+        CoreString.starts_with(lower, "#"),
+        CoreString.starts_with(lower, "rgb("),
+        CoreString.starts_with(lower, "rgba("),
+        CoreString.starts_with(lower, "hsl("),
+        CoreString.starts_with(lower, "hsla("),
+        CoreString.starts_with(lower, "var("),
+    )
+    return Cond.some(is_keyword, has_css_prefix)
+
+
 def _space(value: Spacing | None) -> str | Expr[int | float | str] | None:
     if value is None:
         return None
     if isinstance(value, Expr):
-        return value
+        text_value = CoreString.trim(cast(Expr[str], "" + value))
+        is_raw = Cond.some(
+            CoreString.ends_with(text_value, "px"),
+            CoreString.ends_with(text_value, "rem"),
+            CoreString.ends_with(text_value, "em"),
+            CoreString.ends_with(text_value, "%"),
+            CoreString.ends_with(text_value, "vh"),
+            CoreString.ends_with(text_value, "vw"),
+            CoreString.starts_with(text_value, "var("),
+            CoreString.starts_with(text_value, "calc("),
+            Cond.equal(text_value, "auto"),
+        )
+        return Cond.when(
+            is_raw,
+            text_value,
+            Cond.when(
+                Number.is_finite(text_value),
+                text_value + "px",
+                "var(--fleur-space-" + text_value + ")",
+            ),
+        )
     if isinstance(value, (int, float)):
         return f"{value}px"
 
@@ -58,7 +95,24 @@ def _radius(value: Radius | None) -> Radius | None:
     if value is None:
         return None
     if isinstance(value, Expr):
-        return value
+        text_value = CoreString.trim(cast(Expr[str], "" + value))
+        is_raw = Cond.some(
+            CoreString.ends_with(text_value, "px"),
+            CoreString.ends_with(text_value, "rem"),
+            CoreString.ends_with(text_value, "em"),
+            CoreString.ends_with(text_value, "%"),
+            CoreString.starts_with(text_value, "var("),
+            CoreString.starts_with(text_value, "calc("),
+        )
+        return Cond.when(
+            is_raw,
+            text_value,
+            Cond.when(
+                Number.is_finite(text_value),
+                text_value + "px",
+                "var(--fleur-radius-" + text_value + ")",
+            ),
+        )
     if isinstance(value, (int, float)):
         return f"{value}px"
 
@@ -80,7 +134,26 @@ def _font_size(value: FontSize | None) -> FontSize | None:
     if value is None:
         return None
     if isinstance(value, Expr):
-        return value
+        text_value = CoreString.trim(cast(Expr[str], "" + value))
+        is_raw = Cond.some(
+            CoreString.ends_with(text_value, "px"),
+            CoreString.ends_with(text_value, "rem"),
+            CoreString.ends_with(text_value, "em"),
+            CoreString.ends_with(text_value, "%"),
+            CoreString.ends_with(text_value, "vh"),
+            CoreString.ends_with(text_value, "vw"),
+            CoreString.starts_with(text_value, "var("),
+            CoreString.starts_with(text_value, "calc("),
+        )
+        return Cond.when(
+            is_raw,
+            text_value,
+            Cond.when(
+                Number.is_finite(text_value),
+                text_value + "px",
+                "var(--fleur-text-" + text_value + ")",
+            ),
+        )
     if isinstance(value, (int, float)):
         return f"{value}px"
 
@@ -101,7 +174,7 @@ def _color(value: Color | None) -> Color | None:
     if value is None:
         return None
     if isinstance(value, Expr):
-        return value
+        return Cond.when(_is_raw_color_expr(value), value, "var(--fleur-color-" + value + ")")
     return value if _is_raw_color(value) else f"var(--fleur-color-{value})"
 
 

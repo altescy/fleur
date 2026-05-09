@@ -102,7 +102,7 @@ class ViewStyleArgs(TypedDict, total=False):
     font_size: Annotated[FontSize | None, StyleField(("font-size",), "font_size")]
     font_weight: Annotated[FontWeight | None, StyleField(("font-weight",), "font_weight")]
     font_family: Annotated[String | None, StyleField(("font-family",), "identity")]
-    display: Annotated[String | None, StyleField(("display",), "identity")]
+    display: Annotated[Display | None, StyleField(("display",), "identity")]
     flex_direction: Annotated[FlexDirection | None, StyleField(("flex-direction",), "identity")]
     flex_wrap: Annotated[FlexWrap | None, StyleField(("flex-wrap",), "identity")]
     gap: Annotated[Spacing | None, StyleField(("gap",), "space")]
