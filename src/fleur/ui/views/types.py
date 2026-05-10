@@ -99,6 +99,7 @@ class ViewStyleArgs(TypedDict, total=False):
     min_w: Annotated[Length | None, StyleField(("min-width",), "length")]
     max_w: Annotated[Length | None, StyleField(("max-width",), "length")]
     border: Annotated[String | None, StyleField(("border",), "identity")]
+    box_shadow: Annotated[String | None, StyleField(("box-shadow",), "identity")]
     font_size: Annotated[FontSize | None, StyleField(("font-size",), "font_size")]
     font_weight: Annotated[FontWeight | None, StyleField(("font-weight",), "font_weight")]
     font_family: Annotated[String | None, StyleField(("font-family",), "identity")]

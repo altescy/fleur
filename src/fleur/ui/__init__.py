@@ -1,4 +1,4 @@
-from .components import DialogModel, DialogMsg, TabsModel, TabsMsg, TabSpec, dialog, tabs
+from .factories import tabs
 from .themes import (
     BASIC_THEME,
     DEFAULT_THEME,
@@ -52,9 +52,6 @@ __all__ = [
     "GridItem",
     "HStack",
     "Input",
-    "DialogModel",
-    "DialogMsg",
-    "TabSpec",
     "Table",
     "TableBody",
     "TableCaption",
@@ -63,8 +60,6 @@ __all__ = [
     "TableHead",
     "TableHeader",
     "TableRow",
-    "TabsModel",
-    "TabsMsg",
     "Text",
     "Textarea",
     "Theme",
@@ -84,7 +79,6 @@ __all__ = [
     "ZEN_THEME",
     "VStack",
     "apply_theme",
-    "dialog",
     "tabs",
     "theme_style_tag",
     "theme_variables",

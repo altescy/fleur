@@ -10,10 +10,8 @@ from fleur.js.builder import call, ident, json_expr, member, member_expr, object
 
 from .expr import Expr, ensure_expr
 from .runtime import MODEL_IDENT
-from .types import FleurValue, FleurValueT, FleurValueT_co, FleurValueU, KeyT
+from .types import FleurValue, FleurValueT, FleurValueT_co, FleurValueU, KeyT, ModelT, ModelT_co
 
-ModelT = TypeVar("ModelT", bound="Model")
-ModelT_co = TypeVar("ModelT_co", bound="Model", covariant=True)
 ModelU = TypeVar("ModelU", bound="Model")
 NestedModelT = TypeVar("NestedModelT", bound="Model")
 
@@ -167,7 +165,7 @@ class ModelState(Expr[FleurValueT_co], Generic[ModelT_co, FleurValueT_co]):
         self: "ModelState[ModelT_co, ModelU]",
         key: "str | Expr[str] | ModelState[ModelU, FleurValueU]",
     ) -> "ModelState[ModelU, FleurValueU]": ...
-    def __getitem__(  # pyright: ignore[reportIncompatibleMethodOverride]
+    def __getitem__(
         self: "ModelState[ModelT_co, Sequence[FleurValueT] | Mapping[str, FleurValueT] | ModelU]",
         key: "int | str | Expr[int | str] | ModelState[ModelU, FleurValueU]",
     ) -> "Expr[FleurValueT]" | "ModelState[ModelU, FleurValueU]":

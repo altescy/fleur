@@ -98,7 +98,8 @@ class View(Model, Generic[ModelT_co, MsgGroupT_co]):
 
     @staticmethod
     def map(
-        tagger: "GroupedMsg[MsgGroupT, Any, Any]", view: "View[ModelT_co, MsgGroupT_co]"
+        tagger: "GroupedMsg[MsgGroupT, Any, Any]",
+        view: "View[ModelT_co, MsgGroupT_co]",
     ) -> "MappedView[ModelT_co, MsgGroupT_co, MsgGroupT]":
         return MappedView(tagger, view)
 

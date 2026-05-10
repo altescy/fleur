@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Generic, Protocol, runtime_checkable
 
+from typing_extensions import TypeAlias
+
 from fleur.js.ast import (
     ESTreeArrayExpression,
     ESTreeExpression,
@@ -32,7 +34,7 @@ class _CompiledUpdateResult(Protocol):
     def __compile_update_result__(self) -> ESTreeExpression: ...
 
 
-CaseValue = (
+CaseValue: TypeAlias = (
     ModelUpdate["ModelT_co"] | tuple[ModelUpdate["ModelT_co"], Cmd["ModelT_co", "MsgGroupT_co"]] | _CompiledUpdateResult
 )
 
@@ -102,7 +104,12 @@ class Update(Generic[ModelT_co, MsgGroupT_co]):
 
     def __init__(
         self,
-        cases: list[tuple["GroupedMsg[MsgGroupT_co, Any, Any]", CaseValue]],
+        cases: list[
+            tuple[
+                "GroupedMsg[MsgGroupT_co, Any, Any]",
+                CaseValue[ModelT_co, MsgGroupT_co],
+            ]
+        ],
     ) -> None:
         self._cases = cases
 
