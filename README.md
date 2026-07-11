@@ -7,6 +7,9 @@ Fleur is an Elm-like architecture for Python-first frontend apps.
 
 You define `Model`, `Msg`, `update`, and `view` in Python, and Fleur compiles your component into browser-executable JavaScript and HTML.
 
+> [!WARNING]
+> This project is in an early stage of development. APIs may change without notice, and some features may not work as expected.
+
 ## Installation
 
 ```bash
