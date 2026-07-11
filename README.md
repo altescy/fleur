@@ -1,7 +1,7 @@
 # 💐 Fleur
 
 [![CI](https://github.com/altescy/fleur/actions/workflows/ci.yml/badge.svg)](https://github.com/altescy/fleur/actions/workflows/ci.yml)
-[![License](https://img.shields.io/github/license/altescy/fleur)](https://github.com/altescy/fleur/blob/master/LICENSE)
+[![License](https://img.shields.io/github/license/altescy/fleur)](https://github.com/altescy/fleur/blob/main/LICENSE)
 
 Fleur is an Elm-like architecture for Python-first frontend apps.
 
