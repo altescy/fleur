@@ -19,7 +19,7 @@ class TestBaseTheme:
         assert "font-size:var(--fleur-text-base);" in css
 
     def test_bloom_applies_default_theme_when_omitted(self) -> None:
-        html = bloom(Component(_DemoModel(), _DemoMsg.caseof(), Text("demo")))
+        html = bloom(Component(_DemoModel(), _DemoMsg.cases(), Text("demo")))
 
         assert "--fleur-text-base: 1rem;" in html
 

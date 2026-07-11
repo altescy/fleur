@@ -15,7 +15,7 @@ class BuildCommand(Subcommand):
     def setup(self) -> None:
         self.parser.add_argument(
             "target",
-            help="Component to build, in 'module:attribute' format (e.g. 'myapp:App' or 'path/to/app.py:App').",
+            help="Component to build, in 'module:attribute' format (e.g. 'myapp:app' or 'path/to/app.py:app').",
         )
         self.parser.add_argument(
             "-o",

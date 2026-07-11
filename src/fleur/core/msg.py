@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 class MsgGroup:
     @classmethod
-    def caseof(
+    def cases(
         cls,
         *cases: tuple["GroupedMsg[Self, Any, Any]", "CaseValue[ModelT, Self]"],
     ) -> "Update[ModelT, Self]":

@@ -15,7 +15,7 @@ class CounterMsg(MsgGroup):
 def counter():
     return Component(
         CounterModel(count=0),
-        CounterMsg.caseof(
+        CounterMsg.cases(
             CounterMsg.INC.then(State.set(CounterModel.count, CounterModel.count + 1)),
             CounterMsg.DEC.then(State.set(CounterModel.count, CounterModel.count - 1)),
         ),
@@ -39,7 +39,7 @@ def app():
     nested_counter = counter()
     return Component(
         AppModel(counter=nested_counter.init.model),
-        AppMsg.caseof(
+        AppMsg.cases(
             AppMsg.COUNTER.then(Update.forward(AppModel.counter, nested_counter, AppMsg.COUNTER)),
         ),
         VStack(

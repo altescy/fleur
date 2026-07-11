@@ -15,11 +15,11 @@ def load_component(target: str) -> Any:
 
     Accepts either a dotted module name or a file path::
 
-        load_component("myapp:App")
-        load_component("path/to/app.py:App")
+        load_component("myapp:app")
+        load_component("path/to/app.py:app")
     """
     if ":" not in target:
-        raise ValueError(f"Invalid target '{target}'. Use 'module:attribute' format, e.g. 'myapp:App'.")
+        raise ValueError(f"Invalid target '{target}'. Use 'module:attribute' format, e.g. 'myapp:app'.")
 
     module_path, attr = target.rsplit(":", 1)
 
