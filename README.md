@@ -1,5 +1,10 @@
 # 💐 Fleur
 
+[![CI](https://github.com/altescy/fleur/actions/workflows/ci.yml/badge.svg)](https://github.com/altescy/fleur/actions/workflows/ci.yml)
+[![Python version](https://img.shields.io/pypi/pyversions/fleur)](https://github.com/altescy/fleur)
+[![License](https://img.shields.io/github/license/altescy/fleur)](https://github.com/altescy/fleur/blob/master/LICENSE)
+[![PyPI version](https://img.shields.io/pypi/v/fleur)](https://pypi.org/project/fleur/)
+
 Fleur is an Elm-like architecture for Python-first frontend apps.
 
 You define `Model`, `Msg`, `update`, and `view` in Python, and Fleur compiles your component into browser-executable JavaScript and HTML.
