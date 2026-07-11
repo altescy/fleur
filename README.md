@@ -12,19 +12,10 @@ uv sync
 
 ## Quick start
 
-Create an `app.py` that prints `bloom(App)`, then generate HTML:
-
-```bash
-uv run python app.py > app.html
-python -m http.server 8000
-```
-
-Then open `http://localhost:8000/app.html`.
-
-## Example
+1. Create an `app.py` with a component factory:
 
 ```python
-from fleur import Component, Model, Msg, MsgGroup, State, bloom
+from fleur import Component, Model, Msg, MsgGroup, State
 from fleur.core import PointerEvent
 from fleur.ui import Button, Text, VStack
 
@@ -38,10 +29,10 @@ class CounterMsg(MsgGroup):
     DEC = Msg[PointerEvent]()
 
 
-def App() -> Component[CounterModel, CounterMsg]:
+def app() -> Component[CounterModel, CounterMsg]:
     return Component(
         init=CounterModel(count=0),
-        update=CounterMsg.caseof(
+        update=CounterMsg.cases(
             CounterMsg.INC.then(State.set(CounterModel.count, CounterModel.count + 1)),
             CounterMsg.DEC.then(State.set(CounterModel.count, CounterModel.count - 1)),
         ),
@@ -52,9 +43,23 @@ def App() -> Component[CounterModel, CounterMsg]:
             gap="sm",
         ),
     )
-
-html = bloom(App)
 ```
+
+2. Start the dev server with hot reload:
+
+```bash
+uv run fleur dev app:app
+```
+
+Open `http://127.0.0.1:8000`. Edit `app.py` and the page reloads automatically.
+
+3. Build a self-contained HTML file for production:
+
+```bash
+uv run fleur build app:app -o app.html
+```
+
+See `uv run fleur --help` for more options.
 
 ## Development
 

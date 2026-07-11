@@ -124,7 +124,7 @@ class CounterMsg(MsgGroup):
 
 Inside update definitions, `GroupedMsg.event` and `GroupedMsg.context` return proxy objects (`MessageEventRef`, `MessageContextRef`) that accumulate property chains like `message.event.client_x` in generated JS.
 
-`MsgGroup.caseof(*cases)` collects `(GroupedMsg, case_value)` pairs into an `Update`.
+`MsgGroup.cases(*cases)` collects `(GroupedMsg, case_value)` pairs into an `Update`.
 
 ### 3.4 `Update`
 
@@ -453,7 +453,7 @@ class CounterMsg(MsgGroup):
 
 app = Component(
     init=Init(CounterModel(count=0)),
-    update=CounterMsg.caseof(
+    update=CounterMsg.cases(
         CounterMsg.INC.then(State.set(CounterModel.count, CounterModel.count + 1)),
         CounterMsg.DEC.then(State.set(CounterModel.count, CounterModel.count - 1)),
     ),
