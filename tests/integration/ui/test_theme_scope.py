@@ -112,7 +112,7 @@ class Pick(MsgGroup):
 def test_reactive_theme_inherits_mode_and_isolates_nested_themes(chromium_title: Callable[[str], str]) -> None:
     themes: dict[Preset, Theme] = {
         "warm": Theme(light={"primary": "red"}, dark={"primary": "orange"}, extra_css=[".sample{height:41px}"]),
-        "green": Theme(colors={"primary": "green"}, extra_css=[".sample{height:42px}"]),
+        "green": Theme(light={"primary": "green"}, dark={"primary": "seagreen"}, extra_css=[".sample{height:42px}"]),
     }
     fixed = Theme(light={"primary": "pink"}, dark={"primary": "purple"}, components={"input": {"bg": "teal"}})
     app = Component(
@@ -164,11 +164,11 @@ def test_reactive_theme_inherits_mode_and_isolates_nested_themes(chromium_title:
     document.title = JSON.stringify(samples);
     </script>"""
     navy, red, orange = "rgb(0, 0, 128)", "rgb(255, 0, 0)", "rgb(255, 165, 0)"
-    blue, green, teal = "rgb(0, 0, 255)", "rgb(0, 128, 0)", "rgb(0, 128, 128)"
+    blue, green, sea_green, teal = "rgb(0, 0, 255)", "rgb(0, 128, 0)", "rgb(46, 139, 87)", "rgb(0, 128, 128)"
     brown = "rgb(165, 42, 42)"
     purple, pink = "rgb(128, 0, 128)", "rgb(255, 192, 203)"
     assert json.loads(chromium_title(html.replace("</body>", probe + "</body>"))) == [
         [navy, orange, red, blue, purple, teal, brown, orange, "41px", False],
-        [navy, green, green, blue, purple, teal, brown, green, "42px", False],
-        [navy, green, green, blue, pink, teal, brown, green, "42px", False],
+        [navy, sea_green, green, blue, purple, teal, brown, sea_green, "42px", False],
+        [navy, green, green, blue, pink, teal, brown, sea_green, "42px", False],
     ]

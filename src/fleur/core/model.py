@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import sys
 from collections.abc import Mapping, Sequence
 from typing import Any, Generic, Type, TypeVar, cast, get_args, get_origin, overload
 
-from typing_extensions import dataclass_transform
+from typing_extensions import Format, dataclass_transform, get_annotations
 
 from fleur.js.ast import ESTreeExpression, ESTreeMemberExpression
 from fleur.js.builder import call, ident, json_expr, member, member_expr, object_expr
@@ -16,13 +17,25 @@ ModelU = TypeVar("ModelU", bound="Model")
 NestedModelT = TypeVar("NestedModelT", bound="Model")
 
 
+def _model_annotations(namespace: dict[str, Any]) -> dict[str, object]:
+    annotations = namespace.get("__annotations__")
+    if annotations is not None:
+        return annotations
+    if sys.version_info >= (3, 14):
+        from annotationlib import call_annotate_function, get_annotate_from_class_namespace
+
+        annotate = get_annotate_from_class_namespace(namespace)
+        if annotate is not None:
+            return call_annotate_function(annotate, Format.FORWARDREF)
+    return {}
+
+
 @dataclass_transform(kw_only_default=True)
 class ModelMeta(type):
     def __new__(mcls, name: str, bases: tuple[type, ...], namespace: dict[str, Any]) -> type:
-        annotations = namespace.get("__annotations__", {})
         state_fields: list[str] = []
 
-        for field_name, annotation in annotations.items():
+        for field_name, annotation in _model_annotations(namespace).items():
             origin = get_origin(annotation)
             annotation_name = getattr(annotation, "__name__", "")
             origin_name = getattr(origin, "__name__", "")
@@ -30,9 +43,7 @@ class ModelMeta(type):
                 continue
 
             state_fields.append(field_name)
-            if not isinstance(namespace.get(field_name), object) or not hasattr(
-                namespace.get(field_name), "__set_name__"
-            ):
+            if not hasattr(namespace.get(field_name), "__set_name__"):
                 namespace[field_name] = State()
 
         cls = super().__new__(mcls, name, bases, namespace)
@@ -74,7 +85,7 @@ class State(Generic[FleurValueT]):
 
     def __set_name__(self, owner: type[Model], name: str) -> None:
         self._name = name
-        annotation = owner.__dict__.get("__annotations__", {}).get(name)
+        annotation = get_annotations(owner, format=Format.FORWARDREF).get(name)
         args = get_args(annotation)
         if args:
             value_type = get_origin(args[0]) or args[0]
