@@ -3,6 +3,8 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Literal
 
+import pytest
+
 from fleur import Component, Cond, Model, Msg, MsgGroup, Page, State, View, bloom, emit
 from fleur.core import PointerEvent, record
 from fleur.ui import Box, Button, Input, Text, Theme, ThemeMode, ThemeScope, tabs
@@ -80,14 +82,15 @@ def test_tabs_cascade_and_activation(playwright_page: Callable[[str, Path], str]
     playwright_page(bloom(app, theme=theme, page=page), Path(__file__).with_name("tabs.cjs"))
 
 
-def test_reordering_tabs_keeps_uncontrolled_input_values(chromium_title: Callable[[str], str]) -> None:
+@pytest.mark.parametrize("legacy_move", [False, True], ids=["browser-default", "insert-before-fallback"])
+def test_reordering_tabs_keeps_input_focus_and_values(chromium_title: Callable[[str], str], legacy_move: bool) -> None:
     first = Input[Screen, Actions](props={"id": "first-input"})
     second = Input[Screen, Actions](props={"id": "second-input"})
     contents = Cond.when(
         Cond.equal(Screen.mode, "dark"), record({"Two": second, "One": first}), record({"One": first, "Two": second})
     )
     app = Component(
-        Screen(selected="One", mode="light"),
+        Screen(selected="Two", mode="light"),
         Actions.cases(Actions.MODE.then(State.set(Screen.mode, Actions.MODE.context))),
         Box(
             Button("Reverse", props={"id": "reverse"}, onclick=Actions.MODE.bind("dark")),
@@ -98,18 +101,35 @@ def test_reordering_tabs_keeps_uncontrolled_input_values(chromium_title: Callabl
     const byId = id => document.getElementById(id);
     const triggers = () => Array.from(byId("tabs").querySelectorAll("button"));
     const [one, two] = triggers();
+    const input = byId("second-input");
     byId("first-input").value = "Draft for One";
-    byId("second-input").value = "Draft for Two";
-    one.focus();
+    input.value = "Draft for Two";
+    input.focus();
+    input.setSelectionRange(2, 5);
+    const focusedBefore = document.activeElement === input;
+    let blurred = false;
+    input.addEventListener("blur", () => { blurred = true; });
     byId("reverse").click();
     const [first, second] = triggers();
-    document.title = JSON.stringify([
-      first === two,
-      second === one,
-      document.activeElement === one,
-      byId("first-input").value,
-      byId("second-input").value,
-    ]);
+    document.title = JSON.stringify({
+      keptTriggers: first === two && second === one,
+      keptInput: byId("second-input") === input,
+      focusedBefore,
+      focusedAfter: document.activeElement === input,
+      blurred,
+      selection: [input.selectionStart, input.selectionEnd],
+      drafts: [byId("first-input").value, byId("second-input").value],
+    });
     </script>"""
+    if legacy_move:
+        probe = '<script>document.getElementById("tabs").moveBefore = undefined;</script>' + probe
     html = bloom(app).replace("</body>", probe + "</body>")
-    assert json.loads(chromium_title(html)) == [True, True, True, "Draft for One", "Draft for Two"]
+    assert json.loads(chromium_title(html)) == {
+        "keptTriggers": True,
+        "keptInput": True,
+        "focusedBefore": True,
+        "focusedAfter": True,
+        "blurred": False,
+        "selection": [2, 5],
+        "drafts": ["Draft for One", "Draft for Two"],
+    }

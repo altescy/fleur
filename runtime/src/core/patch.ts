@@ -10,6 +10,32 @@ export const getNode = (root: Node, path: number[]): Node | null => {
   return node
 }
 
+const moveChild = (parent: Node, node: Node, from: number, to: number): void => {
+  const reference = parent.childNodes[to] ?? null
+  const focused = node.ownerDocument?.activeElement
+  if (node.parentNode !== parent || !focused || !node.contains(focused)) {
+    parent.insertBefore(node, reference)
+    return
+  }
+
+  const target = parent as Node & { moveBefore?: (child: Node, reference: Node | null) => void }
+  if (typeof target.moveBefore === "function") {
+    target.moveBefore(node, reference)
+    return
+  }
+
+  // Keep the focused subtree connected by moving the siblings it crosses.
+  const forward = from < to
+  const boundary = forward ? reference : node
+  const anchor = forward ? node : node.nextSibling
+  let sibling = forward ? node.nextSibling : reference
+  while (sibling && sibling !== boundary) {
+    const next = sibling.nextSibling
+    parent.insertBefore(sibling, anchor)
+    sibling = next
+  }
+}
+
 export const apply = (root: Node, patch: Patch): Node => {
   const node = getNode(root, patch.path)
 
@@ -30,8 +56,7 @@ export const apply = (root: Node, patch: Patch): Node => {
       if (!node) return root
       const parentNode = getNode(root, patch.to.slice(0, -1))
       if (!parentNode) return root
-      const refNode = parentNode.childNodes[patch.to.at(-1) ?? 0]
-      parentNode.insertBefore(node, refNode ?? null)
+      moveChild(parentNode, node, patch.path.at(-1) ?? 0, patch.to.at(-1) ?? 0)
       return root
     }
     case PatchType.REMOVE:

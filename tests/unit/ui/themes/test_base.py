@@ -16,7 +16,7 @@ class TestBaseTheme:
 
         assert "--fleur-text-base: 1rem;" in css
         assert "--fleur-text-sm: 0.875rem;" in css
-        assert "font-size:var(--fleur-text-base);" in css
+        assert "body{font-size:var(--fleur-text-base);" in "".join(css.split())
 
     def test_bloom_applies_default_theme_when_omitted(self) -> None:
         html = bloom(Component(_DemoModel(), _DemoMsg.cases(), Text("demo")))
@@ -34,7 +34,7 @@ class TestBaseTheme:
         assert "--fleur-color-selection" in variables
 
     def test_theme_style_tag_includes_base_styles_for_common_html_elements(self) -> None:
-        css = theme_style_tag(Theme())
+        css = "".join(theme_style_tag(Theme()).split())
 
         assert (
             "::selection{background:var(--fleur-color-selection);color:var(--fleur-color-selection-foreground);}" in css
@@ -65,7 +65,7 @@ def test_bloom_connects_typed_scales_and_button_shorthands() -> None:
     assert "--fleur-space-lg: 20px;" in html
     assert "--fleur-radius-sm: 3px;" in html
     assert '"--fleur-local-bg": "var(--fleur-color-primary)"' in html
-    assert "background:var(--fleur-local-bg)" in html
+    assert "background: var(--fleur-local-bg);" in html
     assert 'padding: "var(--fleur-space-lg)"' in html
     assert '"border-radius": "var(--fleur-radius-sm)"' in html
     assert '"padding-left":' not in html
