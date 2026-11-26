@@ -5,14 +5,16 @@ import errno
 import logging
 import os
 import queue
+import subprocess
 import sys
+import tempfile
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from itertools import chain
 from pathlib import Path
 from typing import Any
 
-from ._loader import load_component
 from .base import Subcommand
 
 logger = logging.getLogger(__name__)
@@ -138,49 +140,69 @@ class _DevHandler(BaseHTTPRequestHandler):
                     pass
 
 
-def _build_html(target: str, page: Any, theme: Any, template: Any) -> str:
-    from fleur import bloom
+def _rebuild(target: str, watch_dir: Path) -> None:
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "page.html"
+            # Ignore stale .pyc files even for same-size edits within one second.
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-B",
+                    "-X",
+                    f"pycache_prefix={tmp}",
+                    "-m",
+                    "fleur.cli.commands._dev_build",
+                    target,
+                    str(watch_dir),
+                    str(output),
+                ],
+                check=True,
+            )
+            html = output.read_text(encoding="utf-8")
+    except subprocess.CalledProcessError:
+        # The build process has already printed the traceback to stderr.
+        print("  Build failed. Watching for changes...", flush=True)
+        return
+    except OSError:
+        logger.exception("Build failed. Watching for changes...")
+        return
 
-    component = load_component(target)
-    return bloom(component, page=page, theme=theme, template=template)
+    _set_html(html)
+    _broadcast_reload()
+    print("  Built successfully.", flush=True)
 
 
 # --- File watcher ---
 
+_PACKAGE_DIR = Path(__file__).resolve().parents[2]
+_EMBEDDED_ASSETS = (
+    _PACKAGE_DIR / "assets/fleur.js",
+    _PACKAGE_DIR / "ui/themes/base.css",
+    _PACKAGE_DIR / "ui/themes/elements.css",
+)
 
-def _watch_files(target: str, watch_dir: Path, poll_interval: float, page: Any, theme: Any, template: Any) -> None:
-    """Poll for file changes and rebuild/broadcast on change."""
 
-    def _snapshot(directory: Path) -> dict[Path, float]:
-        result: dict[Path, float] = {}
-        for root, _, files in os.walk(directory):
-            for fname in files:
-                if fname.endswith(".py"):
-                    fp = Path(root) / fname
-                    try:
-                        result[fp] = fp.stat().st_mtime
-                    except OSError:
-                        pass
-        return result
+def _snapshot(directory: Path) -> dict[Path, int]:
+    # bloom() inlines these files even when the app's reload directory is elsewhere.
+    sources = (Path(root) / name for root, _, names in os.walk(directory) for name in names if name.endswith(".py"))
+    result: dict[Path, int] = {}
+    for path in chain(sources, _EMBEDDED_ASSETS):
+        try:
+            result[path] = path.stat().st_mtime_ns
+        except OSError:
+            pass
+    return result
 
-    prev = _snapshot(watch_dir)
 
+def _watch_files(target: str, watch_dir: Path, poll_interval: float, prev: dict[Path, int]) -> None:
     while True:
         time.sleep(poll_interval)
         current = _snapshot(watch_dir)
-        changed = current != prev
-        prev = current
-        if changed:
-            logger.info("Change detected, rebuilding...")
+        if current != prev:
+            prev = current
             print("\r  Detected change, rebuilding...", flush=True)
-            try:
-                html = _build_html(target, page, theme, template)
-                _set_html(html)
-                _broadcast_reload()
-                print("  Rebuilt successfully.", flush=True)
-            except Exception as exc:
-                print(f"  Build error: {exc}", flush=True)
-                logger.exception("Build error")
+            _rebuild(target, watch_dir)
 
 
 # --- Subcommand ---
@@ -225,26 +247,17 @@ class DevCommand(Subcommand):
         host: str = args.host
         port: int = args.port
         poll_interval: float = args.poll_interval
-        watch_dir = Path(args.reload_dir) if args.reload_dir else Path.cwd()
+        watch_dir = Path(args.reload_dir or ".").resolve()
 
-        # Add watch_dir to sys.path so local modules can be imported
-        watch_dir_str = str(watch_dir)
-        if watch_dir_str not in sys.path:
-            sys.path.insert(0, watch_dir_str)
-
-        print(f"  Building {target}...")
-        try:
-            html = _build_html(target, None, None, None)
-        except Exception as exc:
-            print(f"  Build failed: {exc}")
-            raise SystemExit(1) from exc
-
-        _set_html(html)
+        prev = _snapshot(watch_dir)
+        _set_html("<p>Waiting for a successful build. See the terminal for build errors.</p>")
+        print(f"  Building {target}...", flush=True)
+        _rebuild(target, watch_dir)
 
         # Start file watcher thread
         watcher = threading.Thread(
             target=_watch_files,
-            args=(target, watch_dir, poll_interval, None, None, None),
+            args=(target, watch_dir, poll_interval, prev),
             daemon=True,
             name="fleur-watcher",
         )
