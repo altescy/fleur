@@ -2,12 +2,16 @@ from __future__ import annotations
 
 from typing import Any, Unpack
 
+from fleur.core.cond import Cond
+from fleur.core.events import PointerEvent
 from fleur.core.expr import Expr
-from fleur.core.types import ModelT_co, MsgGroupT_co
+from fleur.core.msg import GroupedMsg
+from fleur.core.types import ModelT_co, MsgGroupT, MsgGroupT_co, OptionalContextT
 from fleur.types import JsonValue
 
 from . import _utils
 from .base import Element, ViewChild, ViewProps
+from .button import Button
 from .types import ViewStyleArgs
 
 
@@ -87,6 +91,34 @@ class TableHead(Element[ModelT_co, MsgGroupT_co]):
             extra["rowspan"] = rowspan
         merged = _utils.extend_props(merged, extra)
         super().__init__(*children, tag="th", props=merged)
+
+
+class SortableTableHead(TableHead[ModelT_co, MsgGroupT]):
+    """A native sort button with the sort direction exposed on the active column header."""
+
+    def __init__(
+        self,
+        label: ViewChild,
+        *,
+        active: bool | Expr[bool],
+        descending: bool | Expr[bool] = False,
+        onsort: GroupedMsg[MsgGroupT, PointerEvent, OptionalContextT],
+        props: ViewProps | None = None,
+        **style_args: Unpack[ViewStyleArgs],
+    ) -> None:
+        direction = Cond.when(active, Cond.when(descending, "descending", "ascending"), None)
+        arrow = Cond.when(active, Cond.when(descending, "↓", "↑"), "↕")
+        super().__init__(
+            Button(
+                label,
+                Element(arrow, tag="span", props={"aria-hidden": "true"}),
+                onclick=onsort,
+                variant="ghost",
+                props={"type": "button", "data-fleur-part": "sort"},
+            ),
+            props=_utils.extend_props(props if props is not None else {}, {"scope": "col", "aria-sort": direction}),
+            **style_args,
+        )
 
 
 class TableCell(Element[ModelT_co, MsgGroupT_co]):

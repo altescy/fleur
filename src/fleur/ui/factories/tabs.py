@@ -22,12 +22,13 @@ def tabs(
     active_tab: KeyT | Expr[KeyT],
     onselect: GroupedMsg[MsgGroupT, PointerEvent, KeyT] | None = None,
     *,
+    label: String = "Tabs",
     tab_class: String | None = None,
     tab_style: StyleMap | None = None,
     props: ViewProps | None = None,
     **style_args: Unpack[ViewStyleArgs],
 ) -> View[ModelT, MsgGroupT]:
-    """Style the wrapper with props and shorthands, or every tab button with tab_class and tab_style."""
+    """Render a labelled tab list with manual activation and caller-controlled selection."""
     panels = Expr[_TabViews[KeyT, ModelT, MsgGroupT]](ensure_expr(contents))
     names = Object.keys(panels)
 
@@ -35,8 +36,9 @@ def tabs(
         attrs: dict[str, ViewProp] = {
             "key": name,
             "type": "button",
+            "role": "tab",
             "data-fleur-tabs": "trigger",
-            "aria-pressed": Cond.when(Cond.equal(name, active_tab), "true", "false"),
+            "aria-selected": Cond.when(Cond.equal(name, active_tab), "true", "false"),
         }
         if tab_class is not None:
             attrs["className"] = tab_class
@@ -48,13 +50,17 @@ def tabs(
             props={
                 "key": name,
                 "data-fleur-tabs": "panel",
+                "role": "tabpanel",
+                "tabindex": 0,
                 "hidden": Boolean.negate(Cond.equal(name, active_tab)),
             },
         )
 
     return Box(
-        Box[ModelT, MsgGroupT](Array.map(names, trigger), props={"data-fleur-tabs": "list"}),
+        Box[ModelT, MsgGroupT](
+            Array.map(names, trigger), props={"data-fleur-tabs": "list", "role": "tablist", "aria-label": label}
+        ),
         Array.map(names, panel),
-        props=extend_props(props if props is not None else {}, {"data-fleur-tabs": "root"}),
+        props=extend_props(props if props is not None else {}, {"data-fleur-tabs": "root", "fleurTabs": True}),
         **style_args,
     )

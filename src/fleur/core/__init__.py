@@ -3,7 +3,16 @@ from .boolean import Boolean
 from .cmd import Cmd
 from .component import Component
 from .cond import Cond
-from .events import FocusEvent, InputEvent, KeyboardEvent, PointerEvent, SubmitEvent
+from .events import (
+    DialogCloseEvent,
+    FocusEvent,
+    InputEvent,
+    KeyboardEvent,
+    PointerEvent,
+    SubmitEvent,
+    ToastCloseEvent,
+    ToggleEvent,
+)
 from .expr import Expr, array, boolean, number, record, string
 from .model import (
     Model,
@@ -28,6 +37,7 @@ __all__ = [
     "Cmd",
     "Component",
     "Cond",
+    "DialogCloseEvent",
     "Expr",
     "FocusEvent",
     "GroupedMsg",
@@ -43,6 +53,8 @@ __all__ = [
     "Page",
     "State",
     "SubmitEvent",
+    "ToastCloseEvent",
+    "ToggleEvent",
     "SlotTemplate",
     "Sub",
     "String",

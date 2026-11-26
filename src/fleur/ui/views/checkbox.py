@@ -5,7 +5,7 @@ from typing import Any, Unpack, cast
 from fleur.core.events import FocusEvent, InputEvent
 from fleur.core.expr import Expr
 from fleur.core.msg import GroupedMsg
-from fleur.core.types import ModelT_co, MsgGroupT
+from fleur.core.types import ModelT_co, MsgGroupT, OptionalContextT
 
 from . import _utils
 from .base import Element, ViewProps
@@ -58,3 +58,36 @@ class Checkbox(Element[ModelT_co, MsgGroupT]):
             extra["onblur"] = onblur
         merged = _utils.extend_props(merged, extra)
         super().__init__(tag="input", props=merged)
+
+
+class CheckboxField(Element[ModelT_co, MsgGroupT]):
+    """A checkbox and its visible text inside a single native label."""
+
+    def __init__(
+        self,
+        label: String,
+        *,
+        checked: bool | Expr[bool] | None = None,
+        onchange: GroupedMsg[MsgGroupT, InputEvent, OptionalContextT] | None = None,
+        disabled: bool | Expr[bool] | None = None,
+        required: bool | Expr[bool] | None = None,
+        name: String | None = None,
+        value: String | None = None,
+        props: ViewProps | None = None,
+        input_props: ViewProps | None = None,
+        **style_args: Unpack[ViewStyleArgs],
+    ) -> None:
+        super().__init__(
+            Checkbox(
+                checked=checked,
+                onchange=onchange,
+                disabled=disabled,
+                required=required,
+                name=name,
+                value=value,
+                props=input_props,
+            ),
+            Element(label, tag="span", props={}),
+            tag="label",
+            props=_utils.merge_props(props, element="checkbox-field", **style_args),
+        )

@@ -1,4 +1,4 @@
-from typing import Protocol
+from typing import Literal, Protocol
 
 
 class PointerEvent(Protocol):
@@ -36,3 +36,17 @@ class FocusEvent(Protocol):
 
 class SubmitEvent(Protocol):
     type: str
+
+
+class DialogCloseEvent(Protocol):
+    type: str
+
+
+class ToggleEvent(Protocol):
+    type: str
+    open: bool
+
+
+class ToastCloseEvent(Protocol):
+    type: str
+    reason: Literal["timeout", "dismiss"]

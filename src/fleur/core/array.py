@@ -1,11 +1,14 @@
 from collections.abc import Callable, Sequence
-from typing import cast, overload
+from typing import TypeVar, cast, overload
 
 from fleur.js.builder import call, literal, member_expr
 
 from .expr import Expr, ensure_expr
 from .function import Function, function
+from .runtime import runtime_call
 from .types import FleurValue, FleurValueT, FleurValueU
+
+_SortKeyT = TypeVar("_SortKeyT", int, float, str)
 
 
 class Array:
@@ -53,6 +56,17 @@ class Array:
         if not isinstance(fn, Function):
             fn = function(fn)
         return Expr(call(member_expr(array.__compile__(), "filter"), fn.ast))
+
+    @staticmethod
+    def sort_by(
+        array: Expr[Sequence[FleurValueT]],
+        key: Function[[Expr[FleurValueT]], _SortKeyT] | Callable[[Expr[FleurValueT]], _SortKeyT | Expr[_SortKeyT]],
+        *,
+        descending: bool | Expr[bool] = False,
+    ) -> Expr[Sequence[FleurValueT]]:
+        """Return a stable sorted copy using a numeric or string key evaluated once per item."""
+        selector = key if isinstance(key, Function) else function(key)
+        return Expr(runtime_call(("sortBy",), array.__compile__(), selector.ast, ensure_expr(descending)))
 
     @staticmethod
     def includes(

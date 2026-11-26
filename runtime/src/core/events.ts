@@ -63,6 +63,12 @@ const normalizeFallbackEvent = (event: Event): EventPayload => ({
 })
 
 const normalizeEventPayload = (eventType: string, event: Event): EventPayload => {
+  if (eventType === "toastclose" && event instanceof CustomEvent) {
+    return { type: event.type, reason: event.detail === "timeout" ? "timeout" : "dismiss" }
+  }
+  if (eventType === "toggle" && "newState" in event) {
+    return { type: event.type, open: event.newState === "open" }
+  }
   if (eventType.startsWith("pointer") && pointerLike(event)) {
     return normalizePointerEvent(event)
   }

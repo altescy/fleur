@@ -1,3 +1,4 @@
+import { sortBy } from "./core/array"
 import { Cmd, Html, Sub } from "./core/effects"
 import { Http } from "./http/client"
 import { h, lazy, mergeStyleProps } from "./core/vdom"
@@ -7,6 +8,7 @@ const fleurRuntime = {
   h,
   lazy,
   mergeStyleProps,
+  sortBy,
   Cmd,
   Sub,
   Html,
@@ -18,4 +20,4 @@ Object.assign(globalThis, {
   __fleur: fleurRuntime,
 })
 
-export { Cmd, Html, Http, Sub, h, lazy, mergeStyleProps, program }
+export { Cmd, Html, Http, Sub, h, lazy, mergeStyleProps, program, sortBy }

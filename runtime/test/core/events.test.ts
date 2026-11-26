@@ -3,6 +3,13 @@ import { describe, expect, test } from "bun:test"
 import { normalizeEventPayload } from "../../src/core/events"
 
 describe("normalizeEventPayload", () => {
+  test("preserves the reason for closing a toast", () => {
+    for (const reason of ["timeout", "dismiss"]) {
+      const event = new CustomEvent("toastclose", { detail: reason })
+      expect(normalizeEventPayload(event.type, event)).toEqual({ type: event.type, reason })
+    }
+  })
+
   test("normalizes click as pointer-like payload", () => {
     const payload = normalizeEventPayload(
       "click",
