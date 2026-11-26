@@ -1,5 +1,6 @@
 import json
 from collections.abc import Callable
+from typing import Literal
 
 from fleur import Boolean, Component, Cond, Expr, Model, Msg, MsgGroup, Page, State, bloom, emit
 from fleur.core import PointerEvent
@@ -13,6 +14,119 @@ class Layout(Model):
 
 class Actions(MsgGroup):
     RESIZE: Msg[PointerEvent] = Msg()
+
+
+class Dimensions(Model):
+    width: State[Literal["full", "fit", "lg", "2/3"] | int]
+
+
+class DimensionActions(MsgGroup):
+    SET_WIDTH: Msg[PointerEvent, Literal["full", "fit", "lg", "2/3"] | int] = Msg()
+
+
+def test_dimension_margin_and_overflow_shorthands(chromium_title: Callable[[str], str]) -> None:
+    app = Component(
+        Dimensions(width="full"),
+        DimensionActions.cases(
+            DimensionActions.SET_WIDTH.then(State.set(Dimensions.width, DimensionActions.SET_WIDTH.context)),
+        ),
+        ThemeScope(
+            Button("Token", onclick=DimensionActions.SET_WIDTH.bind("lg"), props={"id": "token"}),
+            Button("Pixels", onclick=DimensionActions.SET_WIDTH.bind(80), props={"id": "pixels"}),
+            Button("Fit", onclick=DimensionActions.SET_WIDTH.bind("fit"), props={"id": "fit"}),
+            Button("Fraction", onclick=DimensionActions.SET_WIDTH.bind("2/3"), props={"id": "fraction"}),
+            Button("Full", onclick=DimensionActions.SET_WIDTH.bind("full"), props={"id": "reset"}),
+            Box(
+                Box(w="full", h="full", props={"id": "full"}),
+                Box(w=80, min_w="full", props={"id": "minimum"}),
+                Box(w=640, max_w="full", props={"id": "maximum"}),
+                Box(w=css("min(100%, 120px)"), props={"id": "expression"}),
+                Box(Box(w=56), w=Dimensions.width, props={"id": "dynamic"}),
+                Box(Box(w=88), w="fit", props={"id": "intrinsic"}),
+                Box(w=100, mx="auto", min_h=css("30px"), props={"id": "centered"}),
+                Box(Box(w=600, h=1), w=160, overflow_x="auto", props={"id": "scroll"}),
+                Box(w="1/2", h="1/2", props={"className": "fraction"}),
+                Box(w="1/3", props={"className": "fraction"}),
+                Box(w="2/3", props={"className": "fraction"}),
+                Box(w="1/4", props={"className": "fraction"}),
+                Box(w="3/4", props={"className": "fraction"}),
+                Box(Box(h=200, w=1), max_h="1/2", overflow_y="auto", props={"id": "vertical"}),
+                w=360,
+                h=120,
+                props={"id": "container"},
+            ),
+            space={"lg": 24},
+        ),
+    )
+    probe = """<script>
+    const get = id => document.getElementById(id);
+    const bounds = id => get(id).getBoundingClientRect();
+    const result = {
+      full: [bounds("full").width, bounds("full").height],
+      minimum: bounds("minimum").width,
+      maximum: bounds("maximum").width,
+      expression: bounds("expression").width,
+      dynamic: [bounds("dynamic").width],
+      intrinsic: bounds("intrinsic").width,
+      centered: [bounds("centered").left - bounds("container").left, bounds("centered").height],
+      scroll: [getComputedStyle(get("scroll")).overflowX, get("scroll").clientWidth, get("scroll").scrollWidth],
+      fractions: Array.from(document.querySelectorAll(".fraction"), el => el.getBoundingClientRect().width),
+      halfHeight: document.querySelector(".fraction").getBoundingClientRect().height,
+    };
+    const vertical = get("vertical");
+    vertical.scrollTop = 20;
+    result.vertical = [getComputedStyle(vertical).overflowY, vertical.clientHeight, vertical.scrollHeight, vertical.scrollTop];
+    for (const id of ["token", "pixels", "fit", "fraction", "reset"]) {
+      get(id).click();
+      result.dynamic.push(bounds("dynamic").width);
+    }
+    document.title = JSON.stringify(result);
+    </script>"""
+    html = bloom(app)
+    assert json.loads(chromium_title(html.replace("</body>", probe + "</body>"))) == {
+        "full": [360, 120],
+        "minimum": 360,
+        "maximum": 360,
+        "expression": 120,
+        "dynamic": [360, 24, 80, 56, 240, 360],
+        "intrinsic": 88,
+        "centered": [130, 30],
+        "scroll": ["auto", 160, 600],
+        "fractions": [180, 120, 240, 90, 270],
+        "halfHeight": 60,
+        "vertical": ["auto", 60, 200, 20],
+    }
+
+
+def test_wrapping_shorthands(chromium_title: Callable[[str], str]) -> None:
+    app = Component(
+        Model(),
+        MsgGroup.cases(),
+        Box(
+            Box("Keep these words together", white_space="nowrap", props={"id": "nowrap"}),
+            Box("VeryLongUninterruptedDescription", overflow_wrap="anywhere", props={"id": "wrap"}),
+            w=64,
+        ),
+    )
+    probe = """<script>
+    const singleLine = document.getElementById("nowrap");
+    const wraps = document.getElementById("wrap");
+    document.title = JSON.stringify([
+      getComputedStyle(singleLine).whiteSpace,
+      getComputedStyle(wraps).overflowWrap,
+      singleLine.scrollWidth > singleLine.clientWidth,
+      wraps.scrollWidth === wraps.clientWidth,
+      wraps.clientHeight > singleLine.clientHeight,
+    ]);
+    </script>"""
+    html = bloom(app)
+    assert json.loads(chromium_title(html.replace("</body>", probe + "</body>"))) == [
+        "nowrap",
+        "anywhere",
+        True,
+        True,
+        True,
+    ]
 
 
 def test_grid_defaults_do_not_emit_inline_styles() -> None:

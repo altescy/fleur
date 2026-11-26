@@ -8,6 +8,7 @@ from fleur.ui import (
     BASIC_THEME,
     ZEN_THEME,
     Background,
+    Box,
     Button,
     ButtonBackground,
     Theme,
@@ -29,6 +30,11 @@ class FormModel(Model):
     selected: State[bool]
     color: State[ThemeColorName]
     padding: State[ThemeSpaceName]
+    width: State[Literal["full", "fit", "lg", "2/3"] | int]
+    margin: State[Literal["auto", "lg"] | int]
+    overflow: State[Literal["auto", "hidden"]]
+    whitespace: State[Literal["normal", "nowrap"]]
+    wrapping: State[Literal["normal", "anywhere"]]
     raw: State[str]
 
 
@@ -40,6 +46,12 @@ def valid_examples() -> None:
     Button("Save", bg=FormModel.color, p=FormModel.padding)
     Button("Save", bg=Background.when(FormModel.selected, "primary", "transparent"), p=8)
     Button("Save", bg=css(FormModel.raw), px=css("1.5rem"))
+    Box(w="full", h="full", min_w="full", max_w="full")
+    Box(w=FormModel.width, max_w=css("min(100%, 42rem)"))
+    Box(w="fit", mx="auto", overflow_x="auto", min_h=css("100dvh"))
+    Box(mx=FormModel.margin, overflow_x=FormModel.overflow)
+    Box(w="1/2", max_h=css("60dvh"), overflow_y=FormModel.overflow)
+    Box(white_space=FormModel.whitespace, overflow_wrap=FormModel.wrapping)
 
 
 def invalid_examples() -> None:
@@ -52,6 +64,17 @@ def invalid_examples() -> None:
     Button("Save", font_size="primary")  # pyright: ignore[reportArgumentType]
     Button("Save", bg=FormModel.raw)  # pyright: ignore[reportArgumentType]
     Button("Save", bg=FormModel.padding)  # pyright: ignore[reportArgumentType]
+    Box(w="ful")  # pyright: ignore[reportArgumentType]
+    Box(w="min(100%, 42rem)")  # pyright: ignore[reportArgumentType]
+    Box(p="full")  # pyright: ignore[reportArgumentType]
+    Box(p="auto")  # pyright: ignore[reportArgumentType]
+    Box(w="fit-content")  # pyright: ignore[reportArgumentType]
+    Box(overflow_x="automatic")  # pyright: ignore[reportArgumentType]
+    Box(w="1/0")  # pyright: ignore[reportArgumentType]
+    Box(p="1/2")  # pyright: ignore[reportArgumentType]
+    Box(overflow_y="automatic")  # pyright: ignore[reportArgumentType]
+    Box(white_space="no-wrap")  # pyright: ignore[reportArgumentType]
+    Box(overflow_wrap="break-all")  # pyright: ignore[reportArgumentType]
     Background.when(FormModel.selected, "brand", "primary")  # pyright: ignore[reportArgumentType]
     Theme(dark={"primray": "red"})  # pyright: ignore[reportArgumentType]
     Theme(space={"huge": 48})  # pyright: ignore[reportArgumentType]

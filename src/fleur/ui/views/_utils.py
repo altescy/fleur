@@ -11,10 +11,12 @@ from fleur.js.builder import call, ident, member_expr, object_expr
 from .types import (
     Color,
     CssValue,
+    Dimension,
     FlexDirection,
     FlexWrap,
     FontSize,
     FontWeight,
+    Margin,
     Radius,
     Spacing,
     String,
@@ -27,6 +29,17 @@ from .types import (
 )
 
 
+_DIMENSION_KEYWORDS = {
+    "full": "100%",
+    "fit": "fit-content",
+    "1/2": "50%",
+    "1/3": "calc(100% / 3)",
+    "2/3": "calc(200% / 3)",
+    "1/4": "25%",
+    "3/4": "75%",
+}
+
+
 def color_value(value: Color) -> str | Expr[str]:
     if isinstance(value, CssValue):
         return value.value
@@ -35,15 +48,23 @@ def color_value(value: Color) -> str | Expr[str]:
     return value if value == "transparent" else f"var(--fleur-color-{value})"
 
 
-def scale_value(scale: str, value: Spacing | Radius | FontSize) -> str | Expr[str]:
+def scale_value(
+    scale: str,
+    value: Dimension | Margin | Radius | FontSize,
+    *,
+    keywords: Mapping[str, str] | None = None,
+) -> str | Expr[str]:
     if isinstance(value, CssValue):
         return value.value
     if isinstance(value, Expr):
         text = Expr[str](call(ident("String"), value.__compile__()))
-        return Cond.when(Number.is_finite(value), text + "px", f"var(--fleur-{scale}-" + text + ")")
+        resolved = Cond.when(Number.is_finite(value), text + "px", f"var(--fleur-{scale}-" + text + ")")
+        for name, css_value in (keywords or {}).items():
+            resolved = Cond.when(Cond.equal(value, name), css_value, resolved)
+        return resolved
     if isinstance(value, (int, float)):
         return f"{value}px"
-    return f"var(--fleur-{scale}-{value})"
+    return (keywords or {}).get(value, f"var(--fleur-{scale}-{value})")
 
 
 def _identity(value: String | FlexDirection | FlexWrap | None) -> Style | None:
@@ -62,8 +83,12 @@ def _transform_value(transform: StyleTransform, value: StyleTransformValue) -> S
     match transform:
         case "color":
             return color_value(cast(Color, value))
-        case "space" | "length":
+        case "space":
             return scale_value("space", cast(Spacing, value))
+        case "margin":
+            return scale_value("space", cast(Margin, value), keywords={"auto": "auto"})
+        case "length":
+            return scale_value("space", cast(Dimension, value), keywords=_DIMENSION_KEYWORDS)
         case "radius":
             return scale_value("radius", cast(Radius, value))
         case "font_size":
