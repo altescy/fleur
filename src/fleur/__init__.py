@@ -19,6 +19,7 @@ from fleur.core import (
     Sub,
     TaskLike,
     Update,
+    Url,
     View,
 )
 from fleur.core.template import (
@@ -81,6 +82,7 @@ __all__ = [
     "String",
     "TaskLike",
     "Update",
+    "Url",
     "View",
     "Page",
     "EmitterSettings",
