@@ -406,22 +406,26 @@ At runtime (`runtime/src/http/client.ts`):
 All elements extend `Element` (which extends `View`). Available elements:
 `Box`, `Button`, `Checkbox`, `Divider`, `Form`, `Grid`/`GridItem`, `HStack`, `Input`, `Table`, `Text`, `Textarea`, `VStack`.
 
-`src/fleur/ui/views/base.py` provides:
-- Layout/style shorthand type aliases: `Spacing`, `Radius`, `Length`, `FontSize`, `Color`.
-- `_merge_props(props, *, gap, bg, fg, p, px, py, radius, …)` — maps shorthand kwargs to CSS variables (`var(--fleur-space-sm)`, etc.).
-- `Element` — thin `View` subclass used as the base for all UI components.
+`src/fleur/ui/views/base.py` defines `Element`, the shared `View` subclass.
+`views/types.py` defines shorthand arguments and token types.
+`views/_utils.py` resolves those arguments and merges them into view props.
+`themes/elements.css` supplies defaults for the standard controls and layout views.
 
 ### 7.2 Theme System
 
-`Theme` (`src/fleur/ui/themes/base.py`) holds palette, core tokens, and component-level CSS variable maps. `theme_style_tag()` emits a `<style>:root{…}</style>` tag injected into the page head.
+`Theme` (`src/fleur/ui/themes/base.py`) holds palettes, core tokens, and component-level CSS
+variable maps. `theme_style_tag()` emits root variables, mode rules, and component styles.
 
 Built-in themes: `DEFAULT_THEME`, `BASIC_THEME`, `ZEN_THEME`.
 
-`apply_theme(page, theme)` injects the theme style tag into `page.extra_head_html`.
+`apply_theme(page, theme)` appends the theme stylesheet to `page.extra_head_html`.
+`ThemeScope` applies token overrides or a selected theme to a subtree.
+See [Theming and styling](docs/theming-and-styling.md) for the public API.
 
-### 7.3 Pre-built Components
+### 7.3 View factories
 
-`src/fleur/ui/components/` contains pre-built stateful components (`dialog`, `tabs`) with their own `*Model`, `*Msg`, and a factory function returning a `Component`.
+`src/fleur/ui/factories/` contains the `tabs` view factory. The caller supplies the panels,
+the selected key, and the message that updates the selection.
 
 ---
 
@@ -511,7 +515,7 @@ class AppModel(Model):
     counter: State[CounterModel]       # nested model field
 
 class AppMsg(MsgGroup):
-    COUNTER: Msg[CounterMsg] = Msg()   # wrapper message carrying child messages
+    COUNTER = Msg()                    # wrapper message carrying child messages
 ```
 
 ### 9.2 `Update.forward`
