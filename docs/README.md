@@ -1,6 +1,7 @@
 # Fleur documentation
 
 Start with the [quick start](../README.md#quick-start) to build and run a counter app.
+Try the [runnable examples](../examples/README.md) to explore the APIs in a complete app.
 
 | Guide | What it covers |
 | --- | --- |

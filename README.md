@@ -95,6 +95,7 @@ Use `ThemeScope` to change the theme or color mode for a region of the page.
 ## Documentation
 
 Browse the [documentation index](docs/README.md) for guides on app structure, theming, and HTTP requests.
+The [examples](examples/README.md) are ready to run from this checkout.
 
 ## Development
 

@@ -24,14 +24,30 @@ then the selected palette. Missing entries inherit from the same mode of `BASIC_
 ## Use tokens and CSS values
 
 ```python
-from fleur.ui import Button, css
+from fleur.ui import Box, Button, Text, css
 
 save = Button("Save", bg="primary", p="lg")
 preview = Button("Preview", bg=css("oklch(65% 0.2 260)"), px=8)
+wide = Box(w="full")
+half = Box(w="1/2")
+content = Box(max_w=css("min(100%, 42rem)"), mx="auto")
+scrollable = Box(Box(w=640), overflow_x="auto")
+sidebar = Box(max_h=css("60dvh"), overflow_y="auto")
+page_region = Box(min_h=css("100dvh"))
+date = Text("2026-11-26", white_space="nowrap")
+description = Text("Long description", overflow_wrap="anywhere")
 ```
 
-Pyright checks the built-in color, spacing, radius, and font-size names at the call site.
-Numeric lengths use pixels. Use `css(...)` for literal or reactive CSS and `style={...}` for CSS declarations.
+Pyright checks built-in tokens and dimension keywords at the call site. Numeric lengths use pixels.
+Dimension arguments such as `w`, `h`, `min_h`, and `max_h` accept `"full"` for `100%` and `"fit"`
+for `fit-content`. Fractions `"1/2"`, `"1/3"`, `"2/3"`, `"1/4"`, and `"3/4"` also resolve
+against the containing block according to CSS percentage sizing rules. Use grid tracks for
+columns that must share the available space after subtracting gaps.
+Margin arguments such as `mx` accept `"auto"`. Pair `mx="auto"` with a width or maximum width
+to center a block. Use `overflow_x="auto"` or `overflow_y="auto"` to scroll when contents exceed
+the width or height of the container. Use `white_space="nowrap"` to keep text on one line and
+`overflow_wrap="anywhere"` to break long words when needed.
+Use `css(...)` for literal or reactive CSS and `style={...}` for CSS declarations.
 `Background.when(condition, "primary", "transparent")` checks both names in a reactive color choice.
 
 ## Override a region
@@ -118,6 +134,10 @@ html = bloom(app, theme=theme)
 ## Override component styles
 
 The standard controls and layout views get their defaults from the theme stylesheet.
+Start with view arguments such as `p="lg"`, `gap="sm"`, and `bg="card"`. Use `css(...)` when
+an argument exists and you need a custom CSS value. Use stylesheet rules for media queries
+and selectors, or for properties that have no view argument.
+
 Supply a CSS class with `props={"className": "save"}`. A class can set `background` even
 when `bg` supplies the themed color.
 Input and Button use their own theme focus rings, independently of the background. Button hover tints

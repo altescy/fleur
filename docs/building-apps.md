@@ -56,6 +56,27 @@ Use `Cond.when` to branch on that value at runtime. For a list or table of contr
 `Msg[PointerEvent, int]` can carry an item index through `Message.SELECT.bind(index)`.
 The handler reads the index through `Message.SELECT.context`.
 
+## Work with browser values
+
+Use `Array.length` to count items, `Array.sum` to total numeric values, and `Array.join` to
+combine strings. Use `Array.map` first when each item contains a numeric field to sum.
+
+```python
+from fleur import Array, Number, String, Url
+from fleur.core import array
+
+total = Array.sum(array([1200, 800]))
+label = Number.format(total, locale="ja-JP")
+line = Array.join(array(["Travel", String.from_number(total)]), ",")
+encoded = Url.encode_component(line)
+```
+
+`Number.from_string` uses JavaScript's number conversion rules. Empty text becomes zero,
+and invalid text becomes `NaN`. Use `Number.is_finite` and any application constraints to
+validate an input. Use `String.replace_all` for text such as quoted CSV fields, and
+`String.from_number` to generate numeric text without locale formatting.
+The [expense report example](../examples/expense_report.py) combines these operations.
+
 ## Compose two independent components
 
 Save the following as `workspace.py` next to `editor.py`. Each editor gets its own nested model
