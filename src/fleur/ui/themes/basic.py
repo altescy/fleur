@@ -103,7 +103,7 @@ BASIC_THEME = Theme(
     },
     components={
         "button": {
-            "bg": "var(--fleur-color-accent-solid-bg)",
+            "bg": "initial",
             "fg": "var(--fleur-color-accent-solid-fg)",
             "radius": "var(--fleur-radius-md)",
             "font-weight": "600",

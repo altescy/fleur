@@ -24,8 +24,8 @@ _ViewChild = Union[JsonValue, Model, Sequence["_ViewChild"]]
 _ViewProp = Union[JsonValue, GroupedMsg[Any, Any, Any], Mapping[str, "_ViewProp"], Sequence["_ViewProp"]]
 _ViewProps = Mapping[str, _ViewProp]
 ViewChild: TypeAlias = Union[_ViewChild, Expr[_ViewChild]]
-ViewProp: TypeAlias = Union[_ViewProp, Expr[_ViewProp]]
-ViewProps: TypeAlias = Union[_ViewProps, Expr[_ViewProps]]
+ViewProp: TypeAlias = Union[_ViewProp, Expr[_ViewProp], Mapping[str, "ViewProp"], Sequence["ViewProp"]]
+ViewProps: TypeAlias = Union[Mapping[str, ViewProp], Expr[_ViewProps]]
 
 
 def _compile_text_expr(text: str) -> ESTreeExpression:

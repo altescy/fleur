@@ -1,192 +1,49 @@
 from collections.abc import Mapping
-from typing import Annotated, Unpack, assert_never, cast, get_args, get_origin, get_type_hints
+from typing import Annotated, Literal, Unpack, assert_never, cast, get_args, get_origin, get_type_hints
 
 from fleur.core.cond import Cond
-from fleur.core.expr import Expr, ensure_expr
+from fleur.core.expr import Expr
 from fleur.core.number import Number
-from fleur.core.string import String as CoreString
+from fleur.core.runtime import runtime_call
 from fleur.core.view import ViewProp, ViewProps, _compile_prop_value
-from fleur.js.ast import ESTreeExpression
-from fleur.js.builder import call, ident, json_expr, member_expr, object_expr
+from fleur.js.builder import call, ident, member_expr, object_expr
 
-from ._constants import COLOR_KEYWORDS
 from .types import (
     Color,
+    CssValue,
     FlexDirection,
     FlexWrap,
     FontSize,
     FontWeight,
-    Length,
     Radius,
     Spacing,
     String,
     Style,
     StyleField,
+    StyleMap,
     StyleTransform,
     StyleTransformValue,
     ViewStyleArgs,
 )
 
 
-def _is_raw_color(value: str) -> bool:
-    lower = value.lower()
-    return lower in COLOR_KEYWORDS or lower.startswith(("#", "rgb(", "rgba(", "hsl(", "hsla(", "var("))
-
-
-def _is_raw_color_expr(value: Expr[str]) -> Expr[bool]:
-    lower = CoreString.lower(value)
-    is_keyword = Cond.some(*(Cond.equal(lower, keyword) for keyword in COLOR_KEYWORDS))
-    has_css_prefix = Cond.some(
-        CoreString.starts_with(lower, "#"),
-        CoreString.starts_with(lower, "rgb("),
-        CoreString.starts_with(lower, "rgba("),
-        CoreString.starts_with(lower, "hsl("),
-        CoreString.starts_with(lower, "hsla("),
-        CoreString.starts_with(lower, "var("),
-    )
-    return Cond.some(is_keyword, has_css_prefix)
-
-
-def _space(value: Spacing | None) -> str | Expr[int | float | str] | None:
-    if value is None:
-        return None
+def color_value(value: Color) -> str | Expr[str]:
+    if isinstance(value, CssValue):
+        return value.value
     if isinstance(value, Expr):
-        text_value = CoreString.trim(cast(Expr[str], "" + value))
-        is_raw = Cond.some(
-            CoreString.ends_with(text_value, "px"),
-            CoreString.ends_with(text_value, "rem"),
-            CoreString.ends_with(text_value, "em"),
-            CoreString.ends_with(text_value, "%"),
-            CoreString.ends_with(text_value, "vh"),
-            CoreString.ends_with(text_value, "vw"),
-            CoreString.starts_with(text_value, "var("),
-            CoreString.starts_with(text_value, "calc("),
-            Cond.equal(text_value, "auto"),
-        )
-        return Cond.when(
-            is_raw,
-            text_value,
-            Cond.when(
-                Number.is_finite(text_value),
-                text_value + "px",
-                "var(--fleur-space-" + text_value + ")",
-            ),
-        )
+        return Cond.when(Cond.equal(value, "transparent"), "transparent", "var(--fleur-color-" + value + ")")
+    return value if value == "transparent" else f"var(--fleur-color-{value})"
+
+
+def scale_value(scale: str, value: Spacing | Radius | FontSize) -> str | Expr[str]:
+    if isinstance(value, CssValue):
+        return value.value
+    if isinstance(value, Expr):
+        text = Expr[str](call(ident("String"), value.__compile__()))
+        return Cond.when(Number.is_finite(value), text + "px", f"var(--fleur-{scale}-" + text + ")")
     if isinstance(value, (int, float)):
         return f"{value}px"
-
-    token = value.strip()
-    if token.replace(".", "", 1).isdigit():
-        return f"{token}px"
-
-    if token.endswith(("px", "rem", "em", "%", "vh", "vw")):
-        return token
-
-    if token.startswith(("var(", "calc(")):
-        return token
-
-    if token == "auto":
-        return token
-
-    return f"var(--fleur-space-{token})"
-
-
-def _radius(value: Radius | None) -> Radius | None:
-    if value is None:
-        return None
-    if isinstance(value, Expr):
-        text_value = CoreString.trim(cast(Expr[str], "" + value))
-        is_raw = Cond.some(
-            CoreString.ends_with(text_value, "px"),
-            CoreString.ends_with(text_value, "rem"),
-            CoreString.ends_with(text_value, "em"),
-            CoreString.ends_with(text_value, "%"),
-            CoreString.starts_with(text_value, "var("),
-            CoreString.starts_with(text_value, "calc("),
-        )
-        return Cond.when(
-            is_raw,
-            text_value,
-            Cond.when(
-                Number.is_finite(text_value),
-                text_value + "px",
-                "var(--fleur-radius-" + text_value + ")",
-            ),
-        )
-    if isinstance(value, (int, float)):
-        return f"{value}px"
-
-    token = value.strip()
-    if token.endswith(("px", "rem", "em", "%")):
-        return token
-
-    if token.startswith(("var(", "calc(")):
-        return token
-
-    return f"var(--fleur-radius-{token})"
-
-
-def _length(value: Length | None) -> Length | None:
-    return _space(value)
-
-
-def _font_size(value: FontSize | None) -> FontSize | None:
-    if value is None:
-        return None
-    if isinstance(value, Expr):
-        text_value = CoreString.trim(cast(Expr[str], "" + value))
-        is_raw = Cond.some(
-            CoreString.ends_with(text_value, "px"),
-            CoreString.ends_with(text_value, "rem"),
-            CoreString.ends_with(text_value, "em"),
-            CoreString.ends_with(text_value, "%"),
-            CoreString.ends_with(text_value, "vh"),
-            CoreString.ends_with(text_value, "vw"),
-            CoreString.starts_with(text_value, "var("),
-            CoreString.starts_with(text_value, "calc("),
-        )
-        return Cond.when(
-            is_raw,
-            text_value,
-            Cond.when(
-                Number.is_finite(text_value),
-                text_value + "px",
-                "var(--fleur-text-" + text_value + ")",
-            ),
-        )
-    if isinstance(value, (int, float)):
-        return f"{value}px"
-
-    token = value.strip()
-    if token.replace(".", "", 1).isdigit():
-        return f"{token}px"
-
-    if token.endswith(("px", "rem", "em", "%", "vh", "vw")):
-        return token
-
-    if token.startswith(("var(", "calc(")):
-        return token
-
-    return f"var(--fleur-text-{token})"
-
-
-def _color(value: Color | None) -> Color | None:
-    if value is None:
-        return None
-    if isinstance(value, Expr):
-        return Cond.when(_is_raw_color_expr(value), value, "var(--fleur-color-" + value + ")")
-    return value if _is_raw_color(value) else f"var(--fleur-color-{value})"
-
-
-def _compile_style_value(v: Style) -> ESTreeExpression:
-    if isinstance(v, Expr):
-        return v.__compile__()
-    return json_expr(v)
-
-
-def _js_assign(*sources: ESTreeExpression) -> ESTreeExpression:
-    """Build Object.assign({}, ...sources) expression."""
-    return call(member_expr(ident("Object"), "assign"), object_expr([]), *sources)
+    return f"var(--fleur-{scale}-{value})"
 
 
 def _identity(value: String | FlexDirection | FlexWrap | None) -> Style | None:
@@ -200,17 +57,17 @@ def _font_weight(value: FontWeight | None) -> Style | None:
 
 
 def _transform_value(transform: StyleTransform, value: StyleTransformValue) -> Style | None:
+    if value is None:
+        return None
     match transform:
         case "color":
-            return _color(cast(Color | None, value))
-        case "space":
-            return _space(cast(Spacing | None, value))
+            return color_value(cast(Color, value))
+        case "space" | "length":
+            return scale_value("space", cast(Spacing, value))
         case "radius":
-            return _radius(cast(Radius | None, value))
-        case "length":
-            return _length(cast(Length | None, value))
+            return scale_value("radius", cast(Radius, value))
         case "font_size":
-            return _font_size(cast(FontSize | None, value))
+            return scale_value("text", cast(FontSize, value))
         case "font_weight":
             return _font_weight(cast(FontWeight | None, value))
         case "identity":
@@ -240,10 +97,42 @@ def _get_style_rules() -> dict[str, StyleField]:
 _STYLE_RULES = _get_style_rules()
 
 
+def _merge_declarations(*layers: Mapping[str, ViewProp]) -> dict[str, ViewProp]:
+    """Move replaced keys to the end so later layers also win CSS shorthand conflicts."""
+    merged: dict[str, ViewProp] = {}
+    for layer in layers:
+        for key, value in layer.items():
+            merged.pop(key, None)
+            merged[key] = value
+    return merged
+
+
 def merge_props(
     props: ViewProps | None,
+    *,
+    element: Literal[
+        "box",
+        "text",
+        "input",
+        "button",
+        "grid",
+        "grid-item",
+        "hstack",
+        "vstack",
+        "divider",
+        "textarea",
+        "table",
+        "table-row",
+        "table-head",
+        "table-cell",
+        "table-caption",
+    ]
+    | None = None,
+    defaults: StyleMap | None = None,
+    layout: StyleMap | None = None,
     **style_args: Unpack[ViewStyleArgs],
 ) -> ViewProps:
+    """Compose defaults, supplied style, layout arguments, shorthands, then explicit style."""
     style_kwargs: dict[str, Style] = {}
     for key, rule in _STYLE_RULES.items():
         if key not in style_args:
@@ -252,71 +141,45 @@ def merge_props(
         if normalized is None:
             continue
         for css_prop in rule.css_props:
+            style_kwargs.pop(css_prop, None)
             style_kwargs[css_prop] = normalized
 
-    style = style_args.get("style")
-    if style is not None:
-        style_kwargs.update(style)
+    props = {} if props is None else props
+    if element is not None:
+        props = extend_props(props, {"data-fleur-ui": element})
+    elif style_args.get("bg") is not None:
+        props = extend_props(props, {"data-fleur-bg": ""})
+    defaults = defaults or {}
+    overrides = _merge_declarations(layout or {}, style_kwargs, style_args.get("style") or {})
+    if not defaults and not overrides:
+        return props
 
-    if isinstance(props, Expr):
-        if not style_kwargs:
-            return props
-        props_expr = props.__compile__()
-        compiled_style_kwargs = object_expr((k, _compile_style_value(v)) for k, v in style_kwargs.items())
-        # Object.assign({}, propsExpr, {style: Object.assign({}, propsExpr.style, styleKwargs)})
-        merged_style = _js_assign(member_expr(props_expr, "style"), compiled_style_kwargs)
-        return Expr(_js_assign(props_expr, object_expr([("style", merged_style)])))
+    if isinstance(props, Expr) or isinstance(props.get("style"), Expr):
+        return Expr(
+            runtime_call(
+                ("mergeStyleProps",),
+                _compile_prop_value(props),
+                _compile_prop_value(defaults),
+                _compile_prop_value(overrides),
+            )
+        )
 
-    merged = dict(props or {})
-    existing_style = merged.get("style")
-    style_map: dict[str, Style] = (
-        {key: cast(Style, value) for key, value in existing_style.items()}
-        if isinstance(existing_style, Mapping)
-        else {}
-    )
-    style_map.update(style_kwargs)
-
-    if style_map:
-        merged = {**merged, "style": style_map}
-    return merged
+    supplied = props.get("style")
+    style = _merge_declarations(defaults, supplied if isinstance(supplied, Mapping) else {}, overrides)
+    return {**props, "style": style}
 
 
 def extend_props(props: ViewProps, extra: ViewProps) -> ViewProps:
-    """Add extra top-level properties (e.g. event handlers, HTML attributes) to ViewProps."""
-    if not extra:
+    """Append top-level attributes, evaluating each dynamic source once."""
+    if isinstance(extra, Mapping) and not extra:
         return props
-    match (props, extra):
-        case (Expr(), Mapping()):
-            compiled_extra = object_expr((k, _compile_prop_value(v)) for k, v in extra.items())
-            return Expr(_js_assign(props.__compile__(), compiled_extra))
-        case (Mapping(), Expr()):
-            return Expr(_js_assign(ensure_expr(props), ensure_expr(extra)))
-        case (Expr(), Expr()):
-            return Expr(_js_assign(props.__compile__(), extra.__compile__()))
-        case (Mapping(), Mapping()):
-            return {**props, **extra}
-        case _:
-            assert_never((props, extra))
-
-
-def set_default_style(props: ViewProps, defaults: dict[str, Style]) -> ViewProps:
-    """Apply style defaults (setdefault semantics) to ViewProps."""
-    if not defaults:
-        return props
-    if isinstance(props, Expr):
-        # defaults are the base; props.style overwrites them (setdefault semantics)
-        props_expr = props.__compile__()
-        compiled_defaults = object_expr((k, _compile_style_value(v)) for k, v in defaults.items())
-        # Object.assign(defaults, props.style) — props.style wins over defaults
-        merged_style = call(member_expr(ident("Object"), "assign"), compiled_defaults, member_expr(props_expr, "style"))
-        return Expr(_js_assign(props_expr, object_expr([("style", merged_style)])))
-    merged: dict[str, ViewProp] = dict(props)
-    existing_style = merged.get("style")
-    style_map: dict[str, Style] = (
-        {key: cast(Style, value) for key, value in existing_style.items()}
-        if isinstance(existing_style, Mapping)
-        else {}
+    if isinstance(props, Mapping) and isinstance(extra, Mapping):
+        return {**props, **extra}
+    return Expr(
+        call(
+            member_expr(ident("Object"), "assign"),
+            object_expr([]),
+            _compile_prop_value(props),
+            _compile_prop_value(extra),
+        )
     )
-    for k, v in defaults.items():
-        style_map.setdefault(k, v)
-    return cast(ViewProps, {**merged, "style": style_map})

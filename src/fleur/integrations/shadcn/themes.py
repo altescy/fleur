@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from typing import Literal, NotRequired, TypedDict, cast
 
 from fleur.ui.themes import Theme
-from fleur.ui.themes.base import ThemeCoreTokens, ThemePalette, ThemeVariables
+from fleur.ui.themes.base import ThemeCoreTokens, ThemePalette
 
 ShadcnRegistryMode = Literal["light", "dark"]
 
@@ -33,11 +33,6 @@ def _get_mapping(value: object, path: str) -> Mapping[str, object]:
     return value
 
 
-def _get_str(mapping: Mapping[str, object], key: str) -> str | None:
-    value = mapping.get(key)
-    return value if isinstance(value, str) else None
-
-
 def _render_css_object(node: Mapping[str, object]) -> str:
     chunks: list[str] = []
     for key, value in node.items():
@@ -52,120 +47,20 @@ def _render_css_object(node: Mapping[str, object]) -> str:
     return "".join(chunks)
 
 
-def _build_registry_variables(global_tokens: Mapping[str, object], mode_tokens: Mapping[str, object]) -> dict[str, str]:
-    variables: dict[str, str] = {}
-    merged = {**dict(global_tokens), **dict(mode_tokens)}
-    for key, value in merged.items():
-        if isinstance(key, str) and isinstance(value, str):
-            variable = key if key.startswith("--") else f"--{key}"
-            variables[variable] = value
-    return variables
-
-
-def _theme_from_token_maps(global_tokens: Mapping[str, object], mode_tokens: Mapping[str, object]) -> Theme:
-    radius = _get_str(global_tokens, "radius") or _get_str(mode_tokens, "radius") or "0.5rem"
-    spacing = _get_str(mode_tokens, "spacing") or _get_str(global_tokens, "spacing") or "0.25rem"
-    font_sans = _get_str(mode_tokens, "font-sans") or _get_str(global_tokens, "font-sans")
-    font_mono = _get_str(mode_tokens, "font-mono") or _get_str(global_tokens, "font-mono")
-
-    return Theme(
-        theme=ThemeCoreTokens(
-            **({"font-sans": font_sans} if font_sans is not None else {}),
-            **({"font-mono": font_mono} if font_mono is not None else {}),
-            **{"radius": radius},
-            **{"spacing": spacing},
-        ),
-        light=ThemePalette(
-            **{
-                "background": _get_str(mode_tokens, "background") or "oklch(1 0 0)",
-                "foreground": _get_str(mode_tokens, "foreground") or "oklch(0.145 0 0)",
-                "card": _get_str(mode_tokens, "card") or _get_str(mode_tokens, "popover") or "oklch(1 0 0)",
-                "popover": _get_str(mode_tokens, "popover") or _get_str(mode_tokens, "card") or "oklch(1 0 0)",
-                "muted": _get_str(mode_tokens, "muted") or _get_str(mode_tokens, "secondary") or "oklch(0.97 0 0)",
-                "muted-foreground": _get_str(mode_tokens, "muted-foreground") or "oklch(0.556 0 0)",
-                "border": _get_str(mode_tokens, "border") or _get_str(mode_tokens, "input") or "oklch(0.922 0 0)",
-                "input": _get_str(mode_tokens, "input") or _get_str(mode_tokens, "border") or "oklch(0.922 0 0)",
-                "primary": _get_str(mode_tokens, "primary") or "oklch(0.205 0 0)",
-                "primary-foreground": _get_str(mode_tokens, "primary-foreground") or "oklch(0.985 0 0)",
-                "accent": _get_str(mode_tokens, "accent") or _get_str(mode_tokens, "secondary") or "oklch(0.97 0 0)",
-                "accent-foreground": _get_str(mode_tokens, "accent-foreground")
-                or _get_str(mode_tokens, "secondary-foreground")
-                or "oklch(0.205 0 0)",
-                "ring": _get_str(mode_tokens, "ring") or "oklch(0.708 0 0)",
-                "destructive": _get_str(mode_tokens, "destructive") or "oklch(0.577 0.245 27.325)",
-                "destructive-foreground": _get_str(mode_tokens, "destructive-foreground") or "oklch(0.97 0.01 17)",
-                "chart-1": _get_str(mode_tokens, "chart-1") or "oklch(0.87 0 0)",
-                "chart-2": _get_str(mode_tokens, "chart-2") or "oklch(0.556 0 0)",
-                "chart-3": _get_str(mode_tokens, "chart-3") or "oklch(0.439 0 0)",
-                "chart-4": _get_str(mode_tokens, "chart-4") or "oklch(0.371 0 0)",
-                "chart-5": _get_str(mode_tokens, "chart-5") or "oklch(0.269 0 0)",
-                "sidebar": _get_str(mode_tokens, "sidebar")
-                or _get_str(mode_tokens, "background")
-                or "oklch(0.985 0 0)",
-                "sidebar-foreground": _get_str(mode_tokens, "sidebar-foreground")
-                or _get_str(mode_tokens, "foreground")
-                or "oklch(0.145 0 0)",
-                "sidebar-primary": _get_str(mode_tokens, "sidebar-primary")
-                or _get_str(mode_tokens, "primary")
-                or "oklch(0.205 0 0)",
-                "sidebar-primary-foreground": _get_str(mode_tokens, "sidebar-primary-foreground")
-                or _get_str(mode_tokens, "primary-foreground")
-                or "oklch(0.985 0 0)",
-                "sidebar-accent": _get_str(mode_tokens, "sidebar-accent")
-                or _get_str(mode_tokens, "accent")
-                or "oklch(0.97 0 0)",
-                "sidebar-accent-foreground": _get_str(mode_tokens, "sidebar-accent-foreground")
-                or _get_str(mode_tokens, "accent-foreground")
-                or "oklch(0.205 0 0)",
-                "sidebar-border": _get_str(mode_tokens, "sidebar-border")
-                or _get_str(mode_tokens, "border")
-                or "oklch(0.922 0 0)",
-                "sidebar-ring": _get_str(mode_tokens, "sidebar-ring")
-                or _get_str(mode_tokens, "ring")
-                or "oklch(0.708 0 0)",
-                "surface": _get_str(mode_tokens, "surface") or _get_str(mode_tokens, "muted") or "oklch(0.98 0 0)",
-                "surface-foreground": _get_str(mode_tokens, "surface-foreground")
-                or _get_str(mode_tokens, "foreground")
-                or "oklch(0.145 0 0)",
-                "code": _get_str(mode_tokens, "code")
-                or _get_str(mode_tokens, "surface")
-                or _get_str(mode_tokens, "muted")
-                or "oklch(0.98 0 0)",
-                "code-foreground": _get_str(mode_tokens, "code-foreground")
-                or _get_str(mode_tokens, "surface-foreground")
-                or _get_str(mode_tokens, "foreground")
-                or "oklch(0.145 0 0)",
-                "code-highlight": _get_str(mode_tokens, "code-highlight")
-                or _get_str(mode_tokens, "accent")
-                or "oklch(0.96 0 0)",
-                "code-number": _get_str(mode_tokens, "code-number")
-                or _get_str(mode_tokens, "muted-foreground")
-                or "oklch(0.556 0 0)",
-                "selection": _get_str(mode_tokens, "selection")
-                or _get_str(mode_tokens, "foreground")
-                or "oklch(0.145 0 0)",
-                "selection-foreground": _get_str(mode_tokens, "selection-foreground")
-                or _get_str(mode_tokens, "background")
-                or "oklch(1 0 0)",
-                "spacing": spacing,
-                "radius": radius,
-            },
-        ),
-        variables=cast(ThemeVariables, _build_registry_variables(global_tokens, mode_tokens)),
-        custom_variables=_build_registry_variables(global_tokens, mode_tokens),
-    )
+def _tokens(value: object, path: str, names: frozenset[str]) -> dict[str, str]:
+    return {k: v for k, v in _get_mapping(value, path).items() if k in names and isinstance(v, str)}
 
 
 def theme_from_shadcn_registry_item(item: ShadcnRegistryItem, *, mode: ShadcnRegistryMode = "light") -> Theme:
     css_vars = _get_mapping(item.get("cssVars"), "cssVars")
-    global_tokens = _get_mapping(css_vars.get("theme", {}), "cssVars.theme")
-    mode_tokens = _get_mapping(css_vars.get(mode), f"cssVars.{mode}")
-
-    theme = _theme_from_token_maps(global_tokens, mode_tokens)
-    theme.mode = mode
-    if mode == "dark":
-        theme.dark = theme.light
-        theme.light = {}
+    theme = Theme(
+        mode=mode,
+        theme=cast(
+            ThemeCoreTokens, _tokens(css_vars.get("theme", {}), "cssVars.theme", ThemeCoreTokens.__optional_keys__)
+        ),
+        light=cast(ThemePalette, _tokens(css_vars.get("light", {}), "cssVars.light", ThemePalette.__optional_keys__)),
+        dark=cast(ThemePalette, _tokens(css_vars.get("dark", {}), "cssVars.dark", ThemePalette.__optional_keys__)),
+    )
 
     css = item.get("css")
     if isinstance(css, Mapping):

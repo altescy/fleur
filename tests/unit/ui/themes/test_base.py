@@ -1,5 +1,5 @@
 from fleur import Component, Model, MsgGroup, bloom
-from fleur.ui import Text, Theme, theme_style_tag, theme_variables
+from fleur.ui import BASIC_THEME, Button, Text, Theme, theme_style_tag, theme_variables
 
 
 class _DemoModel(Model):
@@ -42,3 +42,30 @@ class TestBaseTheme:
         assert "h1,h2,h3,h4,h5,h6,p,figure,blockquote,dl,dd{margin:0;}" in css
         assert "table{border-collapse:collapse;border-spacing:0;width:100%;}" in css
         assert "code{background:var(--fleur-color-code);color:var(--fleur-color-code-foreground);" in css
+
+
+def test_partial_dark_palette_uses_only_same_mode_layers() -> None:
+    base = Theme(colors={"border": "gray"}, light={"primary": "pink"}, dark={"primary": "navy"})
+    theme = Theme(mode="dark", light={"foreground": "red"}, dark={"secondary": "purple"})
+
+    values = theme_variables(theme, base_theme=base)
+    assert values["--fleur-color-primary"] == "navy"
+    assert values["--fleur-color-secondary"] == "purple"
+    assert values["--fleur-color-foreground"] == BASIC_THEME.dark.get("foreground")
+    assert values["--fleur-color-border"] == "gray"
+
+
+def test_bloom_connects_typed_scales_and_button_shorthands() -> None:
+    theme = Theme(colors={"primary": "#2457a6"}, space={"lg": 20}, radii={"sm": 3})
+    html = bloom(
+        Component(_DemoModel(), _DemoMsg.cases(), Button("Save", bg="primary", p="lg", radius="sm")), theme=theme
+    )
+
+    assert "--fleur-color-primary: #2457a6;" in html
+    assert "--fleur-space-lg: 20px;" in html
+    assert "--fleur-radius-sm: 3px;" in html
+    assert '"--fleur-local-bg": "var(--fleur-color-primary)"' in html
+    assert "background:var(--fleur-local-bg)" in html
+    assert 'padding: "var(--fleur-space-lg)"' in html
+    assert '"border-radius": "var(--fleur-radius-sm)"' in html
+    assert '"padding-left":' not in html

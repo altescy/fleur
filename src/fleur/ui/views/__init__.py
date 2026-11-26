@@ -11,12 +11,15 @@ from .input import Input
 from .table import Table, TableBody, TableCaption, TableCell, TableFooter, TableHead, TableHeader, TableRow
 from .text import Text
 from .textarea import Textarea
+from .theme_scope import ButtonBackground, ThemeScope
 from .types import FlexDirection, FlexWrap, Length, Radius, RawColor, Spacing, Style, StyleMap
 from .vstack import VStack
 
 __all__ = [
     "Box",
     "Button",
+    "ButtonBackground",
+    "ThemeScope",
     "Divider",
     "FlexDirection",
     "FlexWrap",

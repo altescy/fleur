@@ -29,5 +29,6 @@ class TestTable:
         assert '__fleur.h("th"' in source
         assert '__fleur.h("td"' in source
         assert '__fleur.h("caption"' in source
-        assert '"border-bottom": "1px solid var(--fleur-color-border-default)"' in source
+        assert '"data-fleur-ui": "table-row"' in source
+        assert '"border-bottom":' not in source
         assert '"text-align": "right"' in source

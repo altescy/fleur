@@ -7,7 +7,7 @@ from fleur.js.builder import call, ident, member_expr
 RuntimeNamespaceName: TypeAlias = Literal["__fleur"]
 
 # Top-level runtime API members (__fleur.<member>).
-RuntimeTopLevelName: TypeAlias = Literal["h", "lazy", "Cmd", "Sub", "Html", "Http", "program"]
+RuntimeTopLevelName: TypeAlias = Literal["h", "lazy", "Cmd", "Sub", "Html", "Http", "program", "mergeStyleProps"]
 
 # Nested runtime API members (__fleur.<object>.<member>).
 RuntimeNestedName: TypeAlias = Literal["none", "map", "batch", "task", "interval", "request"]

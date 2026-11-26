@@ -5,7 +5,7 @@ from fleur.integrations.shadcn.themes import (
     theme_from_shadcn_registry_item,
     theme_from_shadcn_registry_json,
 )
-from fleur.ui import theme_style_tag, theme_variables
+from fleur.ui import BASIC_THEME, theme_style_tag, theme_variables
 
 
 class TestShadcnThemes:
@@ -45,7 +45,7 @@ class TestShadcnThemes:
         assert variables["--fleur-space-lg"] == "calc(0.25rem * 4)"
         assert variables["--tracking-normal"] == "0.01em"
         assert variables["--fleur-color-destructive"] == "oklch(0.577 0.245 27.325)"
-        assert variables["--fleur-color-surface"] == "oklch(0.83 0.02 87)"
+        assert variables["--fleur-color-surface"] == BASIC_THEME.light.get("surface")
 
     def test_theme_from_shadcn_registry_json_parses_payload(self) -> None:
         payload = json.dumps(
@@ -88,3 +88,13 @@ class TestShadcnThemes:
         css = theme_style_tag(theme)
 
         assert "@layer base{body{letter-spacing:var(--tracking-normal);}}" in css
+
+
+def test_sparse_shadcn_palettes_use_the_selected_base_and_keep_raw_hsl_channels() -> None:
+    item: ShadcnRegistryItem = {"cssVars": {"light": {"background": "white"}, "dark": {"primary": "142 86% 28%"}}}
+    variables = theme_variables(theme_from_shadcn_registry_item(item, mode="dark"))
+
+    assert variables["--background"] == BASIC_THEME.dark.get("background")
+    assert variables["--primary"] == "142 86% 28%"
+    assert variables["--fleur-color-primary"] == "hsl(142 86% 28%)"
+    assert variables["--fleur-color-accent-solid-bg"] == variables["--fleur-color-primary"]

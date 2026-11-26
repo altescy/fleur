@@ -28,14 +28,14 @@ class Checkbox(Element[ModelT_co, MsgGroupT]):
         onblur: GroupedMsg[MsgGroupT, FocusEvent, Any] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
-        merged = _utils.merge_props(props, **style_args)
-        merged = _utils.set_default_style(
-            merged,
-            {
+        merged = _utils.merge_props(
+            props,
+            defaults={
                 "width": "1rem",
                 "height": "1rem",
                 "accent-color": "var(--fleur-color-accent-solid-bg)",
             },
+            **style_args,
         )
         extra: dict[str, Any] = {"type": "checkbox"}
         if checked is not None:

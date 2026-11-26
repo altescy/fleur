@@ -1,40 +1,41 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Annotated, Literal, NamedTuple, TypedDict
 
 from typing_extensions import TypeAlias
 
-from fleur.core.expr import Expr
+from fleur.core.cond import Cond
+from fleur.core.expr import Expr, ensure_expr
+from fleur.ui.themes import ThemeColorName, ThemeFontSizeName, ThemeRadiusName, ThemeSpaceName
 
-_ColorKeyword: TypeAlias = Literal[
-    "black",
-    "white",
-    "red",
-    "green",
-    "blue",
-    "yellow",
-    "orange",
-    "purple",
-    "pink",
-    "gray",
-    "grey",
-    "brown",
-    "teal",
-    "cyan",
-    "magenta",
-    "transparent",
-    "currentColor",
-    "inherit",
-]
+
+@dataclass(frozen=True, slots=True)
+class CssValue:
+    value: str | Expr[str]
+
+
+def css(value: str | Expr[str]) -> CssValue:
+    """Pass a literal or reactive CSS value to a token-aware shorthand."""
+    return CssValue(value)
+
+
+ColorName: TypeAlias = ThemeColorName | Literal["transparent"]
+
+
+class Background:
+    @staticmethod
+    def when(condition: bool | Expr[bool], yes: ColorName, no: ColorName) -> Expr[ColorName]:
+        """Select a named color without widening the branches to arbitrary strings."""
+        return Cond.when(condition, Expr[ColorName](ensure_expr(yes)), Expr[ColorName](ensure_expr(no)))
+
 
 _String: TypeAlias = str
 _Integer: TypeAlias = int
-_Color: TypeAlias = _ColorKeyword | str
-_Spacing: TypeAlias = int | float | str
-_Radius: TypeAlias = int | float | str
-_Length: TypeAlias = int | float | str
-_FontSize: TypeAlias = int | float | str
+_Spacing: TypeAlias = int | float | ThemeSpaceName
+_Radius: TypeAlias = int | float | ThemeRadiusName
+_FontSize: TypeAlias = int | float | ThemeFontSizeName
 _FontWeight: TypeAlias = int | str
 _Style: TypeAlias = int | float | str
 _Display: TypeAlias = Literal["block", "inline", "inline-block", "flex", "inline-flex", "grid", "inline-grid", "none"]
@@ -52,14 +53,14 @@ _AlignItems: TypeAlias = Literal["stretch", "flex-start", "flex-end", "center", 
 
 String: TypeAlias = _String | Expr[_String]
 Integer: TypeAlias = _Integer | Expr[_Integer]
-Color: TypeAlias = _Color | Expr[_Color]
-RawColor: TypeAlias = Color
+Color: TypeAlias = ColorName | Expr[ColorName] | CssValue
+RawColor: TypeAlias = CssValue
 Style: TypeAlias = _Style | Expr[_Style]
 StyleMap: TypeAlias = Mapping[str, Style]
-Spacing: TypeAlias = _Spacing | Expr[_Spacing]
-Radius: TypeAlias = _Radius | Expr[_Radius]
-Length: TypeAlias = _Length | Expr[_Length]
-FontSize: TypeAlias = _FontSize | Expr[_FontSize]
+Spacing: TypeAlias = _Spacing | Expr[_Spacing] | CssValue
+Radius: TypeAlias = _Radius | Expr[_Radius] | CssValue
+Length: TypeAlias = Spacing
+FontSize: TypeAlias = _FontSize | Expr[_FontSize] | CssValue
 FontWeight: TypeAlias = _FontWeight | Expr[_FontWeight]
 Display: TypeAlias = _Display | Expr[_Display]
 FlexDirection: TypeAlias = _FlexDirection | Expr[_FlexDirection]
@@ -78,7 +79,7 @@ class StyleField(NamedTuple):
 
 
 class ViewStyleArgs(TypedDict, total=False):
-    bg: Annotated[Color | None, StyleField(("background",), "color")]
+    bg: Annotated[Color | None, StyleField(("--fleur-local-bg",), "color")]
     fg: Annotated[Color | None, StyleField(("color",), "color")]
     p: Annotated[Spacing | None, StyleField(("padding",), "space")]
     px: Annotated[Spacing | None, StyleField(("padding-left", "padding-right"), "space")]

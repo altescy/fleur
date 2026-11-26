@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any, Generic, Type, TypeVar, cast, get_origin, overload
+from typing import Any, Generic, Type, TypeVar, cast, get_args, get_origin, overload
 
 from typing_extensions import dataclass_transform
 
@@ -70,10 +70,15 @@ class Model(metaclass=ModelMeta):
 class State(Generic[FleurValueT]):
     def __init__(self) -> None:
         self._name: str | None = None
+        self._is_collection = False
 
     def __set_name__(self, owner: type[Model], name: str) -> None:
-        del owner
         self._name = name
+        annotation = owner.__dict__.get("__annotations__", {}).get(name)
+        args = get_args(annotation)
+        if args:
+            value_type = get_origin(args[0]) or args[0]
+            self._is_collection = isinstance(value_type, type) and issubclass(value_type, (Sequence, Mapping))
 
     @overload
     def __get__(self, instance: None, owner: Type[ModelT]) -> "ModelState[ModelT, FleurValueT]": ...
@@ -87,7 +92,7 @@ class State(Generic[FleurValueT]):
         if self._name is None:
             raise AttributeError("State descriptor is not initialized")
         if instance is None:
-            return ModelState[ModelT, FleurValueT](owner, self._name)
+            return ModelState[ModelT, FleurValueT](owner, self._name, is_collection=self._is_collection)
 
         values = cast(dict[str, Expr[FleurValueT]], instance.__dict__)
         try:
@@ -132,10 +137,18 @@ class ModelUpdate(Generic[ModelT_co]):
 
 
 class ModelState(Expr[FleurValueT_co], Generic[ModelT_co, FleurValueT_co]):
-    def __init__(self, model_type: type[ModelT_co], field_name: str, *, path: tuple[str, ...] | None = None) -> None:
+    def __init__(
+        self,
+        model_type: type[ModelT_co],
+        field_name: str,
+        *,
+        path: tuple[str, ...] | None = None,
+        is_collection: bool = False,
+    ) -> None:
         self._model_type = model_type
         self._field_name = field_name
         self._path = path or (field_name,)
+        self._is_collection = is_collection
 
         expr: ESTreeExpression = ident(MODEL_IDENT)
         for part in self._path:
@@ -169,8 +182,13 @@ class ModelState(Expr[FleurValueT_co], Generic[ModelT_co, FleurValueT_co]):
         self: "ModelState[ModelT_co, Sequence[FleurValueT] | Mapping[str, FleurValueT] | ModelU]",
         key: "int | str | Expr[int | str] | ModelState[ModelU, FleurValueU]",
     ) -> "Expr[FleurValueT]" | "ModelState[ModelU, FleurValueU]":
-        if isinstance(key, ModelState):
-            return ModelState(self._model_type, self._field_name, path=self._path + (key._field_name,))
+        if isinstance(key, ModelState) and not self._is_collection:
+            return ModelState(
+                self._model_type,
+                self._field_name,
+                path=self._path + (key._field_name,),
+                is_collection=key._is_collection,
+            )
 
         return Expr[FleurValueT](
             ESTreeMemberExpression(

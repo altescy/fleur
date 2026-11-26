@@ -1,5 +1,7 @@
+from dataclasses import replace
+
 from fleur import emit
-from fleur.ui import ZEN_THEME, Text, theme_variables
+from fleur.ui import BASIC_THEME, ZEN_THEME, Text, theme_variables
 
 
 class TestZenTheme:
@@ -13,3 +15,10 @@ class TestZenTheme:
         source = emit(Text("label", font_size="sm").__compile__())
 
         assert '"font-size": "var(--fleur-text-sm)"' in source
+
+
+def test_zen_dark_inherits_basic_dark_and_keeps_zen_typography() -> None:
+    values = theme_variables(replace(ZEN_THEME, mode="dark"))
+    assert values["--fleur-color-background"] == BASIC_THEME.dark.get("background")
+    assert values["--fleur-color-primary"] == BASIC_THEME.dark.get("primary")
+    assert values["--fleur-font-body"] == ZEN_THEME.theme.get("font-sans")

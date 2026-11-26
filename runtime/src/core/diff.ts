@@ -40,33 +40,49 @@ export const diff = (oldV: VNode | undefined, newV: VNode | undefined, path: num
   const patches: Patch[] = []
 
   if (oldElement.children.some((c) => getKey(c) != null) || newElement.children.some((c) => getKey(c) != null)) {
-    const oldKeyIndex = new Map<string | number, number>()
-    for (let i = 0; i < oldElement.children.length; i++) {
-      const key = getKey(oldElement.children[i])
-      if (key != null) oldKeyIndex.set(key, i)
-    }
+    const keyed = new Map<string | number, number>()
+    const unkeyed: number[] = []
+    oldElement.children.forEach((child, index) => {
+      const key = getKey(child)
+      if (key === null) unkeyed.push(index)
+      else keyed.set(key, index)
+    })
 
+    let unkeyedIndex = 0
     const used = new Set<number>()
-    for (let i = 0; i < newElement.children.length; i++) {
-      const newChild = newElement.children[i]
-      const key = getKey(newChild)
-      if (key != null && oldKeyIndex.has(key)) {
-        const oldIndex = oldKeyIndex.get(key) as number
-        used.add(oldIndex)
-        patches.push(...diff(oldElement.children[oldIndex], newChild, [...path, i]))
-        if (oldIndex !== i) {
-          patches.push({ type: PatchType.MOVE, path: [...path, oldIndex], to: [...path, i] })
-        }
-      } else {
-        patches.push({ type: PatchType.INSERT, path: [...path, i], vnode: newChild })
+    const matches = newElement.children.map((child) => {
+      const key = getKey(child)
+      const index = key === null ? unkeyed[unkeyedIndex++] : keyed.get(key)
+      if (index === undefined || used.has(index)) return undefined
+      used.add(index)
+      return index
+    })
+
+    // Patch paths refer to the DOM after preceding patches have been applied.
+    const order = oldElement.children.map((_, index) => index)
+    for (let i = order.length - 1; i >= 0; i--) {
+      if (!used.has(order[i])) {
+        patches.push({ type: PatchType.REMOVE, path: [...path, i] })
+        order.splice(i, 1)
       }
     }
 
-    for (let i = oldElement.children.length - 1; i >= 0; i--) {
-      if (!used.has(i)) {
-        patches.push({ type: PatchType.REMOVE, path: [...path, i] })
+    matches.forEach((oldIndex, index) => {
+      const childPath = [...path, index]
+      const newChild = newElement.children[index]
+      if (oldIndex === undefined) {
+        patches.push({ type: PatchType.INSERT, path: childPath, vnode: newChild })
+        order.splice(index, 0, -1)
+        return
       }
-    }
+      const from = order.indexOf(oldIndex, index)
+      if (from !== index) {
+        patches.push({ type: PatchType.MOVE, path: [...path, from], to: childPath })
+        order.splice(from, 1)
+        order.splice(index, 0, oldIndex)
+      }
+      patches.push(...diff(oldElement.children[oldIndex], newChild, childPath))
+    })
   } else {
     const sharedLen = Math.min(oldElement.children.length, newElement.children.length)
     for (let i = 0; i < sharedLen; i++) {

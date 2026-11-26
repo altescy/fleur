@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import cast
+from importlib.resources import files
+from typing import cast, get_args
 
 from fleur.core.template import Page
 
@@ -17,15 +18,29 @@ from .base import (
     ThemeMode,
     ThemePalette,
     ThemeRadiusName,
+    ThemeSelection,
     ThemeSpaceName,
     ThemeTypographyName,
-    ThemeVariables,
-    _ResolvedTheme,
 )
 from .basic import BASIC_THEME
 from .zen import ZEN_THEME
 
 DEFAULT_THEME = BASIC_THEME
+
+_COLOR_ALIASES: dict[str, ThemeColorName] = {
+    "bg-canvas": "background",
+    "bg-surface": "card",
+    "bg-subtle": "muted",
+    "fg-default": "foreground",
+    "fg-muted": "muted-foreground",
+    "border-default": "border",
+    "accent-solid-bg": "primary",
+    "accent-solid-fg": "primary-foreground",
+    "accent-soft-bg": "accent",
+    "accent-soft-fg": "accent-foreground",
+    "focus-ring": "ring",
+    "overlay": "background",
+}
 
 
 def _derive_scale(spacing: str) -> dict[ThemeSpaceName, str]:
@@ -46,178 +61,121 @@ def _derive_radii(radius: str) -> dict[ThemeRadiusName, str]:
     }
 
 
-def _resolved_shadcn_tokens(theme: Theme) -> dict[str, str]:
-    palette = theme.dark if theme.mode == "dark" and theme.dark else theme.light
-    return cast(dict[str, str], {**theme.theme, **palette})
-
-
-def _shadcn_color_overrides(tokens: dict[str, str]) -> dict[ThemeColorName, str]:
-    surface = tokens.get("surface", "")
-    surface_foreground = tokens.get("surface-foreground", "")
-    code = tokens.get("code", "")
-    code_foreground = tokens.get("code-foreground", "")
-    return {
-        "background": tokens.get("background", "oklch(1 0 0)"),
-        "foreground": tokens.get("foreground", "oklch(0.145 0 0)"),
-        "card": tokens.get("card", tokens.get("popover", "oklch(1 0 0)")),
-        "card-foreground": tokens.get("card-foreground", tokens.get("foreground", "oklch(0.145 0 0)")),
-        "popover": tokens.get("popover", tokens.get("card", "oklch(1 0 0)")),
-        "popover-foreground": tokens.get("popover-foreground", tokens.get("foreground", "oklch(0.145 0 0)")),
-        "primary": tokens.get("primary", "oklch(0.205 0 0)"),
-        "primary-foreground": tokens.get("primary-foreground", "oklch(0.985 0 0)"),
-        "secondary": tokens.get("secondary", tokens.get("muted", "oklch(0.97 0 0)")),
-        "secondary-foreground": tokens.get("secondary-foreground", tokens.get("foreground", "oklch(0.205 0 0)")),
-        "muted": tokens.get("muted", tokens.get("secondary", "oklch(0.97 0 0)")),
-        "muted-foreground": tokens.get("muted-foreground", "oklch(0.556 0 0)"),
-        "accent": tokens.get("accent", tokens.get("secondary", "oklch(0.97 0 0)")),
-        "accent-foreground": tokens.get("accent-foreground", tokens.get("secondary-foreground", "oklch(0.205 0 0)")),
-        "destructive": tokens.get("destructive", "oklch(0.5771 0.2152 27.3250)"),
-        "destructive-foreground": tokens.get("destructive-foreground", "oklch(1 0 0)"),
-        "border": tokens.get("border", tokens.get("input", "oklch(0.922 0 0)")),
-        "input": tokens.get("input", tokens.get("border", "oklch(0.922 0 0)")),
-        "ring": tokens.get("ring", "oklch(0.708 0 0)"),
-        "chart-1": tokens.get("chart-1", "oklch(0.646 0.222 41.116)"),
-        "chart-2": tokens.get("chart-2", "oklch(0.6 0.118 184.704)"),
-        "chart-3": tokens.get("chart-3", "oklch(0.398 0.07 227.392)"),
-        "chart-4": tokens.get("chart-4", "oklch(0.828 0.189 84.429)"),
-        "chart-5": tokens.get("chart-5", "oklch(0.769 0.188 70.08)"),
-        "sidebar": tokens.get("sidebar", tokens.get("background", "oklch(0.985 0 0)")),
-        "sidebar-foreground": tokens.get("sidebar-foreground", tokens.get("foreground", "oklch(0.145 0 0)")),
-        "sidebar-primary": tokens.get("sidebar-primary", tokens.get("primary", "oklch(0.205 0 0)")),
-        "sidebar-primary-foreground": tokens.get(
-            "sidebar-primary-foreground", tokens.get("primary-foreground", "oklch(0.985 0 0)")
-        ),
-        "sidebar-accent": tokens.get("sidebar-accent", tokens.get("accent", "oklch(0.97 0 0)")),
-        "sidebar-accent-foreground": tokens.get(
-            "sidebar-accent-foreground", tokens.get("accent-foreground", "oklch(0.205 0 0)")
-        ),
-        "sidebar-border": tokens.get("sidebar-border", tokens.get("border", "oklch(0.922 0 0)")),
-        "sidebar-ring": tokens.get("sidebar-ring", tokens.get("ring", "oklch(0.708 0 0)")),
-        "surface": surface or tokens.get("muted", "oklch(0.97 0 0)"),
-        "surface-foreground": surface_foreground or tokens.get("foreground", "oklch(0.145 0 0)"),
-        "code": code or surface or tokens.get("muted", "oklch(0.97 0 0)"),
-        "code-foreground": code_foreground or surface_foreground or tokens.get("foreground", "oklch(0.145 0 0)"),
-        "code-highlight": tokens.get("code-highlight", tokens.get("accent", "oklch(0.97 0 0)")),
-        "code-number": tokens.get("code-number", tokens.get("muted-foreground", "oklch(0.556 0 0)")),
-        "selection": tokens.get("selection", tokens.get("foreground", "oklch(0.145 0 0)")),
-        "selection-foreground": tokens.get("selection-foreground", tokens.get("background", "oklch(1 0 0)")),
-    }
-
-
-def _merge_theme_colors(tokens: dict[str, str], *overrides: dict[ThemeColorName, str]) -> ThemeColors:
-    merged: dict[ThemeColorName, str] = _shadcn_color_overrides(tokens).copy()
-    for override in overrides:
-        merged.update(override)
-    return cast(ThemeColors, merged)
-
-
-def _theme_with_defaults(theme: Theme, base_theme: Theme) -> _ResolvedTheme:
-    tokens = _resolved_shadcn_tokens(base_theme)
-    tokens.update(_resolved_shadcn_tokens(theme))
-
-    spacing = tokens.get("spacing", "0.25rem")
-    radius = tokens.get("radius", "0.5rem")
-    body_font = tokens.get("font-sans")
-    mono_font = tokens.get("font-mono")
-
-    resolved_colors = _merge_theme_colors(tokens, base_theme.colors, theme.colors)
-    components = {
-        **base_theme.components,
-        **{k: {**base_theme.components.get(k, {}), **v} for k, v in theme.components.items()},
-    }
-    custom_variables = {
-        **{(k if k.startswith("--") else f"--{k}"): v for k, v in tokens.items()},
-        **base_theme.custom_variables,
-        **theme.custom_variables,
-    }
-
-    resolved = _ResolvedTheme(
-        mode=theme.mode,
-        theme={**base_theme.theme, **theme.theme},
-        light=cast(ThemePalette, {**cast(dict[str, str], base_theme.light), **cast(dict[str, str], theme.light)}),
-        dark=cast(ThemePalette, {**cast(dict[str, str], base_theme.dark), **cast(dict[str, str], theme.dark)}),
-        colors=resolved_colors,
-        font_sizes={
-            "xs": "0.75rem",
-            "sm": "0.875rem",
-            "base": "1rem",
-            "lg": "1.125rem",
-            "xl": "1.25rem",
-            "2xl": "1.5rem",
-            **base_theme.font_sizes,
-            **theme.font_sizes,
-        },
-        components=cast(dict[ThemeComponentName, dict[ThemeComponentTokenName, str]], components),
-        variables=cast(
-            ThemeVariables, {**cast(dict[str, str], base_theme.variables), **cast(dict[str, str], theme.variables)}
-        ),
-        custom_variables=custom_variables,
-        extra_css=[*base_theme.extra_css, *theme.extra_css],
-    )
-
-    # Backfill spacing/radius/font vars derived from shadcn tokens.
-    for key, value in _derive_scale(spacing).items():
-        resolved.custom_variables.setdefault(
-            f"--fleur-space-{_utils.normalize_name(key)}", _utils.normalize_length(value)
-        )
-    for key, value in _derive_radii(radius).items():
-        resolved.custom_variables.setdefault(
-            f"--fleur-radius-{_utils.normalize_name(key)}", _utils.normalize_length(value)
-        )
-    if body_font is not None:
-        resolved.custom_variables.setdefault("--fleur-font-body", body_font)
-    if mono_font is not None:
-        resolved.custom_variables.setdefault("--fleur-font-mono", mono_font)
-
-    return resolved
-
-
 def theme_variables(theme: Theme, *, base_theme: Theme | None = None) -> dict[str, str]:
-    merged = _theme_with_defaults(theme, base_theme or DEFAULT_THEME)
-
+    """Resolve each layer in the requested mode, starting with the complete BASIC palette."""
+    layers = (BASIC_THEME, base_theme, theme) if base_theme is not None else (BASIC_THEME, theme)
+    tokens: dict[str, str] = {}
+    space: dict[ThemeSpaceName, int | float | str] = {}
+    radii: dict[ThemeRadiusName, int | float | str] = {}
     variables: dict[str, str] = {}
-    for key, value in merged.colors.items():
-        color = cast(str, value)
-        variables[f"--{_utils.normalize_name(key)}"] = color
-        variables[f"--fleur-color-{_utils.normalize_name(key)}"] = color
+    for layer in layers:
+        palette = layer.dark if theme.mode == "dark" else layer.light
+        for group in (layer.theme, layer.colors, palette):
+            tokens.update(cast(dict[str, str], group))
+        space.update(layer.space)
+        radii.update(layer.radii)
+        for key, value in layer.font_sizes.items():
+            variables[f"--fleur-text-{key}"] = _utils.normalize_length(value)
+        for component, settings in layer.components.items():
+            for key, value in settings.items():
+                variables[f"--fleur-comp-{component}-{key}"] = value
 
-    alias_map: dict[str, ThemeColorName] = {
-        "bg-canvas": "background",
-        "bg-surface": "card",
-        "bg-subtle": "muted",
-        "fg-default": "foreground",
-        "fg-muted": "muted-foreground",
-        "border-default": "border",
-        "accent-solid-bg": "primary",
-        "accent-solid-fg": "primary-foreground",
-        "accent-soft-bg": "accent",
-        "accent-soft-fg": "accent-foreground",
-        "focus-ring": "ring",
-        "overlay": "background",
-    }
-    for fleur_name, shadcn_name in alias_map.items():
-        if shadcn_name in merged.colors:
-            variables[f"--fleur-color-{fleur_name}"] = merged.colors[shadcn_name]
-    for key, value in merged.font_sizes.items():
-        variables[f"--fleur-text-{_utils.normalize_name(key)}"] = _utils.normalize_length(value)
-    for comp_name, values in merged.components.items():
-        comp_key = _utils.normalize_name(comp_name)
-        for key, value in values.items():
-            variables[f"--fleur-comp-{comp_key}-{_utils.normalize_name(key)}"] = value
-    variables.update(cast(dict[str, str], merged.variables))
-    variables.update(merged.custom_variables)
+    variables.update({f"--{key}": value for key, value in tokens.items()})
+    for key in get_args(ThemeColorName):
+        color = tokens[key]
+        variables[f"--fleur-color-{key}"] = _utils.css_color(color)
+    for fleur_name, shadcn_name in _COLOR_ALIASES.items():
+        variables[f"--fleur-color-{fleur_name}"] = variables[f"--fleur-color-{shadcn_name}"]
+    for key, size in {**_derive_scale(tokens["spacing"]), **space}.items():
+        variables[f"--fleur-space-{key}"] = _utils.normalize_length(size)
+    for key, size in {**_derive_radii(tokens["radius"]), **radii}.items():
+        variables[f"--fleur-radius-{key}"] = _utils.normalize_length(size)
+    variables["--fleur-font-body"] = tokens["font-sans"]
+    variables["--fleur-font-mono"] = tokens["font-mono"]
     return variables
 
 
+def _declarations(values: dict[str, str]) -> str:
+    return "".join(f"{name}: {value};" for name, value in values.items())
+
+
+def _mode_rules(theme: Theme, base_theme: Theme | None, current: dict[str, str]) -> str:
+    other_mode: ThemeMode = "light" if theme.mode == "dark" else "dark"
+    other = theme_variables(replace(theme, mode=other_mode), base_theme=base_theme)
+    # Only mode-dependent inputs need switching. An enclosing scope's override stays in force.
+    aliases = {f"--fleur-color-{alias}": f"var(--fleur-color-{color})" for alias, color in _COLOR_ALIASES.items()}
+    changed = sorted(
+        name for name in current.keys() | other.keys() if current.get(name) != other.get(name) and name not in aliases
+    )
+    rules: list[str] = []
+    for mode, palette in ((theme.mode, current), (other_mode, other)):
+        values = {
+            name: f"var({_utils.scope_variable(name)}, {palette[name]})"
+            if name in palette
+            else f"var({_utils.scope_variable(name)})"
+            for name in changed
+        }
+        rules.append(f'[data-fleur-mode="{mode}"]{{color-scheme:{mode};--fleur-mode:{mode};{_declarations(values)}}}')
+
+    return "".join(rules) + _scope_recipes(current)
+
+
+def _scope_recipes(variables: dict[str, str], *, scoped: bool = False) -> str:
+    # Resolve var() at each scope so component recipes use local overrides.
+    recipes = {f"--fleur-color-{alias}": f"var(--fleur-color-{color})" for alias, color in _COLOR_ALIASES.items()}
+    button_bg = "--fleur-comp-button-bg"
+    recipes.update(
+        {key: value for key, value in variables.items() if key.startswith("--fleur-comp-") and key != button_bg}
+    )
+    scope = ":where(:scope, [data-fleur-scope])" if scoped else ":where([data-fleur-scope])"
+    return (
+        f"{scope}{{{_declarations(recipes)}}}"
+        f"{scope}:where(:not([data-fleur-button-bg] *)){{{button_bg}:{variables[button_bg]};}}"
+    )
+
+
+def _scoped_theme_css(theme: Theme) -> str:
+    light = theme_variables(replace(theme, mode="light"))
+    dark = theme_variables(replace(theme, mode="dark"))
+    aliases = {f"--fleur-color-{alias}" for alias in _COLOR_ALIASES}
+    # Optional core tokens may exist only on the enclosing theme or in one mode.
+    keys = (light.keys() | dark.keys() | {f"--{key}" for key in ThemeCoreTokens.__optional_keys__}) - aliases
+    inputs = sorted(key for key in keys if not key.startswith("--fleur-comp-"))
+
+    def palette(values: dict[str, str], names: list[str]) -> str:
+        return _declarations({key: f"var({_utils.scope_variable(key)}, {values.get(key, 'initial')})" for key in names})
+
+    changed = [key for key in inputs if light.get(key) != dark.get(key)]
+    common = [key for key in inputs if light.get(key) == dark.get(key)]
+    light_changes = palette(light, changed)
+    dark_changes = palette(dark, changed)
+    # @scope without a start selector is rooted at the parent of this style element.
+    # Mode boundaries inside it use this theme until another theme scope begins.
+    for component in get_args(ThemeComponentName):
+        for token in get_args(ThemeComponentTokenName):
+            light.setdefault(f"--fleur-comp-{component}-{token}", "initial")
+    return (
+        "@scope to ([data-fleur-theme]){"
+        f":scope,[data-fleur-mode]{{{palette(light, common)}}}"
+        f':scope,[data-fleur-mode="light"]{{{light_changes}}}'
+        f"@container style(--fleur-mode: dark){{:scope:where(:not([data-fleur-mode])){{{dark_changes}}}}}"
+        f':scope:where([data-fleur-mode="dark"]),[data-fleur-mode="dark"]{{{dark_changes}}}'
+        f"{_scope_recipes(light, scoped=True)}{''.join(theme.extra_css)}"
+        "}"
+    )
+
+
 def theme_style_tag(theme: Theme, *, base_theme: Theme | None = None) -> str:
-    merged = _theme_with_defaults(theme, base_theme or DEFAULT_THEME)
     variables = theme_variables(theme, base_theme=base_theme)
-    declarations = "".join(f"{name}: {value};" for name, value in variables.items())
+    declarations = _declarations(variables)
     base = (
         "*,:before,:after{box-sizing:border-box;}"
         "*{border-color:var(--fleur-color-border);outline-color:color-mix(in srgb,var(--fleur-color-ring) 50%,transparent);}"
         "html,body{margin:0;padding:0;}"
         "html{line-height:1.5;-webkit-text-size-adjust:100%;tab-size:4;font-family:var(--fleur-font-body);}"
+        ":where([data-fleur-scope][data-fleur-mode],[data-fleur-theme]){background-color:var(--fleur-color-bg-canvas);color:var(--fleur-color-fg-default);font-family:var(--fleur-font-body);}"
+        ":where([data-fleur-theme]){font-size:var(--fleur-text-base);}"
+        ":where([data-fleur-scope-foreground]){color:var(--fleur-color-foreground);}"
         "body{"
         "font-size:var(--fleur-text-base);"
         "font-family:var(--fleur-font-body);"
@@ -253,16 +211,18 @@ def theme_style_tag(theme: Theme, *, base_theme: Theme | None = None) -> str:
         "img,svg,video,canvas,audio,iframe,embed,object{display:block;max-width:100%;}"
         "img,video{height:auto;}"
         "button,input,select,textarea{font:inherit;color:inherit;}"
-        "input,select,textarea{background:var(--fleur-color-card);border:1px solid var(--fleur-color-input);border-radius:var(--fleur-radius-sm);padding:var(--fleur-space-sm) var(--fleur-space-md);}"
+        "input:where(:not([data-fleur-ui])),select,textarea{background:var(--fleur-color-card);border:1px solid var(--fleur-color-input);border-radius:var(--fleur-radius-sm);padding:var(--fleur-space-sm) var(--fleur-space-md);}"
         "button{appearance:none;-webkit-appearance:none;background:none;border:0;cursor:pointer;transition:background-color .15s ease,color .15s ease,border-color .15s ease,box-shadow .15s ease;}"
+        ":where([data-fleur-bg]),:is(button,input,select,textarea):where([data-fleur-bg]){background:var(--fleur-local-bg);}"
         "button:disabled{cursor:not-allowed;opacity:.55;}"
         "fieldset{margin:0;padding:0;border:0;min-width:0;}"
         "legend{padding:0;}"
         "hr{border:0;border-top:1px solid var(--fleur-color-border-default);margin:0;}"
-        ":focus-visible{outline:none;box-shadow:var(--fleur-comp-button-focus-ring);border-radius:var(--fleur-radius-sm);}"
+        ":focus-visible:where(:not([data-fleur-ui])){outline:none;box-shadow:var(--fleur-comp-button-focus-ring);border-radius:var(--fleur-radius-sm);}"
     )
-    extra_css = "".join(merged.extra_css)
-    return f"<style>:root{{{declarations}}}{base}{extra_css}</style>"
+    extra_css = "".join([*(base_theme.extra_css if base_theme is not None else []), *theme.extra_css])
+    elements = files(__name__).joinpath("elements.css").read_text(encoding="utf-8")
+    return f"<style>:root{{color-scheme:{theme.mode};--fleur-mode:{theme.mode};{declarations}}}{_mode_rules(theme, base_theme, variables)}{base}{elements}{extra_css}</style>"
 
 
 def apply_theme(page: Page, theme: Theme, *, base_theme: Theme | None = None) -> Page:
@@ -280,10 +240,10 @@ __all__ = [
     "ThemeFontSizeName",
     "ThemeMode",
     "ThemePalette",
+    "ThemeSelection",
     "ThemeRadiusName",
     "ThemeSpaceName",
     "ThemeTypographyName",
-    "ThemeVariables",
     "DEFAULT_THEME",
     "BASIC_THEME",
     "ZEN_THEME",

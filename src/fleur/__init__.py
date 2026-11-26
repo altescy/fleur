@@ -31,7 +31,7 @@ from fleur.core.template import (
     render_template,
 )
 from fleur.js.emitter import EmitterSettings, emit
-from fleur.ui import Theme, apply_theme
+from fleur.ui import DEFAULT_THEME, Theme, apply_theme
 
 
 def bloom(
@@ -44,13 +44,10 @@ def bloom(
 ) -> str:
     from pathlib import Path
 
-    from fleur.ui import DEFAULT_THEME
-
     fleur_js_path = Path(__file__).parent / "assets" / "fleur.js"
     runtime_js = fleur_js_path.read_text()
 
-    resolved_page = page or Page()
-    resolved_page = apply_theme(resolved_page, theme or DEFAULT_THEME)
+    resolved_page = apply_theme(page or Page(), theme if theme is not None else DEFAULT_THEME)
 
     component_js = emit((component() if callable(component) else component).__compile__())
     context = BloomContext(

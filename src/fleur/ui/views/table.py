@@ -18,14 +18,10 @@ class Table(Element[ModelT_co, MsgGroupT_co]):
         props: ViewProps | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
-        merged = _utils.merge_props(props, **style_args)
-        merged = _utils.set_default_style(
-            merged,
-            {
-                "width": "100%",
-                "border-collapse": "collapse",
-                "caption-side": "bottom",
-            },
+        merged = _utils.merge_props(
+            props,
+            element="table",
+            **style_args,
         )
         super().__init__(*children, tag="table", props=merged)
 
@@ -61,8 +57,7 @@ class TableRow(Element[ModelT_co, MsgGroupT_co]):
         props: ViewProps | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
-        merged = _utils.merge_props(props, **style_args)
-        merged = _utils.set_default_style(merged, {"border-bottom": "1px solid var(--fleur-color-border-default)"})
+        merged = _utils.merge_props(props, element="table-row", **style_args)
         super().__init__(*children, tag="tr", props=merged)
 
 
@@ -80,13 +75,11 @@ class TableHead(Element[ModelT_co, MsgGroupT_co]):
             if "align" in style_args and "text_align" not in style_args
             else ViewStyleArgs(**style_args)
         )
-        style_overrides = ViewStyleArgs(
-            p="sm",
-            font_weight=600,
-            fg="fg-muted",
+        merged = _utils.merge_props(
+            props,
+            element="table-head",
+            **normalized_style,
         )
-        merged = _utils.merge_props(props, **{**style_overrides, **normalized_style})
-        merged = _utils.set_default_style(merged, {"vertical-align": "middle"})
         extra: dict[str, Any] = {}
         if colspan is not None:
             extra["colspan"] = colspan
@@ -110,9 +103,7 @@ class TableCell(Element[ModelT_co, MsgGroupT_co]):
             if "align" in style_args and "text_align" not in style_args
             else ViewStyleArgs(**style_args)
         )
-        style_overrides = ViewStyleArgs(p="sm")
-        merged = _utils.merge_props(props, **{**style_overrides, **normalized_style})
-        merged = _utils.set_default_style(merged, {"vertical-align": "middle"})
+        merged = _utils.merge_props(props, element="table-cell", **normalized_style)
         extra: dict[str, Any] = {}
         if colspan is not None:
             extra["colspan"] = colspan
@@ -129,7 +120,9 @@ class TableCaption(Element[ModelT_co, MsgGroupT_co]):
         props: ViewProps | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
-        style_overrides = ViewStyleArgs(p="xs", fg="fg-muted")
-        merged = _utils.merge_props(props, **{**style_overrides, **style_args})
-        merged = _utils.set_default_style(merged, {"text-align": "left", "caption-side": "bottom"})
+        merged = _utils.merge_props(
+            props,
+            element="table-caption",
+            **style_args,
+        )
         super().__init__(*children, tag="caption", props=merged)

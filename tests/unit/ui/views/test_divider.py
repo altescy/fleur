@@ -1,5 +1,5 @@
 from fleur import Cond, Model, State, emit
-from fleur.ui import Divider
+from fleur.ui import Divider, css
 
 
 class CondModel(Model):
@@ -8,6 +8,6 @@ class CondModel(Model):
 
 class TestDivider:
     def test_divider_supports_expr_args(self) -> None:
-        source = emit(Divider(color=Cond.when(CondModel.count > 0, "red", "blue")).__compile__())
+        source = emit(Divider(color=css(Cond.when(CondModel.count > 0, "red", "blue"))).__compile__())
 
-        assert '"border-top": ("1px solid "+((model.count>0)?"red":"blue"))' in source
+        assert '"--fleur-local-divider-color": ((model.count>0)?"red":"blue")' in source

@@ -24,6 +24,19 @@ describe("diff", () => {
     expect(hasMove).toBe(true)
   })
 
+  test("reuses unkeyed siblings and updates keyed nodes at their new positions", () => {
+    const item = (key: string, text: string) => h("li", { key }, text)
+    const oldV = h("ul", {}, h("style", {}, "old"), item("a", "A"), item("b", "B"), item("gone", "Gone"))
+    const newV = h("ul", {}, h("style", {}, "new"), item("b", "Updated"), item("a", "A"))
+
+    expect(diff(oldV, newV)).toEqual([
+      { type: "REMOVE", path: [3] },
+      { type: "TEXT", path: [0, 0], value: "new" },
+      { type: "MOVE", path: [2], to: [1] },
+      { type: "TEXT", path: [1, 0], value: "Updated" },
+    ])
+  })
+
   test("emits REMOVE patches from tail to head", () => {
     const oldV = h("div", {}, h("span", {}, "A"), h("span", {}, "B"), h("span", {}, "C"), h("span", {}, "D"))
     const newV = h("div", {}, h("span", {}, "A"), h("span", {}, "X"))
