@@ -57,7 +57,7 @@ Fleur state. Changing `Appearance.mode` updates the region, while elements outsi
 
 ```python
 from fleur import Model, State
-from fleur.ui import Button, ButtonBackground, ThemeMode, ThemeScope
+from fleur.ui import Button, ThemeMode, ThemeScope, css
 
 class Appearance(Model):
     mode: State[ThemeMode]
@@ -67,15 +67,16 @@ view = ThemeScope(
     ThemeScope(
         Button("Child"),
         ThemeScope(Button("Grandchild"), colors={"primary": "#21854a"}),
-        button_bg=ButtonBackground.PRIMARY,
+        components={"button": {"bg": "primary"}},
     ),
-    button_bg="#824399",
+    components={"button": {"bg": css("#824399")}},
     mode=Appearance.mode,
 )
 ```
 
 Here the parent button stays purple. The child uses the current light or dark primary, and the
-grandchild uses green in both modes. Omitting `button_bg` inherits the enclosing Button override.
+grandchild uses green in both modes. Each component property inherits the closest scope's override.
+Color and radius tokens resolve against the palette and scale of the region where they are used.
 
 ## Switch themes in the browser
 
@@ -108,7 +109,7 @@ updates.
 
 Omitting `mode` inherits the enclosing mode, including the page's initial mode. Omitting `theme`
 inherits the enclosing theme. Missing entries in a selected palette use `BASIC_THEME` values for
-the same mode. Explicit scope overrides such as `colors` and `button_bg` continue to apply.
+the same mode. Explicit scope overrides such as `colors` and `components` continue to apply.
 Scoped styles use CSS `@scope` and a custom-property container query for inherited dark mode.
 In a theme's `extra_css`, use `:scope` to target the region itself.
 
@@ -134,7 +135,12 @@ html = bloom(app, theme=theme)
 ## Override component styles
 
 The standard controls and layout views get their defaults from the theme stylesheet.
-Start with view arguments such as `p="lg"`, `gap="sm"`, and `bg="card"`. Use `css(...)` when
+Set page-wide component defaults with `Theme(components={...})` and region-wide defaults with
+`ThemeScope(components={...})`. Both accept the same typed settings, for example
+`components={"button": {"bg": "secondary"}, "input": {"radius": "sm"}}`.
+Use `css(...)` with a literal CSS value for custom colors or radii, such as `css("#824399")`.
+
+Adjust individual elements with view arguments such as `p="lg"`, `gap="sm"`, and `bg="card"`. Use `css(...)` when
 an argument exists and you need a custom CSS value. Use stylesheet rules for media queries
 and selectors, or for properties that have no view argument.
 

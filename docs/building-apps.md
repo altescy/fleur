@@ -5,6 +5,10 @@ sends a message when an event occurs, and updates the view after the correspondi
 handler changes the model. The [quick start](../README.md#quick-start) shows this loop with
 a counter.
 
+Omit `from __future__ import annotations` in modules that declare a `Model` with `State` fields.
+Fleur registers these fields from runtime annotations. The future import stores the annotations as
+strings, so passing those fields to the model constructor raises `TypeError: Unknown model fields`.
+
 ## Keep input and preview in sync
 
 Save this example as `editor.py`. The input reads its value from the model and dispatches
