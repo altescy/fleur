@@ -1,3 +1,4 @@
+from ._css import CssValue, css
 from .factories import tabs
 from .themes import (
     BASIC_THEME,
@@ -6,8 +7,7 @@ from .themes import (
     Theme,
     ThemeColorName,
     ThemeColors,
-    ThemeComponentName,
-    ThemeComponentTokenName,
+    ThemeComponents,
     ThemeCoreTokens,
     ThemeFontSizeName,
     ThemeMode,
@@ -20,10 +20,10 @@ from .themes import (
     theme_style_tag,
     theme_variables,
 )
+from .themes.scope import ThemeScope
 from .views import (
     Box,
     Button,
-    ButtonBackground,
     Checkbox,
     Divider,
     Form,
@@ -41,17 +41,15 @@ from .views import (
     TableRow,
     Text,
     Textarea,
-    ThemeScope,
     VStack,
 )
-from .views.types import Background, CssValue, css
+from .views.types import Background
 
 __all__ = [
     "Background",
     "CssValue",
     "css",
     "Button",
-    "ButtonBackground",
     "ThemeScope",
     "Box",
     "Divider",
@@ -73,8 +71,7 @@ __all__ = [
     "Textarea",
     "Theme",
     "ThemeColorName",
-    "ThemeComponentName",
-    "ThemeComponentTokenName",
+    "ThemeComponents",
     "ThemeColors",
     "ThemeCoreTokens",
     "ThemeFontSizeName",

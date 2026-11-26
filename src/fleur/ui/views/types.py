@@ -1,24 +1,14 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
 from typing import Annotated, Literal, NamedTuple, TypedDict
 
 from typing_extensions import TypeAlias
 
 from fleur.core.cond import Cond
 from fleur.core.expr import Expr, ensure_expr
+from fleur.ui._css import CssValue
 from fleur.ui.themes import ThemeColorName, ThemeFontSizeName, ThemeRadiusName, ThemeSpaceName
-
-
-@dataclass(frozen=True, slots=True)
-class CssValue:
-    value: str | Expr[str]
-
-
-def css(value: str | Expr[str]) -> CssValue:
-    """Pass a literal or reactive CSS value to a token-aware shorthand."""
-    return CssValue(value)
 
 
 ColorName: TypeAlias = ThemeColorName | Literal["transparent"]

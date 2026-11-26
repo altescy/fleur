@@ -1,18 +1,20 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import replace
+from hashlib import blake2b
 from importlib.resources import files
-from typing import cast, get_args
+from typing import cast, get_args, get_type_hints
 
 from fleur.core.template import Page
+from fleur.ui._css import CssValue, color_reference
 
 from . import _utils
 from .base import (
     Theme,
     ThemeColorName,
     ThemeColors,
-    ThemeComponentName,
-    ThemeComponentTokenName,
+    ThemeComponents,
     ThemeCoreTokens,
     ThemeFontSizeName,
     ThemeMode,
@@ -61,6 +63,29 @@ def _derive_radii(radius: str) -> dict[ThemeRadiusName, str]:
     }
 
 
+def _component_variable(component: str, field: str) -> str:
+    return f"--fleur-comp-{component}-{field.replace('_', '-')}"
+
+
+def _component_variables(components: ThemeComponents) -> dict[str, str]:
+    settings = cast(Mapping[str, Mapping[str, str | int | float | CssValue]], components)
+    variables: dict[str, str] = {}
+    for component, fields in settings.items():
+        for field, value in fields.items():
+            if isinstance(value, CssValue):
+                if not isinstance(value.value, str):
+                    raise TypeError("Theme component styles require literal CSS values")
+                resolved = value.value
+            elif field in ("bg", "fg") and isinstance(value, str):
+                resolved = color_reference(value)
+            elif field == "radius":
+                resolved = f"var(--fleur-radius-{value})" if isinstance(value, str) else _utils.normalize_length(value)
+            else:
+                resolved = str(value)
+            variables[_component_variable(component, field)] = resolved
+    return variables
+
+
 def theme_variables(theme: Theme, *, base_theme: Theme | None = None) -> dict[str, str]:
     """Resolve each layer in the requested mode, starting with the complete BASIC palette."""
     layers = (BASIC_THEME, base_theme, theme) if base_theme is not None else (BASIC_THEME, theme)
@@ -76,9 +101,7 @@ def theme_variables(theme: Theme, *, base_theme: Theme | None = None) -> dict[st
         radii.update(layer.radii)
         for key, value in layer.font_sizes.items():
             variables[f"--fleur-text-{key}"] = _utils.normalize_length(value)
-        for component, settings in layer.components.items():
-            for key, value in settings.items():
-                variables[f"--fleur-comp-{component}-{key}"] = value
+        variables.update(_component_variables(layer.components))
 
     variables.update({f"--{key}": value for key, value in tokens.items()})
     for key in get_args(ThemeColorName):
@@ -123,15 +146,21 @@ def _mode_rules(theme: Theme, base_theme: Theme | None, current: dict[str, str])
 def _scope_recipes(variables: dict[str, str], *, scoped: bool = False) -> str:
     # Resolve var() at each scope so component recipes use local overrides.
     recipes = {f"--fleur-color-{alias}": f"var(--fleur-color-{color})" for alias, color in _COLOR_ALIASES.items()}
-    button_bg = "--fleur-comp-button-bg"
-    recipes.update(
-        {key: value for key, value in variables.items() if key.startswith("--fleur-comp-") and key != button_bg}
-    )
+    recipes.update({key: value for key, value in variables.items() if key.startswith("--fleur-comp-")})
     scope = ":where(:scope, [data-fleur-scope])" if scoped else ":where([data-fleur-scope])"
-    return (
-        f"{scope}{{{_declarations(recipes)}}}"
-        f"{scope}:where(:not([data-fleur-button-bg] *)){{{button_bg}:{variables[button_bg]};}}"
-    )
+    return f"{scope}{{{_declarations(recipes)}}}"
+
+
+def _scope_component_css(components: ThemeComponents) -> tuple[str, str] | None:
+    declarations = _declarations(_component_variables(components))
+    if not declarations:
+        return None
+    # Explicit scope roots keep sibling regions isolated in WebKit.
+    key = blake2b(declarations.encode(), digest_size=16).hexdigest()
+    # :is() gives explicit overrides priority over theme defaults. Between overrides,
+    # scoping proximity chooses the closest region. Rebind references at every ThemeScope.
+    css = f'@scope ([data-fleur-components="{key}"]){{:is(:scope,[data-fleur-scope]){{{declarations}}}}}'
+    return key, css
 
 
 def _scoped_theme_css(theme: Theme) -> str:
@@ -151,9 +180,9 @@ def _scoped_theme_css(theme: Theme) -> str:
     dark_changes = palette(dark, changed)
     # @scope without a start selector is rooted at the parent of this style element.
     # Mode boundaries inside it use this theme until another theme scope begins.
-    for component in get_args(ThemeComponentName):
-        for token in get_args(ThemeComponentTokenName):
-            light.setdefault(f"--fleur-comp-{component}-{token}", "initial")
+    for component, style in get_type_hints(ThemeComponents).items():
+        for field in style.__annotations__:
+            light.setdefault(_component_variable(component, field), "initial")
     return (
         "@scope to ([data-fleur-theme]){"
         f":scope,[data-fleur-mode]{{{palette(light, common)}}}"
@@ -233,8 +262,7 @@ def apply_theme(page: Page, theme: Theme, *, base_theme: Theme | None = None) ->
 __all__ = [
     "Theme",
     "ThemeColorName",
-    "ThemeComponentName",
-    "ThemeComponentTokenName",
+    "ThemeComponents",
     "ThemeColors",
     "ThemeCoreTokens",
     "ThemeFontSizeName",

@@ -100,6 +100,11 @@ div:where([data-fleur-tabs="list"]) {
   border-radius: var(--fleur-radius-md);
 }
 
+/* Keep inactive panels hidden when layout styles set display on the children. */
+div:where([data-fleur-tabs="panel"][hidden]) {
+  display: none !important;
+}
+
 button:where([data-fleur-tabs="trigger"]) {
   --fleur-local-bg: transparent;
   color: var(--fleur-color-muted-foreground);

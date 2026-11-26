@@ -6,7 +6,7 @@ import pytest
 
 from fleur import Component, Model, Msg, MsgGroup, Page, State, bloom
 from fleur.core import PointerEvent
-from fleur.ui import Box, Button, ButtonBackground, Input, Theme, ThemeMode, ThemeScope
+from fleur.ui import Box, Button, Input, Text, Theme, ThemeMode, ThemeScope, css
 
 
 class Appearance(Model):
@@ -37,9 +37,9 @@ def scoped_app() -> Component[Appearance, Actions]:
                             ThemeScope(Button("Nested mode", props={"id": "nested"}), mode="light"),
                             colors={"primary": "#21854a"},
                         ),
-                        button_bg=ButtonBackground.PRIMARY,
+                        components={"button": {"bg": "primary"}},
                     ),
-                    button_bg="#824399",
+                    components={"button": {"bg": css("#824399")}},
                 ),
                 mode=Appearance.mode,
             ),
@@ -60,6 +60,25 @@ def test_bloom_preserves_page_head_and_emits_both_modes() -> None:
     assert bloom(scoped_app, theme=theme, page=page) == html
 
 
+def test_scoped_css_preserves_literal_model_placeholders(chromium_title: Callable[[str], str]) -> None:
+    theme = Theme(extra_css=[':scope::before { content: "${model.mode}"; }'])
+    app = Component(
+        Appearance(mode="light"),
+        Actions.cases(),
+        Box(
+            ThemeScope(Text("Fixed"), theme=theme, props={"id": "fixed"}),
+            ThemeScope(
+                Text("Selected"), theme=Theme.select(Appearance.mode, {"light": theme}), props={"id": "selected"}
+            ),
+        ),
+    )
+    probe = """<script>
+    document.title = JSON.stringify(["fixed", "selected"].map(
+      id => getComputedStyle(document.getElementById(id), "::before").content));
+    </script>"""
+    assert json.loads(chromium_title(bloom(app).replace("</body>", probe + "</body>"))) == ['"${model.mode}"'] * 2
+
+
 @pytest.mark.parametrize("custom_button", [False, True])
 def test_computed_button_background_across_mode_switches(
     chromium_title: Callable[[str], str], custom_button: bool
@@ -69,7 +88,7 @@ def test_computed_button_background_across_mode_switches(
         mode="dark",
         light={"primary": "#2457a6", "secondary": "#112233"},
         dark={"primary": "#91beff", "secondary": "#445566"},
-        components={"button": {"bg": "var(--fleur-color-secondary)"}} if custom_button else {},
+        components={"button": {"bg": "secondary"}} if custom_button else {},
     )
     page = Page(extra_head_html=['<style id="custom">button{transition:none !important}</style>'])
     html = bloom(scoped_app, theme=theme, page=page)
@@ -114,7 +133,7 @@ def test_reactive_theme_inherits_mode_and_isolates_nested_themes(chromium_title:
         "warm": Theme(light={"primary": "red"}, dark={"primary": "orange"}, extra_css=[".sample{height:41px}"]),
         "green": Theme(light={"primary": "green"}, dark={"primary": "seagreen"}, extra_css=[".sample{height:42px}"]),
     }
-    fixed = Theme(light={"primary": "pink"}, dark={"primary": "purple"}, components={"input": {"bg": "teal"}})
+    fixed = Theme(light={"primary": "pink"}, dark={"primary": "purple"}, components={"input": {"bg": css("teal")}})
     app = Component(
         Picker(preset="warm", mode="dark"),
         Pick.cases(
@@ -126,10 +145,15 @@ def test_reactive_theme_inherits_mode_and_isolates_nested_themes(chromium_title:
             ThemeScope(
                 ThemeScope(
                     Button("Inherited override", props={"id": "inherited-bg"}),
-                    ThemeScope(Button("Reset", props={"id": "reset"}), button_bg=ButtonBackground.PRIMARY),
+                    Input(props={"id": "inherited-input"}),
+                    ThemeScope(
+                        Button("Use primary", props={"id": "local-primary"}),
+                        Input(props={"id": "local-input"}),
+                        components={"button": {"bg": "primary"}, "input": {"radius": 9}},
+                    ),
                     theme=Theme.select(Picker.preset, themes),
                 ),
-                button_bg="brown",
+                components={"button": {"bg": css("brown")}, "input": {"bg": "primary", "radius": 17}},
             ),
             Button("Green", props={"id": "green"}, onclick=Pick.THEME.bind("green")),
             Button("Light", props={"id": "light"}, onclick=Pick.MODE.bind("light")),
@@ -144,6 +168,7 @@ def test_reactive_theme_inherits_mode_and_isolates_nested_themes(chromium_title:
                         theme=fixed,
                     ),
                     theme=Theme.select(Picker.preset, themes),
+                    components={"input": {"radius": 8}},
                 ),
                 mode=Picker.mode,
             ),
@@ -155,8 +180,13 @@ def test_reactive_theme_inherits_mode_and_isolates_nested_themes(chromium_title:
     const samples = [];
     function sample() {
       const css = id => getComputedStyle(document.getElementById(id));
-      samples.push(["outside", "selected", "inner-light", "override", "fixed", "fixed-input", "inherited-bg", "reset"]
-        .map(id => css(id).backgroundColor).concat(css("selected").height, css("fixed").height === css("selected").height));
+      const ids = ["outside", "selected", "inner-light", "override", "fixed", "fixed-input", "inherited-bg",
+        "local-primary", "inherited-input", "local-input"];
+      samples.push([
+        ids.map(id => css(id).backgroundColor),
+        [css("selected").height, css("fixed").height === css("selected").height],
+        ["fixed-input", "inherited-input", "local-input"].map(id => css(id).borderTopLeftRadius),
+      ]);
     }
     sample();
     document.getElementById("green").click(); sample();
@@ -167,8 +197,13 @@ def test_reactive_theme_inherits_mode_and_isolates_nested_themes(chromium_title:
     blue, green, sea_green, teal = "rgb(0, 0, 255)", "rgb(0, 128, 0)", "rgb(46, 139, 87)", "rgb(0, 128, 128)"
     brown = "rgb(165, 42, 42)"
     purple, pink = "rgb(128, 0, 128)", "rgb(255, 192, 203)"
+    input_radii = ["8px", "17px", "9px"]
     assert json.loads(chromium_title(html.replace("</body>", probe + "</body>"))) == [
-        [navy, orange, red, blue, purple, teal, brown, orange, "41px", False],
-        [navy, sea_green, green, blue, purple, teal, brown, sea_green, "42px", False],
-        [navy, green, green, blue, pink, teal, brown, sea_green, "42px", False],
+        [[navy, orange, red, blue, purple, teal, brown, orange, orange, orange], ["41px", False], input_radii],
+        [
+            [navy, sea_green, green, blue, purple, teal, brown, sea_green, sea_green, sea_green],
+            ["42px", False],
+            input_radii,
+        ],
+        [[navy, green, green, blue, pink, teal, brown, sea_green, sea_green, sea_green], ["42px", False], input_radii],
     ]

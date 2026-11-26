@@ -5,7 +5,7 @@ from typing import Unpack
 from fleur import Component, Model, MsgGroup, Page, View, bloom, emit
 from fleur.core import record
 from fleur.core.view import ViewProps
-from fleur.ui import Box, Button, Divider, HStack, Input, Text, Theme, ThemeScope, VStack
+from fleur.ui import Box, Button, Divider, HStack, Input, Text, Theme, ThemeScope, VStack, css
 from fleur.ui.views.types import ViewStyleArgs
 
 
@@ -41,8 +41,8 @@ def test_element_cascade_with_pointer_and_keyboard(playwright_page: Callable[[st
     theme = Theme(
         colors={"primary": "#102030", "card": "#fefefe"},
         components={
-            "button": {"focus-ring": "0 0 0 4px var(--fleur-color-ring)"},
-            "input": {"focus-ring": "0 0 0 2px var(--fleur-color-ring)"},
+            "button": {"focus_ring": "0 0 0 4px var(--fleur-color-ring)"},
+            "input": {"focus_ring": "0 0 0 2px var(--fleur-color-ring)"},
         },
     )
     view = Box(
@@ -73,7 +73,7 @@ def test_element_cascade_with_pointer_and_keyboard(playwright_page: Callable[[st
                 "secondary": "#ff0011",
             },
             space={"xs": 2, "sm": 4, "md": 8, "lg": 19},
-            button_bg="#904020",
+            components={"button": {"bg": css("#904020")}},
         ),
     )
     page = Page(

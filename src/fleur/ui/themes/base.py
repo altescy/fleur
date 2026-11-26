@@ -6,6 +6,7 @@ from typing import Literal, TypeAlias, TypedDict
 
 from fleur.core.expr import Expr
 from fleur.core.types import KeyT
+from fleur.ui._css import CssValue
 
 ThemeColorName: TypeAlias = Literal[
     "background",
@@ -53,9 +54,23 @@ ThemeSpaceName: TypeAlias = Literal["xs", "sm", "md", "lg", "xl"]
 ThemeRadiusName: TypeAlias = Literal["sm", "md", "lg"]
 ThemeFontSizeName: TypeAlias = Literal["xs", "sm", "base", "lg", "xl", "2xl"]
 ThemeTypographyName: TypeAlias = Literal["body", "mono"]
-ThemeComponentName: TypeAlias = Literal["button", "panel", "input"]
-ThemeComponentTokenName: TypeAlias = Literal["bg", "fg", "radius", "font-weight", "focus-ring", "border"]
 ThemeMode: TypeAlias = Literal["light", "dark"]
+
+
+class _ControlStyles(TypedDict, total=False):
+    bg: ThemeColorName | Literal["transparent"] | CssValue[str]
+    fg: ThemeColorName | Literal["transparent"] | CssValue[str]
+    radius: ThemeRadiusName | int | float | CssValue[str]
+    border: str
+    font_weight: int | str
+    focus_ring: str
+
+
+class ThemeComponents(TypedDict, total=False):
+    """Default styles shared by page themes and local theme scopes."""
+
+    button: _ControlStyles
+    input: _ControlStyles
 
 
 ThemeCoreTokens = TypedDict(
@@ -156,7 +171,7 @@ class Theme:
     space: dict[ThemeSpaceName, int | float | str] = field(default_factory=dict)
     radii: dict[ThemeRadiusName, int | float | str] = field(default_factory=dict)
     font_sizes: dict[ThemeFontSizeName, int | float | str] = field(default_factory=dict)
-    components: dict[ThemeComponentName, dict[ThemeComponentTokenName, str]] = field(default_factory=dict)
+    components: ThemeComponents = field(default_factory=ThemeComponents)
     extra_css: list[str] = field(default_factory=list)
 
     @staticmethod

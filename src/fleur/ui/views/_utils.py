@@ -7,10 +7,10 @@ from fleur.core.number import Number
 from fleur.core.runtime import runtime_call
 from fleur.core.view import ViewProp, ViewProps, _compile_prop_value
 from fleur.js.builder import call, ident, member_expr, object_expr
+from fleur.ui._css import CssValue, color_reference
 
 from .types import (
     Color,
-    CssValue,
     Dimension,
     FlexDirection,
     FlexWrap,
@@ -45,7 +45,7 @@ def color_value(value: Color) -> str | Expr[str]:
         return value.value
     if isinstance(value, Expr):
         return Cond.when(Cond.equal(value, "transparent"), "transparent", "var(--fleur-color-" + value + ")")
-    return value if value == "transparent" else f"var(--fleur-color-{value})"
+    return color_reference(value)
 
 
 def scale_value(

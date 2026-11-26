@@ -1,10 +1,11 @@
+import json
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Literal
 
 from fleur import Component, Cond, Model, Msg, MsgGroup, Page, State, View, bloom, emit
 from fleur.core import PointerEvent, record
-from fleur.ui import Box, Button, Text, Theme, ThemeMode, ThemeScope, tabs
+from fleur.ui import Box, Button, Input, Text, Theme, ThemeMode, ThemeScope, tabs
 
 Tab = Literal["One", "Two"]
 
@@ -62,7 +63,7 @@ def test_tabs_cascade_and_activation(playwright_page: Callable[[str, Path], str]
     theme = Theme(
         light={"card": "#e0efff", "foreground": "#112233", "border": "#98a5b8", "muted": "#ddeeff"},
         dark={"card": "#253545", "foreground": "#f0f4f8", "muted": "#152535"},
-        components={"button": {"focus-ring": "0 0 0 3px var(--fleur-color-ring)"}},
+        components={"button": {"focus_ring": "0 0 0 3px var(--fleur-color-ring)"}},
     )
     page = Page(
         extra_head_html=[
@@ -72,7 +73,43 @@ def test_tabs_cascade_and_activation(playwright_page: Callable[[str, Path], str]
       .paint { background: #316931; padding: 7px }
       .paint:hover { color: #feefaa }
       .paint:focus-visible { outline: 3px dashed #ee9933 }
+      .wrapper > div { display: flex }
     </style>"""
         ]
     )
     playwright_page(bloom(app, theme=theme, page=page), Path(__file__).with_name("tabs.cjs"))
+
+
+def test_reordering_tabs_keeps_uncontrolled_input_values(chromium_title: Callable[[str], str]) -> None:
+    first = Input[Screen, Actions](props={"id": "first-input"})
+    second = Input[Screen, Actions](props={"id": "second-input"})
+    contents = Cond.when(
+        Cond.equal(Screen.mode, "dark"), record({"Two": second, "One": first}), record({"One": first, "Two": second})
+    )
+    app = Component(
+        Screen(selected="One", mode="light"),
+        Actions.cases(Actions.MODE.then(State.set(Screen.mode, Actions.MODE.context))),
+        Box(
+            Button("Reverse", props={"id": "reverse"}, onclick=Actions.MODE.bind("dark")),
+            tabs(contents, Screen.selected, props={"id": "tabs"}),
+        ),
+    )
+    probe = """<script>
+    const byId = id => document.getElementById(id);
+    const triggers = () => Array.from(byId("tabs").querySelectorAll("button"));
+    const [one, two] = triggers();
+    byId("first-input").value = "Draft for One";
+    byId("second-input").value = "Draft for Two";
+    one.focus();
+    byId("reverse").click();
+    const [first, second] = triggers();
+    document.title = JSON.stringify([
+      first === two,
+      second === one,
+      document.activeElement === one,
+      byId("first-input").value,
+      byId("second-input").value,
+    ]);
+    </script>"""
+    html = bloom(app).replace("</body>", probe + "</body>")
+    assert json.loads(chromium_title(html)) == [True, True, True, "Draft for One", "Draft for Two"]

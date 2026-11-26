@@ -10,7 +10,6 @@ from fleur.ui import (
     Background,
     Box,
     Button,
-    ButtonBackground,
     Theme,
     ThemeColorName,
     ThemeMode,
@@ -40,7 +39,8 @@ class FormModel(Model):
 
 def valid_examples() -> None:
     ThemeScope(theme=Theme.select(FormModel.preset, PRESETS), mode=FormModel.mode)
-    ThemeScope(Button("Save"), mode=FormModel.mode, colors={"primary": "teal"}, button_bg=ButtonBackground.PRIMARY)
+    ThemeScope(Button("Save"), mode=FormModel.mode, components={"button": {"bg": "primary"}})
+    Theme(components={"button": {"bg": css("teal")}, "input": {"fg": "foreground", "radius": "sm"}})
     Theme(light={"primary": "navy"}, dark={"primary": "skyblue"}, space={"lg": 24})
     Button("Save", bg="primary", p="lg", style={"border": "0"})
     Button("Save", bg=FormModel.color, p=FormModel.padding)
@@ -58,6 +58,12 @@ def invalid_examples() -> None:
     Theme.select(FormModel.mode, PRESETS)  # pyright: ignore[reportArgumentType]
     ThemeScope(mode="night")  # pyright: ignore[reportArgumentType]
     ThemeScope(colors={"primray": "teal"})  # pyright: ignore[reportArgumentType]
+    ThemeScope(components={"button": {"bg": "primray"}})  # pyright: ignore[reportArgumentType]
+    ThemeScope(components={"button": {"bg": css(FormModel.raw)}})  # pyright: ignore[reportArgumentType]
+    Theme(components={"buton": {"bg": "primary"}})  # pyright: ignore[reportArgumentType]
+    Theme(components={"panel": {"bg": "card"}})  # pyright: ignore[reportArgumentType]
+    Theme(components={"input": {"background": "primary"}})  # pyright: ignore[reportArgumentType]
+    Theme(components={"input": {"radius": "large"}})  # pyright: ignore[reportArgumentType]
     Button("Save", bg="primray")  # pyright: ignore[reportArgumentType]
     Button("Save", p="primary")  # pyright: ignore[reportArgumentType]
     Button("Save", radius="xl")  # pyright: ignore[reportArgumentType]

@@ -33,6 +33,7 @@ def tabs(
 
     def trigger(name: Expr[KeyT]) -> View[ModelT, MsgGroupT]:
         attrs: dict[str, ViewProp] = {
+            "key": name,
             "type": "button",
             "data-fleur-tabs": "trigger",
             "aria-pressed": Cond.when(Cond.equal(name, active_tab), "true", "false"),
@@ -42,7 +43,14 @@ def tabs(
         return Button(name, props=attrs, style=tab_style, onclick=onselect.bind(name) if onselect is not None else None)
 
     def panel(name: Expr[KeyT]) -> View[ModelT, MsgGroupT]:
-        return Box(panels[name], props={"hidden": Boolean.negate(Cond.equal(name, active_tab))})
+        return Box(
+            panels[name],
+            props={
+                "key": name,
+                "data-fleur-tabs": "panel",
+                "hidden": Boolean.negate(Cond.equal(name, active_tab)),
+            },
+        )
 
     return Box(
         Box[ModelT, MsgGroupT](Array.map(names, trigger), props={"data-fleur-tabs": "list"}),
