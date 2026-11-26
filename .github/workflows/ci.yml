@@ -34,10 +34,24 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.0
       - uses: astral-sh/setup-uv@v8.3.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - run: uv sync
+      - name: Install Playwright and Chromium
+        env:
+          NODE_PATH: ${{ runner.temp }}/fleur-browser/node_modules
+        run: |
+          npm install --prefix "$RUNNER_TEMP/fleur-browser" --no-save --no-package-lock playwright-core@1.65.1
+          node "$NODE_PATH/playwright-core/cli.js" install --with-deps --no-shell chromium
+          browser="$(node -p 'require("playwright-core").chromium.executablePath()')"
+          test -x "$browser"
+          echo "FLEUR_TEST_CHROMIUM=$browser" >> "$GITHUB_ENV"
       - run: uv run pytest -q
         env:
           PYTHONPATH: ${{ github.workspace }}
+          NODE_PATH: ${{ runner.temp }}/fleur-browser/node_modules
+          FLEUR_REQUIRE_BROWSER_TESTS: '1'
 
   runtime-check:
     runs-on: ubuntu-latest
