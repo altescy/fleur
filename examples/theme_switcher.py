@@ -2,10 +2,9 @@
 
 from typing import Literal
 
-from fleur import Component, Cond, Expr, Model, Msg, MsgGroup, State
-from fleur.core import InputEvent, PointerEvent
-from fleur.core.view import ViewProps
-from fleur.ui import BASIC_THEME, ZEN_THEME, Button, HStack, Input, Text, Theme, ThemeMode, ThemeScope, VStack
+from fleur import Component, Cond, Model, Msg, MsgGroup, State
+from fleur.core import InputEvent
+from fleur.ui import BASIC_THEME, ZEN_THEME, Input, RadioGroup, Text, Theme, ThemeMode, ThemeScope, VStack
 
 Preset = Literal["basic", "zen"]
 PRESETS: dict[Preset, Theme] = {"basic": BASIC_THEME, "zen": ZEN_THEME}
@@ -18,21 +17,14 @@ class PreviewModel(Model):
 
 
 class PreviewMsg(MsgGroup):
-    SELECT_PRESET: Msg[PointerEvent, Preset] = Msg()
-    SELECT_MODE: Msg[PointerEvent, ThemeMode] = Msg()
+    SELECT_PRESET: Msg[InputEvent, Preset] = Msg()
+    SELECT_MODE: Msg[InputEvent, ThemeMode] = Msg()
     ENTER_NAME: Msg[InputEvent] = Msg()
 
 
-def _selection_props(selected: Expr[bool]) -> ViewProps:
-    return {
-        "aria-pressed": Cond.when(selected, "true", "false"),
-        "style": {
-            "border-color": Cond.when(selected, "var(--fleur-color-primary)", "var(--fleur-color-border)"),
-        },
-    }
-
-
 def app() -> Component[PreviewModel, PreviewMsg]:
+    presets: dict[Preset, str] = {preset: preset.title() for preset in PRESETS}
+    modes: dict[ThemeMode, str] = {"light": "Light", "dark": "Dark"}
     return Component(
         PreviewModel(preset="basic", mode="light", name=""),
         PreviewMsg.cases(
@@ -44,31 +36,19 @@ def app() -> Component[PreviewModel, PreviewMsg]:
             ThemeScope(
                 VStack(
                     Text("Theme preview", font_size="xl", font_weight=700),
-                    HStack(
-                        *(
-                            Button(
-                                preset.title(),
-                                variant="secondary",
-                                props=_selection_props(Cond.equal(PreviewModel.preset, preset)),
-                                onclick=PreviewMsg.SELECT_PRESET.bind(preset),
-                            )
-                            for preset in PRESETS
-                        ),
-                        props={"role": "group", "aria-label": "Theme"},
-                        gap="xs",
+                    RadioGroup(
+                        presets,
+                        name="preview-theme",
+                        label="Theme",
+                        value=PreviewModel.preset,
+                        onselect=PreviewMsg.SELECT_PRESET,
                     ),
-                    HStack(
-                        *(
-                            Button(
-                                mode.title(),
-                                variant="secondary",
-                                props=_selection_props(Cond.equal(PreviewModel.mode, mode)),
-                                onclick=PreviewMsg.SELECT_MODE.bind(mode),
-                            )
-                            for mode in ("light", "dark")
-                        ),
-                        props={"role": "group", "aria-label": "Color mode"},
-                        gap="xs",
+                    RadioGroup(
+                        modes,
+                        name="preview-mode",
+                        label="Color mode",
+                        value=PreviewModel.mode,
+                        onselect=PreviewMsg.SELECT_MODE,
                     ),
                     Input(
                         value=PreviewModel.name,

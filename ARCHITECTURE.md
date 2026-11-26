@@ -404,7 +404,8 @@ At runtime (`runtime/src/http/client.ts`):
 ### 7.1 View Elements
 
 All elements extend `Element` (which extends `View`). Available elements:
-`Box`, `Button`, `Checkbox`, `Divider`, `Form`, `Grid`/`GridItem`, `HStack`, `Input`, `Table`, `Text`, `Textarea`, `VStack`.
+`Box`, `Button`, `Card`, `Checkbox`, `CheckboxField`, `Dialog`, `Disclosure`, `Divider`, `EmptyState`, `Form`, `Grid`/`GridItem`, `Heading`, `HStack`,
+`Input`, `Link`, `Notice`, `Progress`, `RadioGroup`, `Select`/`Option`, `Table`, `SortableTableHead`, `Text`, `Textarea`, `VStack`.
 
 `src/fleur/ui/views/base.py` defines `Element`, the shared `View` subclass.
 `views/types.py` defines shorthand arguments and token types.
@@ -424,8 +425,8 @@ See [Theming and styling](docs/theming-and-styling.md) for the public API.
 
 ### 7.3 View factories
 
-`src/fleur/ui/factories/` contains the `tabs` view factory. The caller supplies the panels,
-the selected key, and the message that updates the selection.
+`src/fleur/ui/factories/` contains `field`, which connects a control with its label, description
+and validation message, and `tabs`, which takes panels, the selected key and the selection message.
 
 ---
 
@@ -652,7 +653,7 @@ fleur/
 │   ├── ui/
 │   │   ├── views/               # Box, Button, Input, Text, VStack, HStack, …
 │   │   ├── themes/              # Theme, DEFAULT_THEME, BASIC_THEME, ZEN_THEME
-│   │   └── components/          # Pre-built stateful components (dialog, tabs)
+│   │   └── factories/           # Composite views (field, tabs)
 │   ├── integrations/
 │   │   └── shadcn/themes.py     # Shadcn-compatible CSS variable mapping
 │   ├── cli/                     # CLI entrypoint
