@@ -1,0 +1,164 @@
+/* Keep states and component markers inside :where() so an ordinary user class wins. */
+:is(div, span, input, button, textarea, table, tr, th, td, caption, hr):where([data-fleur-ui]) {
+  --fleur-local-bg: transparent;
+  background: var(--fleur-local-bg);
+}
+
+div:where([data-fleur-ui="grid"]) {
+  display: grid;
+}
+
+div:where([data-fleur-ui="hstack"], [data-fleur-ui="vstack"]) {
+  display: flex;
+  flex-direction: row;
+}
+
+div:where([data-fleur-ui="vstack"]) {
+  flex-direction: column;
+}
+
+:is(input, textarea):where([data-fleur-ui="input"], [data-fleur-ui="textarea"]) {
+  --fleur-local-bg: var(--fleur-comp-input-bg);
+  color: var(--fleur-comp-input-fg);
+  font-weight: var(--fleur-comp-input-font-weight, inherit);
+  padding: var(--fleur-space-sm) var(--fleur-space-md);
+  border: var(--fleur-comp-input-border);
+  border-radius: var(--fleur-comp-input-radius);
+  min-block-size: 2.5rem;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+textarea:where([data-fleur-ui="textarea"]) {
+  resize: vertical;
+}
+
+:is(input, textarea):where([data-fleur-ui])::placeholder {
+  color: var(--fleur-color-muted-foreground);
+  opacity: 1;
+}
+
+button:where([data-fleur-ui="button"]) {
+  --fleur-local-bg: var(--fleur-comp-button-bg, var(--fleur-color-primary));
+  color: var(--fleur-comp-button-fg);
+  padding: var(--fleur-space-xs) var(--fleur-space-md);
+  border: var(--fleur-comp-button-border);
+  border-radius: var(--fleur-comp-button-radius);
+  font-weight: var(--fleur-comp-button-font-weight);
+  min-block-size: 2.5rem;
+}
+
+button:where([data-fleur-ui="button"][data-fleur-variant="secondary"]) {
+  --fleur-local-bg: var(--fleur-color-secondary);
+  color: var(--fleur-color-secondary-foreground);
+  border-color: var(--fleur-color-border);
+}
+
+button:where([data-fleur-ui="button"][data-fleur-variant="ghost"]) {
+  --fleur-local-bg: transparent;
+  color: var(--fleur-color-foreground);
+}
+
+button:where([data-fleur-ui="button"]:enabled:hover) {
+  background-color: color-mix(in srgb, var(--fleur-local-bg) 88%, currentColor);
+}
+
+:is(input, textarea):where([data-fleur-ui="input"], [data-fleur-ui="textarea"]):where(:enabled:hover, :focus-visible) {
+  border-color: var(--fleur-color-focus-ring);
+}
+
+:is(div, span):where([data-fleur-ui]:focus-visible) {
+  outline: 2px solid var(--fleur-color-focus-ring);
+  outline-offset: 2px;
+}
+
+:is(button, input, textarea):where([data-fleur-ui]:focus-visible) {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+button:where([data-fleur-ui="button"]:focus-visible) {
+  box-shadow: var(--fleur-comp-button-focus-ring);
+}
+
+:is(input, textarea):where([data-fleur-ui="input"], [data-fleur-ui="textarea"]):where(:focus-visible) {
+  box-shadow: var(--fleur-comp-input-focus-ring);
+}
+
+div:where([data-fleur-tabs="root"]) {
+  display: flex;
+  flex-direction: column;
+}
+
+div:where([data-fleur-tabs="list"]) {
+  --fleur-local-bg: var(--fleur-color-muted);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fleur-space-xs);
+  padding: var(--fleur-space-xs);
+  border-radius: var(--fleur-radius-md);
+}
+
+/* Keep inactive panels hidden when layout styles set display on the children. */
+div:where([data-fleur-tabs="panel"][hidden]) {
+  display: none !important;
+}
+
+button:where([data-fleur-tabs="trigger"]) {
+  --fleur-local-bg: transparent;
+  color: var(--fleur-color-muted-foreground);
+  border: 1px solid transparent;
+  border-radius: var(--fleur-radius-sm);
+  font-weight: 500;
+  min-block-size: 2rem;
+}
+
+button:where([data-fleur-tabs="trigger"][aria-pressed="true"]) {
+  --fleur-local-bg: var(--fleur-color-card);
+  color: var(--fleur-color-foreground);
+  border-color: var(--fleur-color-border-default);
+  font-weight: 600;
+}
+
+button:where([data-fleur-tabs="trigger"][aria-pressed="true"]:not(:focus-visible)) {
+  box-shadow: 0 1px 2px rgb(10 10 10 / 10%);
+}
+
+hr:where([data-fleur-ui="divider"]) {
+  border: 0;
+  border-block-start: 1px solid var(--fleur-local-divider-color, var(--fleur-color-border));
+  width: 100%;
+  margin-block: var(--fleur-space-sm);
+}
+
+hr:where([data-fleur-divider-flush]) {
+  margin-block: 0;
+}
+
+table:where([data-fleur-ui="table"]) {
+  font-size: var(--fleur-text-sm);
+}
+
+tr:where([data-fleur-ui="table-row"]) {
+  border-block-end: 1px solid var(--fleur-color-border);
+}
+
+:is(th, td):where([data-fleur-ui="table-head"], [data-fleur-ui="table-cell"]) {
+  padding: var(--fleur-space-md);
+  vertical-align: middle;
+}
+
+th:where([data-fleur-ui="table-head"]) {
+  color: var(--fleur-color-muted-foreground);
+  --fleur-local-bg: var(--fleur-color-muted);
+}
+
+caption:where([data-fleur-ui="table-caption"]) {
+  padding: var(--fleur-space-sm) var(--fleur-space-md);
+  text-align: start;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:where([data-fleur-ui="button"]) { transition: none; }
+}

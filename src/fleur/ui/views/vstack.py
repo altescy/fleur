@@ -20,7 +20,5 @@ class VStack(Element[ModelT_co, MsgGroupT_co]):
         props: ViewProps | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
-        style_overrides = ViewStyleArgs(display="flex")
-        merged = _utils.merge_props(props, **{**style_args, **style_overrides})
-        merged = _utils.set_default_style(merged, {"flex-direction": "column"})
+        merged = _utils.merge_props(props, element="vstack", **style_args)
         super().__init__(*children, tag="div", props=merged)

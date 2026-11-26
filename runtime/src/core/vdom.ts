@@ -1,4 +1,4 @@
-import { Dispatch, EventHandler, Msg, VElement, VLazy, VNode, VNodeLike, VNodeType, VProps, VText } from "./types"
+import { Dispatch, EventHandler, Msg, StyleProps, VElement, VLazy, VNode, VNodeLike, VNodeType, VProps, VText } from "./types"
 
 export const shallowArgsEqual = (a: readonly unknown[], b: readonly unknown[]): boolean => {
   if (a.length !== b.length) return false
@@ -23,6 +23,20 @@ export const h = (tag: string, props: VProps = {}, ...children: VNodeLike[]): VE
   children: flattenChildren(children).map(asVNode),
   __isVNode: true,
 })
+
+export const mergeStyleProps = (props: VProps, defaults: StyleProps, overrides: StyleProps): VProps => {
+  const style: StyleProps = Object.create(null)
+  const supplied = props.style
+  for (const layer of [defaults, supplied, overrides]) {
+    if (!layer || typeof layer !== "object" || Array.isArray(layer)) continue
+    for (const [key, value] of Object.entries(layer)) {
+      // DOM applies declarations in this order, including CSS shorthands and longhands.
+      delete style[key]
+      style[key] = value
+    }
+  }
+  return { ...props, style }
+}
 
 export const lazy = (fn: (...args: readonly unknown[]) => VNodeLike, ...args: readonly unknown[]): VLazy => ({
   type: VNodeType.LAZY,

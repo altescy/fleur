@@ -1,68 +1,60 @@
 from collections.abc import Mapping
-from typing import Literal, Unpack, cast
+from typing import Unpack
 
 from typing_extensions import TypeAlias
 
-from fleur import Array, Cond, Object, View
+from fleur import Array, Boolean, Cond, Object, View
 from fleur.core import Expr, GroupedMsg, PointerEvent
 from fleur.core.expr import ensure_expr
-from fleur.core.types import ModelT, MsgGroupT
-from fleur.ui.views import Box, Button, HStack, VStack
-from fleur.ui.views.types import ViewStyleArgs
+from fleur.core.types import KeyT, ModelT, MsgGroupT
+from fleur.core.view import ViewProp, ViewProps
+from fleur.ui.views import Box, Button
+from fleur.ui.views._utils import extend_props
+from fleur.ui.views.types import String, StyleMap, ViewStyleArgs
 
-_ActiveTab: TypeAlias = str
-_TabsContents: TypeAlias = Mapping[str, View[ModelT, MsgGroupT]]
-TabsContents: TypeAlias = _TabsContents[ModelT, MsgGroupT] | Expr[_TabsContents[ModelT, MsgGroupT]]
-ActiveTab: TypeAlias = _ActiveTab | Expr[_ActiveTab]
+_TabViews: TypeAlias = Mapping[KeyT, View[ModelT, MsgGroupT]]
+TabsContents: TypeAlias = _TabViews[str, ModelT, MsgGroupT] | Expr[_TabViews[str, ModelT, MsgGroupT]]
+ActiveTab: TypeAlias = str | Expr[str]
 
 
 def tabs(
-    contents: TabsContents[ModelT, MsgGroupT],
-    active_tab: ActiveTab,
-    onselect: GroupedMsg[MsgGroupT, PointerEvent, str] | None = None,
+    contents: _TabViews[KeyT, ModelT, MsgGroupT] | Expr[_TabViews[KeyT, ModelT, MsgGroupT]],
+    active_tab: KeyT | Expr[KeyT],
+    onselect: GroupedMsg[MsgGroupT, PointerEvent, KeyT] | None = None,
+    *,
+    tab_class: String | None = None,
+    tab_style: StyleMap | None = None,
+    props: ViewProps | None = None,
     **style_args: Unpack[ViewStyleArgs],
 ) -> View[ModelT, MsgGroupT]:
-    contents = Expr(ensure_expr(contents))
-    return VStack(
-        HStack(
-            Array.map(
-                Object.keys(contents),
-                lambda name: Button(
-                    name,
-                    onclick=onselect.bind(name) if onselect is not None else None,
-                    bg=Cond.when(Cond.equal(name, active_tab), "bg-surface", "transparent"),
-                    fg=Cond.when(Cond.equal(name, active_tab), "fg-default", "fg-muted"),
-                    border=Cond.when(
-                        Cond.equal(name, active_tab),
-                        "1px solid var(--fleur-color-border-default)",
-                        "1px solid transparent",
-                    ),
-                    px="sm",
-                    py="xs",
-                    radius="sm",
-                    font_weight=Cond.when(Cond.equal(name, active_tab), 600, 500),
-                    box_shadow=Cond.when(
-                        Cond.equal(name, active_tab),
-                        "0 1px 2px rgba(10, 10, 10, 0.08)",
-                        "none",
-                    ),
-                ),
-            ),
-            gap="xs",
-            bg="bg-subtle",
-            radius="md",
-            flex_wrap="wrap",
-            align="center",
-        ),
-        Array.map(
-            Object.keys(contents),
-            lambda name: Box(
-                contents[name],
-                display=cast(
-                    Expr[Literal["block", "none"]],
-                    Cond.when(Cond.equal(name, active_tab), "block", "none"),
-                ),
-            ),
-        ),
+    """Style the wrapper with props and shorthands, or every tab button with tab_class and tab_style."""
+    panels = Expr[_TabViews[KeyT, ModelT, MsgGroupT]](ensure_expr(contents))
+    names = Object.keys(panels)
+
+    def trigger(name: Expr[KeyT]) -> View[ModelT, MsgGroupT]:
+        attrs: dict[str, ViewProp] = {
+            "key": name,
+            "type": "button",
+            "data-fleur-tabs": "trigger",
+            "aria-pressed": Cond.when(Cond.equal(name, active_tab), "true", "false"),
+        }
+        if tab_class is not None:
+            attrs["className"] = tab_class
+        return Button(name, props=attrs, style=tab_style, onclick=onselect.bind(name) if onselect is not None else None)
+
+    def panel(name: Expr[KeyT]) -> View[ModelT, MsgGroupT]:
+        return Box(
+            panels[name],
+            props={
+                "key": name,
+                "data-fleur-tabs": "panel",
+                "hidden": Boolean.negate(Cond.equal(name, active_tab)),
+            },
+        )
+
+    return Box(
+        Box[ModelT, MsgGroupT](Array.map(names, trigger), props={"data-fleur-tabs": "list"}),
+        Array.map(names, panel),
+        props=extend_props(props if props is not None else {}, {"data-fleur-tabs": "root"}),
         **style_args,
     )

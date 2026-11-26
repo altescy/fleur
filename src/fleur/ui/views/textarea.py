@@ -32,7 +32,7 @@ class Textarea(Element[ModelT_co, MsgGroupT]):
         onkeyup: GroupedMsg[MsgGroupT, KeyboardEvent, Any] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
-        merged = _utils.merge_props(props, **style_args)
+        merged = _utils.merge_props(props, element="textarea", **style_args)
         extra: dict[str, Any] = {}
         if value is not None:
             extra["value"] = value

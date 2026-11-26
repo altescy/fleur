@@ -16,7 +16,7 @@ class Input(Element[ModelT_co, MsgGroupT]):
         self,
         *,
         props: ViewProps | None = None,
-        type: String | None = "text",
+        type: String | None = None,
         value: String | None = None,
         placeholder: String | None = None,
         oninput: GroupedMsg[MsgGroupT, InputEvent, Any] | None = None,
@@ -27,7 +27,7 @@ class Input(Element[ModelT_co, MsgGroupT]):
         onkeyup: GroupedMsg[MsgGroupT, KeyboardEvent, Any] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
-        merged = _utils.merge_props(props, **style_args)
+        merged = _utils.merge_props(props, element="input", **style_args)
         extra: dict[str, Any] = {}
         if type is not None:
             extra["type"] = type

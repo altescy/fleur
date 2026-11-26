@@ -21,5 +21,5 @@ class Text(Element[ModelT_co, MsgGroupT_co]):
         super().__init__(
             text,
             tag="span",
-            props=_utils.merge_props(props, **style_args),
+            props=_utils.merge_props(props, element="text", **style_args),
         )

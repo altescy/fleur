@@ -32,25 +32,14 @@ class Grid(Element[ModelT_co, MsgGroupT_co]):
                 else Expr[str](json_expr("repeat(")) + columns + ", minmax(0, 1fr))"
             )
         elif min_col is not None:
-            if min_col is not None:
-                grid_template_columns = (
-                    "repeat(auto-fit, minmax(" + min_col + ", 1fr))"
-                    if isinstance(min_col, Expr)
-                    else f"repeat(auto-fit, minmax({min_col}, 1fr))"
-                )
+            size = _utils.scale_value("space", min_col)
+            grid_template_columns = "repeat(auto-fit, minmax(" + size + ", 1fr))"
 
-        base_style = style_args.get("style")
-        style_overrides = ViewStyleArgs(display="grid")
         merged = _utils.merge_props(
             props,
-            **{
-                **style_args,
-                **style_overrides,
-                "style": {
-                    **({"grid-template-columns": grid_template_columns} if grid_template_columns is not None else {}),
-                    **(dict(base_style) if base_style is not None else {}),
-                },
-            },
+            element="grid",
+            layout={"grid-template-columns": grid_template_columns} if grid_template_columns is not None else {},
+            **style_args,
         )
         super().__init__(*children, tag="div", props=merged)
 
@@ -73,7 +62,5 @@ class GridItem(Element[ModelT_co, MsgGroupT_co]):
             item_style["grid-row"] = (
                 f"span {row_span}" if not isinstance(row_span, Expr) else Expr[str](json_expr("span ")) + row_span
             )
-        style_override = dict(style_args.get("style") or {})
-        style_override.update(item_style)
-        merged = _utils.merge_props(props, **{**style_args, "style": style_override or None})
+        merged = _utils.merge_props(props, element="grid-item", layout=item_style, **style_args)
         super().__init__(*children, tag="div", props=merged)

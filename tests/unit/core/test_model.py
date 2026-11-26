@@ -1,3 +1,4 @@
+from collections.abc import Mapping, Sequence
 from typing import Any, cast
 
 import pytest
@@ -25,6 +26,12 @@ class ParentModel(Model):
 
 class ListModel(Model):
     flags: State[list[bool]]
+    index: State[int]
+
+
+class NestedListModel(Model):
+    list_model: State[ListModel]
+    index: State[int]
 
 
 class NumericModel(Model):
@@ -36,7 +43,13 @@ class BoolModel(Model):
 
 
 class RecordModel(Model):
-    mapping: State[dict[str, int]]
+    mapping: State[Mapping[str, int]]
+    key: State[str]
+
+
+class ReadOnlyListModel(Model):
+    flags: State[Sequence[bool]]
+    index: State[int]
 
 
 class CounterMsg(MsgGroup):
@@ -95,6 +108,15 @@ class TestModel:
         source = emit(Array.update_at(ListModel.flags, 1, True).__compile__())
 
         assert source == "model.flags.with(1,true)"
+
+    def test_collection_index_can_come_from_model_state(self) -> None:
+        assert emit(ListModel.flags[ListModel.index].__compile__()) == "model.flags[model.index]"
+        assert emit(ReadOnlyListModel.flags[ReadOnlyListModel.index].__compile__()) == "model.flags[model.index]"
+        assert emit(RecordModel.mapping[RecordModel.key].__compile__()) == "model.mapping[model.key]"
+
+    def test_nested_collection_accepts_a_dynamic_index(self) -> None:
+        nested_flags = NestedListModel.list_model[ListModel.flags]
+        assert emit(nested_flags[NestedListModel.index].__compile__()) == "model.list_model.flags[model.index]"
 
     def test_number_state_exposes_abs(self) -> None:
         abs_source = emit(Number.abs(NumericModel.value).__compile__())

@@ -19,6 +19,7 @@ from .sub import Sub
 from .task import TaskLike
 from .template import BloomContext, Page, SlotTemplate, Template, TemplateInput
 from .update import Update
+from .url import Url
 from .view import View
 
 __all__ = [
@@ -49,6 +50,7 @@ __all__ = [
     "Template",
     "TemplateInput",
     "Update",
+    "Url",
     "View",
     "PointerEvent",
     "BloomContext",

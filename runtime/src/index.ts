@@ -1,11 +1,12 @@
 import { Cmd, Html, Sub } from "./core/effects"
 import { Http } from "./http/client"
-import { h, lazy } from "./core/vdom"
+import { h, lazy, mergeStyleProps } from "./core/vdom"
 import { program } from "./core/program"
 
 const fleurRuntime = {
   h,
   lazy,
+  mergeStyleProps,
   Cmd,
   Sub,
   Html,
@@ -17,4 +18,4 @@ Object.assign(globalThis, {
   __fleur: fleurRuntime,
 })
 
-export { Cmd, Html, Http, Sub, h, lazy, program }
+export { Cmd, Html, Http, Sub, h, lazy, mergeStyleProps, program }

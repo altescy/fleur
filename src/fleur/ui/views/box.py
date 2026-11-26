@@ -21,7 +21,7 @@ class Box(Element[ModelT_co, MsgGroupT_co]):
         props: ViewProps | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
-        merged = _utils.merge_props(props, **style_args)
+        merged = _utils.merge_props(props, element="box", **style_args)
         if onclick is not None:
             merged = _utils.extend_props(merged, {"onclick": onclick})
         super().__init__(*children, tag="div", props=merged)

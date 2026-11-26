@@ -1,7 +1,7 @@
 from collections.abc import Callable, Sequence
-from typing import cast
+from typing import cast, overload
 
-from fleur.js.builder import call, member_expr
+from fleur.js.builder import call, literal, member_expr
 
 from .expr import Expr, ensure_expr
 from .function import Function, function
@@ -9,6 +9,33 @@ from .types import FleurValue, FleurValueT, FleurValueU
 
 
 class Array:
+    @staticmethod
+    def length(array: Expr[Sequence[FleurValueT]]) -> Expr[int]:
+        """Read the number of items in a browser array."""
+        return Expr(member_expr(array.__compile__(), "length"))
+
+    @staticmethod
+    def join(array: Expr[Sequence[str]], separator: str | Expr[str] = ",") -> Expr[str]:
+        """Join a browser array of strings with a separator."""
+        return Expr(call(member_expr(array.__compile__(), "join"), ensure_expr(separator)))
+
+    @overload
+    @staticmethod
+    def sum(array: Expr[Sequence[int]]) -> Expr[int]: ...
+
+    @overload
+    @staticmethod
+    def sum(array: Expr[Sequence[int | float]]) -> Expr[int | float]: ...
+
+    @staticmethod
+    def sum(array: Expr[Sequence[int | float]]) -> Expr[int | float]:
+        """Add the numbers in a browser array, using zero for an empty array."""
+
+        def add(total: Expr[int | float], value: Expr[int | float]) -> Expr[int | float]:
+            return total + value
+
+        return Expr(call(member_expr(array.__compile__(), "reduce"), function(add).ast, literal(0)))
+
     @staticmethod
     def map(
         array: "Expr[Sequence[FleurValueT]]",

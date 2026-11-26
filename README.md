@@ -76,6 +76,27 @@ uv run fleur build app:app -o app.html
 
 See `uv run fleur --help` for more options.
 
+## Theming
+
+Fleur applies a default theme to its UI components. Use typed tokens on a view, such as
+`Button("Save", bg="primary", p="lg")`, or choose a page theme when generating HTML.
+
+```python
+from app import app
+
+from fleur import bloom
+from fleur.ui import ZEN_THEME
+
+html = bloom(app, theme=ZEN_THEME)
+```
+
+Use `ThemeScope` to change the theme or color mode for a region of the page.
+
+## Documentation
+
+Browse the [documentation index](docs/README.md) for guides on app structure, theming, and HTTP requests.
+The [examples](examples/README.md) are ready to run from this checkout.
+
 ## Development
 
 ```bash
@@ -83,6 +104,10 @@ make test        # run pytest
 make lint        # run ruff and pyright
 make build       # build runtime bundle into src/fleur/assets/fleur.js
 ```
+
+The interactive element tests use Node, `playwright-core` and Chromium. Set `FLEUR_TEST_CHROMIUM` to the
+browser executable if it is outside PATH, and `NODE_PATH` if the Node package is installed separately.
+Set `FLEUR_REQUIRE_BROWSER_TESTS=1` to fail when browser dependencies are missing, as in CI.
 
 If you need to rebuild the TypeScript runtime directly:
 

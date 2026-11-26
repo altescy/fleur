@@ -9,6 +9,12 @@ class FormMsg(MsgGroup):
 
 
 class TestInput:
+    def test_props_supply_input_type_when_no_explicit_type_is_given(self) -> None:
+        source = emit(Input(props={"type": "email", "oninput": FormMsg.INPUT}, p=4).__compile__())
+
+        assert 'type: "email"' in source
+        assert 'type: "INPUT"' in source
+
     def test_input_view_compiles_events_and_core_props(self) -> None:
         source = emit(
             Input(

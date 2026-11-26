@@ -1,3 +1,4 @@
+from ._css import CssValue, css
 from .factories import tabs
 from .themes import (
     BASIC_THEME,
@@ -6,19 +7,20 @@ from .themes import (
     Theme,
     ThemeColorName,
     ThemeColors,
-    ThemeComponentName,
-    ThemeComponentTokenName,
+    ThemeComponents,
     ThemeCoreTokens,
     ThemeFontSizeName,
+    ThemeMode,
     ThemePalette,
     ThemeRadiusName,
+    ThemeSelection,
     ThemeSpaceName,
     ThemeTypographyName,
-    ThemeVariables,
     apply_theme,
     theme_style_tag,
     theme_variables,
 )
+from .themes.scope import ThemeScope
 from .views import (
     Box,
     Button,
@@ -41,9 +43,14 @@ from .views import (
     Textarea,
     VStack,
 )
+from .views.types import Background
 
 __all__ = [
+    "Background",
+    "CssValue",
+    "css",
     "Button",
+    "ThemeScope",
     "Box",
     "Divider",
     "Checkbox",
@@ -64,16 +71,16 @@ __all__ = [
     "Textarea",
     "Theme",
     "ThemeColorName",
-    "ThemeComponentName",
-    "ThemeComponentTokenName",
+    "ThemeComponents",
     "ThemeColors",
     "ThemeCoreTokens",
     "ThemeFontSizeName",
     "ThemePalette",
     "ThemeRadiusName",
+    "ThemeSelection",
     "ThemeSpaceName",
     "ThemeTypographyName",
-    "ThemeVariables",
+    "ThemeMode",
     "DEFAULT_THEME",
     "BASIC_THEME",
     "ZEN_THEME",

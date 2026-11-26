@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Literal, TypeAlias, TypedDict
+
+from fleur.core.expr import Expr
+from fleur.core.types import KeyT
+from fleur.ui._css import CssValue
 
 ThemeColorName: TypeAlias = Literal[
     "background",
@@ -49,9 +54,23 @@ ThemeSpaceName: TypeAlias = Literal["xs", "sm", "md", "lg", "xl"]
 ThemeRadiusName: TypeAlias = Literal["sm", "md", "lg"]
 ThemeFontSizeName: TypeAlias = Literal["xs", "sm", "base", "lg", "xl", "2xl"]
 ThemeTypographyName: TypeAlias = Literal["body", "mono"]
-ThemeComponentName: TypeAlias = Literal["button", "panel", "input"]
-ThemeComponentTokenName: TypeAlias = Literal["bg", "fg", "radius", "font-weight", "focus-ring", "border"]
 ThemeMode: TypeAlias = Literal["light", "dark"]
+
+
+class _ControlStyles(TypedDict, total=False):
+    bg: ThemeColorName | Literal["transparent"] | CssValue[str]
+    fg: ThemeColorName | Literal["transparent"] | CssValue[str]
+    radius: ThemeRadiusName | int | float | CssValue[str]
+    border: str
+    font_weight: int | str
+    focus_ring: str
+
+
+class ThemeComponents(TypedDict, total=False):
+    """Default styles shared by page themes and local theme scopes."""
+
+    button: _ControlStyles
+    input: _ControlStyles
 
 
 ThemeCoreTokens = TypedDict(
@@ -83,59 +102,6 @@ ThemeCoreTokens = TypedDict(
         "shadow-lg": str,
         "shadow-xl": str,
         "shadow-2xl": str,
-    },
-    total=False,
-)
-
-
-ThemePalette = TypedDict(
-    "ThemePalette",
-    {
-        "background": str,
-        "foreground": str,
-        "card": str,
-        "card-foreground": str,
-        "popover": str,
-        "popover-foreground": str,
-        "primary": str,
-        "primary-foreground": str,
-        "secondary": str,
-        "secondary-foreground": str,
-        "muted": str,
-        "muted-foreground": str,
-        "accent": str,
-        "accent-foreground": str,
-        "destructive": str,
-        "destructive-foreground": str,
-        "border": str,
-        "input": str,
-        "ring": str,
-        "chart-1": str,
-        "chart-2": str,
-        "chart-3": str,
-        "chart-4": str,
-        "chart-5": str,
-        "sidebar": str,
-        "sidebar-foreground": str,
-        "sidebar-primary": str,
-        "sidebar-primary-foreground": str,
-        "sidebar-accent": str,
-        "sidebar-accent-foreground": str,
-        "sidebar-border": str,
-        "sidebar-ring": str,
-        "surface": str,
-        "surface-foreground": str,
-        "code": str,
-        "code-foreground": str,
-        "code-highlight": str,
-        "code-number": str,
-        "selection": str,
-        "selection-foreground": str,
-        "spacing": str,
-        "radius": str,
-        "font-sans": str,
-        "font-mono": str,
-        "font-serif": str,
     },
     total=False,
 )
@@ -185,78 +151,38 @@ ThemeColors = TypedDict(
         "selection": str,
         "selection-foreground": str,
     },
-)
-
-
-ThemeVariables = TypedDict(
-    "ThemeVariables",
-    {
-        "--spacing": str,
-        "--radius": str,
-        "--font-sans": str,
-        "--font-mono": str,
-        "--font-serif": str,
-        "--tracking-normal": str,
-        "--tracking-tight": str,
-        "--tracking-tighter": str,
-        "--tracking-wide": str,
-        "--tracking-wider": str,
-        "--tracking-widest": str,
-        "--letter-spacing": str,
-        "--shadow-color": str,
-        "--shadow-opacity": str,
-        "--shadow-blur": str,
-        "--shadow-spread": str,
-        "--shadow-offset-x": str,
-        "--shadow-offset-y": str,
-        "--shadow-2xs": str,
-        "--shadow-xs": str,
-        "--shadow-sm": str,
-        "--shadow": str,
-        "--shadow-md": str,
-        "--shadow-lg": str,
-        "--shadow-xl": str,
-        "--shadow-2xl": str,
-    },
     total=False,
 )
 
 
-def _default_theme_core_tokens() -> ThemeCoreTokens:
-    return {}
+class ThemePalette(ThemeCoreTokens, ThemeColors):
+    """Overrides for one mode, including imported shadcn core variables."""
 
 
-def _default_theme_palette() -> ThemePalette:
-    return {}
-
-
-def _default_theme_variables() -> ThemeVariables:
-    return {}
-
-
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class Theme:
+    """Shared tokens are applied first, then the palette for the selected mode."""
+
     mode: ThemeMode = "light"
-    theme: ThemeCoreTokens = field(default_factory=_default_theme_core_tokens)
-    light: ThemePalette = field(default_factory=_default_theme_palette)
-    dark: ThemePalette = field(default_factory=_default_theme_palette)
-    colors: dict[ThemeColorName, str] = field(default_factory=dict)
+    theme: ThemeCoreTokens = field(default_factory=ThemeCoreTokens)
+    colors: ThemeColors = field(default_factory=ThemeColors)
+    light: ThemePalette = field(default_factory=ThemePalette)
+    dark: ThemePalette = field(default_factory=ThemePalette)
+    space: dict[ThemeSpaceName, int | float | str] = field(default_factory=dict)
+    radii: dict[ThemeRadiusName, int | float | str] = field(default_factory=dict)
     font_sizes: dict[ThemeFontSizeName, int | float | str] = field(default_factory=dict)
-    components: dict[ThemeComponentName, dict[ThemeComponentTokenName, str]] = field(default_factory=dict)
-    variables: ThemeVariables = field(default_factory=_default_theme_variables)
-    custom_variables: dict[str, str] = field(default_factory=dict)
+    components: ThemeComponents = field(default_factory=ThemeComponents)
     extra_css: list[str] = field(default_factory=list)
 
+    @staticmethod
+    def select(name: KeyT | Expr[KeyT], choices: Mapping[KeyT, Theme]) -> Theme | ThemeSelection:
+        """Select a Python theme by a literal or reactive key."""
+        if not isinstance(name, Expr):
+            return choices[name]
+        return ThemeSelection(name, {key: theme for key, theme in choices.items()})
 
-@dataclass(slots=True)
-class _ResolvedTheme:
-    mode: ThemeMode
-    theme: ThemeCoreTokens
-    light: ThemePalette
-    dark: ThemePalette
-    colors: ThemeColors
-    font_sizes: dict[ThemeFontSizeName, int | float | str]
-    components: dict[ThemeComponentName, dict[ThemeComponentTokenName, str]]
-    variables: ThemeVariables
-    custom_variables: dict[str, str]
-    extra_css: list[str]
+
+@dataclass(frozen=True, slots=True)
+class ThemeSelection:
+    name: Expr[str]
+    choices: Mapping[str, Theme]
