@@ -6,7 +6,7 @@ import subprocess
 import pytest
 
 from fleur import Array, Cond, Expr, Model, Number, Object, State, String, Url, emit
-from fleur.core import array
+from fleur.core import array, record
 from fleur.js.builder import ident
 
 
@@ -122,4 +122,73 @@ def test_optional_lookups_return_none_for_missing_values() -> None:
         "first": "Emma",
         "last": "Persuasion",
         "outside": None,
+    }
+
+
+class Owner(Model):
+    name: State[str]
+
+
+class Book(Model):
+    title: State[str]
+    owner: State[Owner]
+
+
+class Shelf(Model):
+    books: State[list[Book]]
+    selected: State[str]
+
+
+def test_model_items_read_fields_as_attributes_and_brackets_stay_a_key_lookup() -> None:
+    first = Shelf.books[0]
+    assert emit(first.title.__compile__()) == "model.books[0].title"
+    assert emit(first.owner.name.__compile__()) == "model.books[0].owner.name"
+    titles = Array.map(Shelf.books, lambda book: book.title + "!")
+    assert emit(titles.__compile__()) == 'model.books.map(function($fleur0) {return ($fleur0.title+"!");})'
+    # A model state used as a key reads the entry for its current value.
+    assert emit(record({"a": "A"})[Shelf.selected].__compile__()) == '{a: "A"}[model.selected]'
+
+
+class Picker(Model):
+    books: State[list[Book]]
+    current: State[Book | None]
+    count: State[int | None]
+    flag: State[bool]
+
+
+def test_maybe_uses_present_values_once_in_javascript() -> None:
+    runner = shutil.which("node") or shutil.which("bun")
+    if runner is None:
+        pytest.skip("JavaScript execution requires Node or Bun")
+
+    operations = {
+        "present": Cond.maybe(Picker.current, lambda book: book.owner.name, otherwise="nobody"),
+        "missing_item": Cond.maybe(Array.get(Picker.books, 5), lambda book: book.title, otherwise="none"),
+        "zero": Cond.maybe(Picker.count, lambda count: count + 1, otherwise=-1),
+        "chosen": Cond.when(Picker.flag, Picker.books[0], Picker.books[1]).title,
+    }
+    program = {name: emit(value.__compile__()) for name, value in operations.items()}
+    script = """
+    const expressions = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+    let reads = 0;
+    const model = {
+      books: [{ title: "Emma", owner: { name: "Jane" } }, { title: "Persuasion", owner: { name: "Anne" } }],
+      get current() { reads++; return this.books[0]; },
+      count: 0,
+      flag: false,
+    };
+    const actual = Object.fromEntries(Object.entries(expressions).map(([name, source]) => [
+      name, new Function("model", "return (" + source + ")")(model),
+    ]));
+    console.log(JSON.stringify({ ...actual, reads }));
+    """
+    result = subprocess.run(
+        [runner, "-e", script], input=json.dumps(program), text=True, capture_output=True, check=True
+    )
+    assert json.loads(result.stdout) == {
+        "present": "Jane",
+        "missing_item": "none",
+        "zero": 1,
+        "chosen": "Persuasion",
+        "reads": 1,
     }

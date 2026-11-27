@@ -13,9 +13,15 @@ class SampleMsg(MsgGroup):
 class TestMsg:
     def test_message_event_reference_compiles_from_grouped_msg(self) -> None:
         event_ref = cast(MessageEventRef[dict[str, object]], SampleMsg.LOADED.event)
-        source = emit(event_ref["title"].__compile__())
 
-        assert source == "message.event.title"
+        assert emit(event_ref.title.__compile__()) == "message.event.title"
+        assert emit(event_ref["title"].__compile__()) == 'message.event["title"]'
+
+    def test_message_event_fields_support_operators_at_runtime(self) -> None:
+        # The event reference is an expression, so `+` builds JavaScript instead of failing.
+        label = cast(MessageEventRef[dict[str, object]], SampleMsg.LOADED.event).title + "!"
+
+        assert emit(label.__compile__()) == '(message.event.title+"!")'
 
     def test_grouped_msg_compiles_to_message_builder_function(self) -> None:
         source = emit(SampleMsg.LOADED.__compile__())

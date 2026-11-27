@@ -597,8 +597,8 @@ as soon as rendering returns.
 
 The Python callbacks describe browser actions. Use `DomAction.when` to branch
 on a browser value and `DomAction.batch` to run actions in order. Use
-`DomAction.when_some(value, action)` to evaluate an optional expression once
-and pass its present value to a typed action. Both `None` and a missing value,
+`DomAction.maybe(value, then=action, otherwise=other)` to evaluate an optional expression
+once and pass its present value to a typed action. Both `None` and a missing value,
 such as an absent mapping key, run the `otherwise` action. Element references from event
 targets and queries are local to those callbacks. Check `exists` when you need
 to distinguish a missing element.
@@ -744,8 +744,27 @@ their input order in either direction. The `descending` flag can follow a model 
 `items[index]` and `scores[key]` assume that the item exists, as in Python. When it may be
 missing, use `Array.get(items, index)` or `Object.get(scores, key)`. They return
 `Expr[T | None]`, so the type checker asks you to handle the missing case, for example with
-`Cond.equal(value, None)` or `DomAction.when_some(value, action)`. `Array.get` also
+`Cond.maybe(value, then=...)` or `Cond.equal(value, None)`. `Array.get` also
 accepts negative indices counted from the end.
+
+An item of a list of models is seen as an instance of its model: in
+`Array.map(Board.todos, lambda todo: Text(todo.title))`, `Array.filter` and `Array.sort_by`
+callbacks, and in `Board.todos[0]`. Read its fields as attributes; a nested model field reads
+the same way (`todo.owner.name`), and a misspelled field is a type error. At runtime the item is
+an expression, so compare it with `Cond.equal` rather than `==`. `Cond.when` with a model in
+both branches also gives a model.
+
+Use `Cond.maybe` for a value that may be `None`. Like Haskell's `maybe` or Rust's `map_or`,
+it applies `then` to the present value, as a model when it is one, and gives `otherwise` when
+the value is missing. The value is evaluated once:
+
+```python
+Cond.maybe(Board.current, then=lambda todo: Text(todo.title), otherwise=Text("Nothing selected"))
+Cond.maybe(Array.get(Board.todos, 0), then=lambda todo: todo.title, otherwise="")
+```
+
+Without `otherwise`, like Rust's `map`, a missing value gives `None`, which renders nothing in
+a view. `DomAction.maybe` is the counterpart for actions in DOM effects.
 
 `Number.from_string` uses JavaScript's number conversion rules. Empty text becomes zero,
 and invalid text becomes `NaN`. Use `Number.is_finite` and any application constraints to

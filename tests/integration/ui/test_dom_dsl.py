@@ -64,7 +64,7 @@ def test_scoped_inputs_refresh_existing_listeners(chromium_title: Callable[[str]
                 calls.set(calls.value + 1),
                 root.set_attribute("data-calls", String.from_number(calls.value)),
                 root.set_attribute("data-enabled", Cond.when(enabled, "yes", "no")),
-                DomAction.when_some(
+                DomAction.maybe(
                     duration,
                     lambda milliseconds: root.set_attribute("data-duration", String.from_number(milliseconds)),
                     otherwise=root.set_attribute("data-duration", "none"),
@@ -122,12 +122,12 @@ class OptionalDurations(Model):
     durations: State[Mapping[str, int | None]]
 
 
-def test_when_some_treats_missing_keys_like_none(chromium_title: Callable[[str], str]) -> None:
+def test_maybe_treats_missing_keys_like_none(chromium_title: Callable[[str], str]) -> None:
     def setup(root: DomElement, scope: DomScope) -> DomLifecycle:
         durations = scope.input(OptionalDurations.durations)
 
         def describe(key: str) -> DomAction:
-            return DomAction.when_some(
+            return DomAction.maybe(
                 durations[key],
                 lambda value: root.set_attribute(f"data-{key}", String.from_number(value)),
                 otherwise=root.set_attribute(f"data-{key}", "none"),

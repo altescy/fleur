@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any, Generic, overload
+from typing import TYPE_CHECKING, Any, Generic, overload
 
 from fleur.js.ast import (
     ESTreeArrayExpression,
@@ -10,11 +10,14 @@ from fleur.js.ast import (
     ESTreeMemberExpression,
     ESTreeUnaryExpression,
 )
-from fleur.js.builder import call, ident, json_expr, object_expr
+from fleur.js.builder import call, ident, json_expr, member_expr, object_expr
 from fleur.types import ICompilable
 
 from .function import Function
-from .types import FleurValue, FleurValueT, FleurValueT_co, KeyT
+from .types import FleurValue, FleurValueT, FleurValueT_co, KeyT, ModelT
+
+if TYPE_CHECKING:
+    from .model import Model
 
 
 def ensure_expr(value: FleurValue | ICompilable) -> "ESTreeExpression":
@@ -138,6 +141,19 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
     # Indexing and member access
     #
 
+    # A model item is returned as an instance of its model, whose fields read as attributes.
+    # Models are also FleurValues, so these overlap the general overloads below; they come first
+    # so that the checker picks them for model items, which is the intent.
+    @overload
+    def __getitem__(  # pyright: ignore[reportOverlappingOverload]
+        self: "Expr[Sequence[ModelT]]", key: int | Expr[int]
+    ) -> ModelT: ...
+
+    @overload
+    def __getitem__(  # pyright: ignore[reportOverlappingOverload]
+        self: "Expr[Mapping[KeyT, ModelT]]", key: KeyT | Expr[KeyT]
+    ) -> ModelT: ...
+
     @overload
     def __getitem__(
         self: "Expr[Sequence[FleurValueT]]",
@@ -153,19 +169,14 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
     def __getitem__(
         self: "Expr[Sequence[FleurValueT] | Mapping[str, FleurValueT]]",
         key: int | str | Expr[int | str],
-    ) -> "Expr[FleurValueT]":
+    ) -> "Expr[FleurValueT] | Model":
         """Read an item or key that is known to exist.
 
         Like `dict[key]` in Python, the result type assumes the item is present. Use `Object.get`
-        or `Array.get` for a lookup that may miss; they return `None` instead.
+        or `Array.get` for a lookup that may miss; they return `None` instead. Read a field of a
+        model value, such as a list item, as an attribute: `todo.title`.
         """
-        return Expr(
-            ESTreeMemberExpression(
-                object=self.__compile__(),
-                property=ensure_expr(key),
-                computed=True,
-            )
-        )
+        return ValueRef(ESTreeMemberExpression(object=self.__compile__(), property=ensure_expr(key), computed=True))
 
     #
     # Function
@@ -194,3 +205,17 @@ def array(value: Sequence[FleurValueT | Expr[FleurValueT]]) -> Expr[Sequence[Fle
 def record(value: Mapping[str, FleurValueT | Expr[FleurValueT]]) -> Expr[Mapping[str, FleurValueT]]:
     properties = ((key, ensure_expr(val)) for key, val in value.items())
     return Expr(object_expr(properties))
+
+
+class ValueRef(Expr[Any]):
+    """An expression for a value whose fields are read as attributes, such as a model list item.
+
+    The type checker sees such a value as an instance of its model, so `todo.title` is an
+    `Expr[str]` and a misspelled field is a type error; at runtime each attribute becomes a
+    JavaScript member access. Names starting with `_` are left to Python.
+    """
+
+    def __getattr__(self, name: str) -> "ValueRef":
+        if name.startswith("_"):
+            raise AttributeError(name)
+        return ValueRef(member_expr(self.__compile__(), name))

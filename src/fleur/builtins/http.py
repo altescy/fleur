@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Generic, Literal, TypeAlias, Union
+from typing import Generic, Literal, TypeAlias, Union, overload
 
+from fleur.core._shape import Shape, shape_of
 from fleur.core.expr import Expr
 from fleur.core.model import Model
 from fleur.core.runtime import RUNTIME_HTTP, RUNTIME_REQUEST, runtime_call
@@ -14,7 +15,7 @@ from fleur.js.builder import json_expr, object_expr
 from fleur.types import JsonValue
 
 HttpMethod = Literal["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
-HttpErrorKind = Literal["network", "timeout", "abort", "decode", "unknown"]
+HttpErrorKind = Literal["network", "timeout", "abort", "decode", "status", "unknown"]
 HttpCredentials = Literal["omit", "same-origin", "include"]
 HttpQueryValue: TypeAlias = str | int | float | bool
 HttpQuery: TypeAlias = Mapping[str, HttpQueryValue | Expr[HttpQueryValue]]
@@ -54,6 +55,7 @@ class _HttpTask(TaskLike[HttpResponse[TaskValueT], HttpError]):
 @dataclass(frozen=True, slots=True)
 class _Expect(Generic[TaskValueT]):
     name: str = field(repr=False)
+    shape: Shape | None = field(default=None, repr=False)
 
 
 def _compile_body(value: HttpBody) -> ESTreeExpression:
@@ -80,8 +82,25 @@ class Http:
     """
 
     @staticmethod
-    def expectJson() -> _Expect[JsonValue]:
-        return _Expect("json")
+    @overload
+    def expectJson() -> _Expect[JsonValue]: ...
+
+    @staticmethod
+    @overload
+    def expectJson(body: type[TaskValueT]) -> _Expect[TaskValueT]: ...
+
+    @staticmethod
+    def expectJson(body: type[TaskValueT] | None = None) -> _Expect[TaskValueT] | _Expect[JsonValue]:
+        """Decode a JSON body, optionally checking it against a type such as `TodoOut` or `list[TodoOut]`.
+
+        With a type, the runtime validates the body like an Elm JSON decoder: a body of another
+        shape fails with `HttpError(kind="decode")`, and a response whose status is not 2xx fails
+        with `HttpError(kind="status")` instead of reaching the response handler. Without a type,
+        the body is any `JsonValue` and every status reaches the response handler.
+        """
+        if body is None:
+            return _Expect[JsonValue]("json")
+        return _Expect[TaskValueT]("json", shape_of(body))
 
     @staticmethod
     def expectText() -> _Expect[str]:
@@ -103,6 +122,7 @@ class Http:
             ("method", json_expr(method.upper())),
             ("url", url.__compile__() if isinstance(url, Expr) else json_expr(url)),
             ("expect", json_expr(expect.name)),
+            *([("shape", json_expr(expect.shape))] if expect.shape is not None else []),
         ]
         if query:
             fields.append(("query", _compile_strings(query)))

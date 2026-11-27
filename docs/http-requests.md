@@ -97,12 +97,41 @@ URL with `URLSearchParams`, keeping an existing query string and fragment. A bod
 a string is sent as JSON with `Content-Type: application/json` unless you set that header.
 Values inside the body may come from the model at any depth.
 
+## Decode typed JSON
+
+Pass a type to `Http.expectJson` to receive the body as that type. Declare the response model
+with `State` fields, like any other model.
+
+```python
+class Todo(Model):
+    id: State[int]
+    title: State[str]
+    note: State[str | None]
+
+load = Http.get("/todos", expect=Http.expectJson(list[Todo]))
+# Declare LOADED as Msg[HttpResponse[list[Todo]]].
+```
+
+The runtime checks the body against the type, like an Elm JSON decoder. A field of another
+type or a missing required field fails with `HttpError(kind="decode")`, whose message locates
+the mismatch, for example `body[0].title: expected string, got integer`. Extra fields are
+ignored, and a missing field whose type allows `None` reads as `None`. A typed body describes a
+successful response, so a status other than 2xx fails with `HttpError(kind="status")` instead
+of reaching the response handler.
+
+A decoded body and the items of a model list are seen as instances of their model, so read
+their fields as attributes: `Actions.LOADED.event.body.title`, or
+`Array.map(Board.todos, lambda todo: Text(todo.title))`. A misspelled field is a type error.
+
+Supported types are `str`, `int`, `float`, `bool`, `None`, `Literal[...]`, unions, `list[T]`,
+`Mapping[str, T]` and models. Another type raises `TypeError` when the request is built.
+
 ## Handle responses and failures
 
-- A request using `Http.expectText()` returns `HttpResponse[str]`. Use `Http.expectJson()`
-  for a response whose body is a `JsonValue`.
-- A decoded HTTP response arrives in the response handler even for a 404 or 500.
-  Use `response.ok`, `response.status`, or `response.status_text` to choose what to display.
+- A request using `Http.expectText()` returns `HttpResponse[str]`. `Http.expectJson()` without a
+  type returns `HttpResponse[JsonValue]` and does not check the body.
+- Without a type, a decoded HTTP response arrives in the response handler even for a 404 or
+  500. Use `response.ok`, `response.status`, or `response.status_text` to choose what to display.
 - A network failure, timeout, abort, or decoding failure arrives in the error handler.
   Read `error.kind` for the category and `error.message` for details. The status fields
   are `None` when a response is unavailable.

@@ -6,10 +6,15 @@ from fleur.js.builder import call, literal, member_expr
 
 from .expr import Expr, ensure_expr
 from .function import Function, function
+from .model import Model
 from .runtime import runtime_call
 from .types import FleurValue, FleurValueT, FleurValueU
 
 _SortKeyT = TypeVar("_SortKeyT", int, float, str)
+# A model item is passed to callbacks as an instance of its model (see `ValueRef`).
+_ItemModelT = TypeVar("_ItemModelT", bound=Model)
+# The implementations accept either form of callback; the overloads above are the contract.
+_ItemT = TypeVar("_ItemT")
 
 
 class Array:
@@ -49,28 +54,76 @@ class Array:
 
         return Expr(call(member_expr(array.__compile__(), "reduce"), function(add).ast, literal(0)))
 
+    @overload
+    @staticmethod
+    def map(
+        array: "Expr[Sequence[_ItemModelT]]",
+        fn: Callable[[_ItemModelT], FleurValueU | Expr[FleurValueU]],
+    ) -> "Expr[Sequence[FleurValueU]]": ...
+
+    @overload
     @staticmethod
     def map(
         array: "Expr[Sequence[FleurValueT]]",
         fn: Function[[Expr[FleurValueT]], FleurValueU] | Callable[[Expr[FleurValueT]], FleurValueU | Expr[FleurValueU]],
+    ) -> "Expr[Sequence[FleurValueU]]": ...
+
+    @staticmethod
+    def map(
+        array: "Expr[Sequence[FleurValueT]]",
+        fn: Function[[Expr[FleurValueT]], FleurValueU] | Callable[[_ItemT], FleurValueU | Expr[FleurValueU]],
     ) -> "Expr[Sequence[FleurValueU]]":
+        """Transform each item. A model item is passed as the model, so read its fields as `item.title`."""
         if not isinstance(fn, Function):
             fn = function(fn)
         return Expr(call(member_expr(array.__compile__(), "map"), fn.ast))
 
+    @overload
+    @staticmethod
+    def filter(
+        array: "Expr[Sequence[_ItemModelT]]",
+        fn: Callable[[_ItemModelT], bool | Expr[bool]],
+    ) -> "Expr[Sequence[_ItemModelT]]": ...
+
+    @overload
     @staticmethod
     def filter(
         array: "Expr[Sequence[FleurValueT]]",
         fn: Function[[Expr[FleurValueT]], bool] | Callable[[Expr[FleurValueT]], bool | Expr[bool]],
+    ) -> "Expr[Sequence[FleurValueT]]": ...
+
+    @staticmethod
+    def filter(
+        array: "Expr[Sequence[FleurValueT]]",
+        fn: Function[[Expr[FleurValueT]], bool] | Callable[[_ItemT], bool | Expr[bool]],
     ) -> "Expr[Sequence[FleurValueT]]":
+        """Keep the items for which the predicate holds. A model item is passed as the model."""
         if not isinstance(fn, Function):
             fn = function(fn)
         return Expr(call(member_expr(array.__compile__(), "filter"), fn.ast))
 
+    @overload
+    @staticmethod
+    def sort_by(
+        array: "Expr[Sequence[_ItemModelT]]",
+        key: Callable[[_ItemModelT], _SortKeyT | Expr[_SortKeyT]],
+        *,
+        descending: bool | Expr[bool] = False,
+    ) -> "Expr[Sequence[_ItemModelT]]": ...
+
+    @overload
     @staticmethod
     def sort_by(
         array: Expr[Sequence[FleurValueT]],
         key: Function[[Expr[FleurValueT]], _SortKeyT] | Callable[[Expr[FleurValueT]], _SortKeyT | Expr[_SortKeyT]],
+        *,
+        descending: bool | Expr[bool] = False,
+    ) -> Expr[Sequence[FleurValueT]]: ...
+
+    @staticmethod
+    def sort_by(
+        array: Expr[Sequence[FleurValueT]],
+        key: Function[[Expr[FleurValueT]], _SortKeyT] | Callable[[_ItemT], _SortKeyT | Expr[_SortKeyT]],
         *,
         descending: bool | Expr[bool] = False,
     ) -> Expr[Sequence[FleurValueT]]:

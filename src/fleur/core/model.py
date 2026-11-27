@@ -9,7 +9,7 @@ from typing_extensions import Format, dataclass_transform, get_annotations
 from fleur.js.ast import ESTreeExpression, ESTreeMemberExpression
 from fleur.js.builder import call, ident, json_expr, member, member_expr, object_expr
 
-from .expr import Expr, ensure_expr
+from .expr import Expr, ValueRef, ensure_expr
 from .runtime import MODEL_IDENT
 from .types import FleurValue, FleurValueT, FleurValueT_co, FleurValueU, KeyT, ModelT, ModelT_co
 
@@ -95,11 +95,14 @@ class State(Generic[FleurValueT]):
     def __get__(self, instance: None, owner: Type[ModelT]) -> "ModelState[ModelT, FleurValueT]": ...
 
     @overload
+    def __get__(self: "State[ModelU]", instance: ModelT, owner: Type[ModelT]) -> ModelU: ...
+
+    @overload
     def __get__(self, instance: ModelT, owner: Type[ModelT]) -> Expr[FleurValueT]: ...
 
     def __get__(
         self, instance: ModelT | None, owner: Type[ModelT]
-    ) -> "ModelState[ModelT, FleurValueT] | Expr[FleurValueT]":
+    ) -> "ModelState[ModelT, FleurValueT] | Expr[FleurValueT] | Model":
         if self._name is None:
             raise AttributeError("State descriptor is not initialized")
         if instance is None:
@@ -179,6 +182,19 @@ class ModelState(Expr[FleurValueT_co], Generic[ModelT_co, FleurValueT_co]):
             raise ValueError("ModelState does not support format specifications")
         return "${" + str(self) + "}"
 
+    # A model item is returned as an instance of its model, whose fields read as attributes.
+    # Models are also FleurValues, so these overlap the general overloads below; they come first
+    # so that the checker picks them for model items, which is the intent.
+    @overload
+    def __getitem__(  # pyright: ignore[reportOverlappingOverload]
+        self: "ModelState[ModelT_co, Sequence[ModelU]]",
+        key: "int | Expr[int]",
+    ) -> "ModelU": ...
+    @overload
+    def __getitem__(  # pyright: ignore[reportOverlappingOverload]
+        self: "ModelState[ModelT_co, Mapping[KeyT, ModelU]]",
+        key: "KeyT | Expr[KeyT]",
+    ) -> "ModelU": ...
     @overload
     def __getitem__(
         self: "ModelState[ModelT_co, Sequence[FleurValueT]]",
@@ -197,7 +213,7 @@ class ModelState(Expr[FleurValueT_co], Generic[ModelT_co, FleurValueT_co]):
     def __getitem__(
         self: "ModelState[ModelT_co, Sequence[FleurValueT] | Mapping[str, FleurValueT] | ModelU]",
         key: "int | str | Expr[int | str] | ModelState[ModelU, FleurValueU]",
-    ) -> "Expr[FleurValueT]" | "ModelState[ModelU, FleurValueU]":
+    ) -> "Expr[FleurValueT]" | "ModelState[ModelU, FleurValueU]" | "Model":
         if isinstance(key, ModelState) and not self._is_collection:
             return ModelState(
                 self._model_type,
@@ -206,13 +222,7 @@ class ModelState(Expr[FleurValueT_co], Generic[ModelT_co, FleurValueT_co]):
                 is_collection=key._is_collection,
             )
 
-        return Expr[FleurValueT](
-            ESTreeMemberExpression(
-                object=self.__compile__(),
-                property=ensure_expr(key),
-                computed=True,
-            )
-        )
+        return ValueRef(ESTreeMemberExpression(object=self.__compile__(), property=ensure_expr(key), computed=True))
 
 
 def _assign_path(base: ESTreeExpression, path: Sequence[str], value: ESTreeExpression) -> ESTreeExpression:

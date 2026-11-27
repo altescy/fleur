@@ -20,7 +20,7 @@ def valid_examples(scope: DomScope) -> None:
         assert_type(milliseconds, Expr[int])
         return scope.timer().start(milliseconds, DomAction.batch())
 
-    DomAction.when(opened, DomAction.when_some(duration, schedule))
+    DomAction.when(opened, DomAction.maybe(duration, schedule))
 
 
 def invalid_examples(scope: DomScope) -> None:
@@ -30,6 +30,6 @@ def invalid_examples(scope: DomScope) -> None:
         return DomAction.with_value(text, lambda _: DomAction.batch())
 
     DomAction.when(duration, DomAction.batch())  # pyright: ignore[reportArgumentType]
-    DomAction.when_some(duration, update_text)  # pyright: ignore[reportArgumentType]
+    DomAction.maybe(duration, update_text)  # pyright: ignore[reportArgumentType]
     duration.set(2000)  # pyright: ignore[reportAttributeAccessIssue]
     scope.input(View(tag="div", props={}))  # pyright: ignore[reportArgumentType]

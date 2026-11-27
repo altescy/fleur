@@ -1,4 +1,5 @@
 import { DecodedBody, HttpBody, HttpError, HttpExpect, HttpQueryValue, HttpRequest, HttpResponse } from "./types"
+import { findMismatch, ShapeSchema } from "./shape"
 
 const isHttpError = (error: unknown): error is HttpError => {
   return typeof error === "object" && error !== null && "kind" in error && "message" in error
@@ -45,26 +46,33 @@ const buildFetchBody = (body: HttpBody | undefined): BodyInit | undefined => {
   return JSON.stringify(body)
 }
 
+const responseError = (response: Response, url: string, kind: "decode" | "status", message: string): HttpError => ({
+  kind,
+  message,
+  url,
+  status: response.status,
+  status_text: response.statusText,
+})
+
 const decodeResponseBody = async <TExpect extends HttpExpect>(
   response: Response,
   expect: TExpect,
   url: string,
+  shape: ShapeSchema | undefined,
 ): Promise<DecodedBody<TExpect>> => {
-  try {
-    if (expect === "json") {
-      return (await response.json()) as DecodedBody<TExpect>
-    }
-    return (await response.text()) as DecodedBody<TExpect>
-  } catch (error) {
-    const httpError: HttpError = {
-      kind: "decode",
-      message: toMessage(error),
-      url,
-      status: response.status,
-      status_text: response.statusText,
-    }
-    throw httpError
+  // A typed body describes a successful response, so another status is an error, as in Elm.
+  if (shape !== undefined && !response.ok) {
+    throw responseError(response, url, "status", `HTTP ${response.status} ${response.statusText}`.trim())
   }
+  let body: DecodedBody<TExpect>
+  try {
+    body = (expect === "json" ? await response.json() : await response.text()) as DecodedBody<TExpect>
+  } catch (error) {
+    throw responseError(response, url, "decode", toMessage(error))
+  }
+  const mismatch = shape !== undefined ? findMismatch(body, shape.root, shape, "body") : null
+  if (mismatch !== null) throw responseError(response, url, "decode", mismatch)
+  return body
 }
 
 const responseHeaders = (response: Response): Record<string, string> => {
@@ -138,7 +146,7 @@ const executeRequest = async <TExpect extends HttpExpect>(
       signal: controller?.signal,
     })
 
-    const body = await decodeResponseBody(response, request.expect, request.url)
+    const body = await decodeResponseBody(response, request.expect, request.url, request.shape)
     return {
       ok: response.ok,
       status: response.status,
