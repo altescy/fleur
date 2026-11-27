@@ -16,7 +16,7 @@ You define `Model`, `Msg`, `update`, and `view` in Python, and Fleur compiles yo
 - **Elm-inspired architecture** — The Elm Architecture (Model → Msg → update → view) brings predictable state management and side-effect isolation to Python frontend development.
 - **Statically typed DSL** — Model fields, message payloads, and event handlers are all typed. Pyright catches mismatches at authoring time, before the browser ever loads.
 - **Python-native syntax** — Operator overloading and descriptors let you write `CounterModel.count + 1` or `State.set(field, value)` naturally; no string templates or code-gen strings.
-- **Minimal runtime** — The browser runtime is a single ~10 KB JS bundle handling VDOM diffing, patching, and effects. No virtual DOM framework dependency, no React.
+- **Minimal runtime** — The browser runtime is a single ~17 KB (~6 KB gzipped) JS bundle handling VDOM diffing, patching, and effects. No virtual DOM framework dependency, no React.
 - **Compile-time code generation** — Python DSL compiles to ESTree AST, then to plain JavaScript. The generated code is framework-free and debuggable.
 
 ## Installation

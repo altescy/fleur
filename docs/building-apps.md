@@ -57,12 +57,30 @@ uv run fleur dev editor:app
 Open `http://127.0.0.1:8000`. Typing updates the preview and the Clear button empties the
 input. A class-level field such as `EditorModel.name` represents the current browser value.
 Use `Cond.when` to branch on that value at runtime. For a list or table of controls,
-`Msg[PointerEvent, int]` can carry an item index through `Message.SELECT.bind(index)`.
-The handler reads the index through `Message.SELECT.context`.
+declare a message such as `SELECT: Msg[PointerEvent, int]` and bind an item index with
+`EditorMsg.SELECT.bind(index)`. The handler reads the index through `EditorMsg.SELECT.context`.
+An event handler dispatches the message as is, so the type checker rejects an unbound
+`onclick=EditorMsg.SELECT` that would leave the context empty.
+
+The type checker also follows every message through the view tree. A view that dispatches a
+message of another `MsgGroup`, whether through a component argument, a nested child, a
+mapped list, or raw `props`, does not match the component's update. The same applies to
+`Cmd.task`, `Cmd.map` and `Sub.interval`. Use `View.map` or `View.forward` to embed a child
+component with its own message group.
+
+Like an Elm `case`, `cases()` must handle every message of the group and raises a
+`ValueError` naming any it misses. Use `State.unchanged()` for a message that needs no state
+change. A click handler may also take a `Msg[None]` when the update does not read the event.
+
+Enable `strictListInference` (and `strictDictionaryInference`) in your Pyright configuration.
+Without it, a list that mixes views of different groups is inferred as `list[Unknown]` and
+escapes the check. Raw `props` check the message group and the bound context, but not that an
+`"onclick"` key receives a pointer event; prefer the typed component arguments or
+`EventBinding.on` for that.
 
 ## Handle a form submission
 
-Use `Form(..., onsubmit=Messages.SAVE, prevent_default=True)` to update the current page on
+Use `Form(..., onsubmit=EditorMsg.SAVE, prevent_default=True)` to update the current page on
 submit. Declare `SAVE` as `Msg[SubmitEvent]` (from `fleur.core`) and place a
 `Button("Save", props={"type": "submit"})` inside the form. Clicking the button and pressing
 Enter in a text input both trigger the same message after native form validation.
@@ -122,13 +140,15 @@ def app() -> Component[Settings, Actions]:
                 Form(Button("Done", props={"type": "submit", "autofocus": True}), props={"method": "dialog"}),
                 open=Settings.editing,
                 onclose=Actions.CLOSED,
-                props={"aria-labelledby": "settings-title"},
+                labelledby="settings-title",
             ),
         ),
     )
 ```
 
-The dialog opens with `showModal()` and focuses the element marked `autofocus`.
+Name every dialog with `labelledby`, the id of its visible title, or with `label`;
+the type checker rejects a `Dialog` without either. The dialog opens with
+`showModal()` and focuses the element marked `autofocus`.
 Escape restores focus to the button that opened the dialog. For model changes
 without an activating button, the browser uses the previously focused element.
 
@@ -343,7 +363,8 @@ Toast(
 
 The toast announces its message politely and leaves focus in place when it appears.
 The default display time is 5 seconds. Pass `duration_ms` to change it or use
-`duration_ms=None` to keep the toast open until dismissal. The timer pauses while the
+`duration_ms=None` to keep the toast open until dismissal. Use a `State[int | None]`
+field when the duration can change while the toast is open. The timer pauses while the
 pointer is over the toast or its button has focus, then resumes with the remaining time.
 Use `dismiss_label` to set the accessible name of the close button.
 
@@ -566,8 +587,8 @@ dependencies to supply new values, or use a new key to install a different effec
 Adding or removing an effect preserves the element, its focus, and unsaved
 input values as long as the view keeps the same element identity.
 
-An effect normally runs once the element is connected. List the model
-expressions its update reads in `dependencies` so it runs when their values
+`DomEffect(key, update, ...)` runs its update once the element is connected. List the model
+expressions the update reads in `dependencies` so it runs again when their values
 change. Use `watch_subtree=True` to also update after patches to the element
 or its descendants. An optional `mount` runs once per installation, and
 `dispose` runs when the effect or element is removed. Use
@@ -575,18 +596,101 @@ or its descendants. An optional `mount` runs once per installation, and
 as soon as rendering returns.
 
 The Python callbacks describe browser actions. Use `DomAction.when` to branch
-on a browser value and `DomAction.batch` to run actions in order. Element
-references from event targets and queries are local to those callbacks. Check
-`exists` when you need to distinguish a missing element.
+on a browser value and `DomAction.batch` to run actions in order. Use
+`DomAction.when_some(value, action)` to evaluate an optional expression once
+and pass its present value to a typed action. Both `None` and a missing value,
+such as an absent mapping key, run the `otherwise` action. Element references from event
+targets and queries are local to those callbacks. Check `exists` when you need
+to distinguish a missing element.
 
 Use `DomEffect.scoped(key, setup)` when an effect owns listeners, timers, or
 browser-local state. Its setup callback receives the element and a `DomScope`
-and returns a `DomLifecycle`. Allocate values with `scope.value()` and element
+and returns a `DomLifecycle`. Use `scope.input(Screen.caption)` in setup to
+read the latest value of a render-time expression. It retains the expression's
+type as a read-only input. Inputs are evaluated during rendering, so pass model
+expressions such as `Screen.caption + "!"`, not values created inside the effect;
+`scope.input(caption + "!")` with another input raises a `ValueError` when the
+view compiles. Conversely, the setup must not read model fields or items of a
+mapped view directly: a scoped effect is installed once, so such a value would
+keep its first value. That also raises a `ValueError`; read it through `scope.input()`. The first values are available during mount.
+When an input changes, the installed effect receives all current inputs before
+its update runs, and its existing listeners read those values on subsequent events.
+Allocate mutable browser-local values with `scope.value()` and element
 references with `scope.reference()`. Use `scope.on()` and `scope.on_document()`
 with the same descriptors as `EventBinding.on()`. For custom event names,
-use `scope.listen()` or `scope.document_listener()`. The scope releases listeners and cancels
-its timers when the view is removed. A scoped effect's callbacks read live DOM
-and scope values. Use view props for model values that change after setup.
+use `scope.listen()` or `scope.document_listener()`. A listener is attached to the
+element its target resolves to at installation, so listen on the effect's root, the
+document, or a child the view never replaces, and use `event.target.closest(...)` to
+handle descendants that can change. The scope releases listeners and cancels its
+timers when the view is removed.
+
+### Reuse a DOM read within an action
+
+A Python variable can name a DSL expression such as `panel.bounds`, but each
+use of that expression can read the DOM again when the action runs. These
+helpers evaluate the expression once in the browser, just before running the
+actions described by the callback.
+
+| What you want to reuse | Helper | What the callback receives |
+| --- | --- | --- |
+| A value such as a boolean, string, or number | `DomAction.with_value(expr, action)` | The result as an `Expr[T]` |
+| One element found by a query or index | `element.with_reference(action)` | The resolved `DomElement` |
+| The members and order of a collection | `elements.with_snapshot(action)` | The resolved `DomElements` |
+| The geometry of an element at one moment | `bounds.with_snapshot(action)` | One measured `DomBounds` |
+
+**Toast** captures whether focus is inside the popup before hiding it. Hiding
+the popup can move focus, so the decision to restore focus uses the earlier
+boolean. [Toast implementation](../src/fleur/ui/views/_toast_behavior.py)
+
+```python
+from fleur.core import Cond, DomAction, DomElement
+
+
+def hide_toast(root: DomElement, popup: DomElement, previous_focus: DomElement) -> DomAction:
+    return DomAction.with_value(
+        popup.contains(root.active_element),
+        lambda restore_focus: DomAction.batch(
+            popup.set_hidden(True),
+            DomAction.when(
+                Cond.every(restore_focus, previous_focus.connected),
+                previous_focus.focus(prevent_scroll=True),
+            ),
+        ),
+    )
+```
+
+**Combobox** uses both a snapshot and a reference. Its ArrowDown handler
+uses one collection of visible options to find the active option's index,
+count the choices, and pick the next option. It then resolves that option once
+to mark it active and scroll it into view. [Combobox implementation](../src/fleur/ui/views/_overlay_behavior.py)
+
+```python
+from collections.abc import Callable
+
+from fleur.core import DomAction, DomElement, DomElements, Number
+
+
+def move_down(
+    matches: DomElements,
+    active: DomElement,
+    set_active: Callable[[DomElement], DomAction],
+) -> DomAction:
+    def move(items: DomElements) -> DomAction:
+        next_index = Number.clamp(items.index_of(active) + 1, 0, items.length - 1)
+        return items.at(next_index).with_reference(
+            lambda option: DomAction.batch(set_active(option), option.scroll_into_view())
+        )
+
+    return matches.with_snapshot(move)
+```
+
+A reference fixes which node is used. A collection snapshot fixes the nodes
+and their order. Properties on those nodes are still live, so use `with_value`
+for a property you need to remember across a DOM change. For geometry, take a
+snapshot after the layout change you want to measure. **ContextMenu** uses
+`panel.bounds.with_snapshot(...)` after opening the panel so it can use the
+width and height from the same measurement to fit the menu in the viewport.
+[ContextMenu implementation](../src/fleur/ui/views/_menu_behavior.py)
 
 ### Request focus from an update
 
@@ -630,6 +734,12 @@ encoded = Url.encode_component(line)
 for amounts or a string key for lexical ordering (including ISO dates). Equal keys keep
 their input order in either direction. The `descending` flag can follow a model field.
 
+`items[index]` and `scores[key]` assume that the item exists, as in Python. When it may be
+missing, use `Array.get(items, index)` or `Object.get(scores, key)`. They return
+`Expr[T | None]`, so the type checker asks you to handle the missing case, for example with
+`Cond.equal(value, None)` or `DomAction.when_some(value, action)`. `Array.get` also
+accepts negative indices counted from the end.
+
 `Number.from_string` uses JavaScript's number conversion rules. Empty text becomes zero,
 and invalid text becomes `NaN`. Use `Number.is_finite` and any application constraints to
 validate an input. Use `String.replace_all` for text such as quoted CSV fields, and
@@ -639,8 +749,10 @@ The [expense report example](../examples/expense_report.py) combines these opera
 ## Compose two independent components
 
 Save the following as `workspace.py` next to `editor.py`. Each editor gets its own nested model
-field and its own parent message. `View.forward` connects the child view to those two fields.
-`Update.forward` runs the child update and stores its result in the corresponding model field.
+field and its own parent message. `View.forward` renders the child component from its field,
+and `Update.forward` runs the child update and stores its result there. Declare each parent
+message with the child's group as its event, as in `FIRST: Msg[EditorMsg]`; the type checker
+then matches it, and the field's model type, against the child component.
 
 ```python
 from fleur import Component, Model, Msg, MsgGroup, State, Update, View
@@ -655,8 +767,8 @@ class WorkspaceModel(Model):
 
 
 class WorkspaceMsg(MsgGroup):
-    FIRST = Msg()
-    SECOND = Msg()
+    FIRST: Msg[EditorMsg] = Msg()
+    SECOND: Msg[EditorMsg] = Msg()
 
 
 def app() -> Component[WorkspaceModel, WorkspaceMsg]:
@@ -670,9 +782,9 @@ def app() -> Component[WorkspaceModel, WorkspaceMsg]:
         ),
         VStack(
             Text("First editor"),
-            View.forward(WorkspaceModel.first, first.view, WorkspaceMsg.FIRST),
+            View.forward(WorkspaceModel.first, first, WorkspaceMsg.FIRST),
             Text("Second editor"),
-            View.forward(WorkspaceModel.second, second.view, WorkspaceMsg.SECOND),
+            View.forward(WorkspaceModel.second, second, WorkspaceMsg.SECOND),
             gap="md",
         ),
     )
