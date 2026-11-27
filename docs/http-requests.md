@@ -73,6 +73,30 @@ uv run python -m http.server 8000 --directory dist
 
 Open `http://127.0.0.1:8000` and click Refresh.
 
+## Send values from the model
+
+The URL, query, headers and body accept values read from the model. Build a path with
+parameters through `Url.path`, which fills `{name}` placeholders (the same form as OpenAPI
+paths) with percent-encoded values. A placeholder without a parameter, or a parameter without
+a placeholder, raises `ValueError` when the update is built.
+
+```python
+from fleur import Http, Url
+
+save = Http.put(
+    Url.path("/todos/{id}", id=Editor.todo_id),
+    expect=Http.expectJson(),
+    query={"notify": True},
+    headers={"Authorization": "Bearer " + Editor.token},
+    body={"title": Editor.title, "done": False},
+)
+```
+
+Schedule `save` with `Cmd.task` like any other request. The runtime appends `query` to the
+URL with `URLSearchParams`, keeping an existing query string and fragment. A body that is not
+a string is sent as JSON with `Content-Type: application/json` unless you set that header.
+Values inside the body may come from the model at any depth.
+
 ## Handle responses and failures
 
 - A request using `Http.expectText()` returns `HttpResponse[str]`. Use `Http.expectJson()`

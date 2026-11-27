@@ -1,4 +1,4 @@
-import { DecodedBody, HttpBody, HttpError, HttpExpect, HttpRequest, HttpResponse } from "./types"
+import { DecodedBody, HttpBody, HttpError, HttpExpect, HttpQueryValue, HttpRequest, HttpResponse } from "./types"
 
 const isHttpError = (error: unknown): error is HttpError => {
   return typeof error === "object" && error !== null && "kind" in error && "message" in error
@@ -100,7 +100,22 @@ const buildFetchError = (error: unknown, request: HttpRequest<HttpExpect>): Http
   }
 }
 
-const executeRequest = async <TExpect extends HttpExpect>(request: HttpRequest<TExpect>): Promise<HttpResponse<TExpect>> => {
+// Append encoded query parameters, keeping any existing query string and fragment.
+export const withQuery = (url: string, query: Record<string, HttpQueryValue> | undefined): string => {
+  const entries = Object.entries(query ?? {})
+  if (entries.length === 0) return url
+  const hashIndex = url.indexOf("#")
+  const base = hashIndex === -1 ? url : url.slice(0, hashIndex)
+  const hash = hashIndex === -1 ? "" : url.slice(hashIndex)
+  const params = new URLSearchParams(entries.map(([key, value]) => [key, String(value)])).toString()
+  const separator = !base.includes("?") ? "?" : base.endsWith("?") || base.endsWith("&") ? "" : "&"
+  return base + separator + params + hash
+}
+
+const executeRequest = async <TExpect extends HttpExpect>(
+  original: HttpRequest<TExpect>,
+): Promise<HttpResponse<TExpect>> => {
+  const request = { ...original, url: withQuery(original.url, original.query) }
   const controller = request.timeoutMs !== undefined ? new AbortController() : undefined
   const timeoutId =
     request.timeoutMs !== undefined

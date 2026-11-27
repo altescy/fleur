@@ -470,9 +470,12 @@ Http.request("POST", "/api/data", body={"key": "value"}, expect=Http.expectJson(
 ```
 
 Both compile to `__fleur.Http.request({method:"GET", url:"/api/data", expect:"json"})`.
+The request object is built as an expression, so `url`, `query`, `headers` and `body` may read
+the model, and `Url.path("/todos/{id}", id=...)` encodes path parameters.
 
 At runtime (`runtime/src/http/client.ts`):
 - Wraps browser `fetch` with `AbortController` for timeout support.
+- Appends `query` to the URL with `URLSearchParams`.
 - Classifies failures into `HttpError.kind`: `network`, `timeout`, `abort`, `decode`, `unknown`.
 - Decodes body per `expect` (`"json"` → `response.json()`, `"text"` → `response.text()`).
 

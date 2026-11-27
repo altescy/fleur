@@ -1,4 +1,4 @@
-from fleur import Cmd, Msg, MsgGroup, builtins, emit
+from fleur import Cmd, Model, Msg, MsgGroup, State, Url, builtins, emit
 from fleur.types import JsonValue
 
 
@@ -85,3 +85,31 @@ class TestHttp:
             source = emit(cmd.__compile__())
             assert "__fleur.Http.request" in source
             assert f'method: "{method}"' in source
+
+
+class Screen(Model):
+    todo_id: State[int]
+    search: State[str]
+    token: State[str]
+    draft: State[str]
+
+
+def test_request_reads_url_query_headers_and_body_from_the_model() -> None:
+    task = builtins.Http.post(
+        Url.path("/todos/{id}", id=Screen.todo_id),
+        expect=builtins.Http.expectJson(),
+        query={"q": Screen.search, "page": 2},
+        headers={"Authorization": "Bearer " + Screen.token},
+        body={"title": Screen.draft, "tags": ["a", Screen.search], "done": False},
+    )
+    source = emit(task.__compile__())
+
+    assert 'url: ("/todos/"+encodeURIComponent(String(model.todo_id)))' in source
+    assert "query: {q: model.search,page: 2}" in source
+    assert 'headers: {Authorization: ("Bearer "+model.token)}' in source
+    assert 'body: {title: model.draft,tags: ["a",model.search],done: false}' in source
+
+
+def test_static_request_omits_empty_query() -> None:
+    source = emit(builtins.Http.get("/status.txt", expect=builtins.Http.expectText(), query={}).__compile__())
+    assert "query" not in source
