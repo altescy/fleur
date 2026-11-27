@@ -26,6 +26,8 @@ export type HttpRequest<TExpect extends HttpExpect = HttpExpect> = {
   query?: Record<string, HttpQueryValue>
   // With a shape, a JSON body is validated and a status other than 2xx is an error.
   shape?: ShapeSchema
+  // The shape of an error response body; a body of another shape is reported as null.
+  errorShape?: ShapeSchema
   expect: TExpect
   headers?: Record<string, string>
   body?: HttpBody
@@ -39,4 +41,6 @@ export type HttpError = {
   url: string | null
   status: number | null
   status_text: string | null
+  // For a status error, the response body: JSON, or text when it is not JSON.
+  body: JsonValue | null
 }

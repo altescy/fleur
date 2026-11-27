@@ -55,6 +55,16 @@ class Cond:
             )
         )
 
+    # An optional model seen as an instance, such as `HttpError.body` read from an event.
+    @overload
+    @staticmethod
+    def maybe(
+        value: "ModelT | None",
+        then: Callable[[ModelT], FleurValueT | Expr[FleurValueT]],
+        *,
+        otherwise: FleurValueU | Expr[FleurValueU] = None,
+    ) -> "Expr[FleurValueT | FleurValueU]": ...
+
     @overload
     @staticmethod
     def maybe(  # pyright: ignore[reportOverlappingOverload]
@@ -75,7 +85,7 @@ class Cond:
 
     @staticmethod
     def maybe(
-        value: "Expr[_PresentT | None]",
+        value: "Expr[_PresentT | None] | Model | None",
         then: Callable[[_ArgT], FleurValueT | Expr[FleurValueT]],
         *,
         otherwise: FleurValueU | Expr[FleurValueU] = None,
@@ -95,7 +105,7 @@ class Cond:
             consequent=result,
             alternate=ensure_expr(otherwise),
         )
-        return ValueRef(call(function_expr([present], ESTreeReturnStatement(body)), value.__compile__()))
+        return ValueRef(call(function_expr([present], ESTreeReturnStatement(body)), ensure_expr(value)))
 
     @staticmethod
     def some(

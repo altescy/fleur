@@ -126,6 +126,34 @@ their fields as attributes: `Actions.LOADED.event.body.title`, or
 Supported types are `str`, `int`, `float`, `bool`, `None`, `Literal[...]`, unions, `list[T]`,
 `Mapping[str, T]` and models. Another type raises `TypeError` when the request is built.
 
+## Read error responses
+
+A failed typed request carries the error response body in `HttpError.body`. Pass the shape of
+the server's error to `expectJson` to read it with types, for example FastAPI's validation error:
+
+```python
+class Issue(Model):
+    loc: State[list[str | int]]
+    msg: State[str]
+
+
+class ValidationError(Model):
+    detail: State[list[Issue]]
+
+
+create = Http.post("/todos", body={"title": Editor.title}, expect=Http.expectJson(Todo, error=ValidationError))
+# Declare REJECTED as Msg[HttpError[ValidationError]] and pass it as the error message.
+issues = Cond.maybe(Actions.REJECTED.event.body, then=lambda error: error.detail, otherwise=[])
+```
+
+The runtime checks the error body against the type, like a successful body. An error response of
+another shape, such as an HTML error page from a proxy, gives `body=None`, so handle that case
+with `Cond.maybe`; an empty body is `None` too. Without `error`, `body` is the decoded JSON, or
+the text when it is not JSON, typed as `JsonValue | None`. A timeout or a network failure while
+the error body arrives is reported as that failure, not as a status error. The error message type must match: a request with
+`error=ValidationError` takes `Msg[HttpError[ValidationError]]`, and the type checker rejects a
+plain `Msg[HttpError]`.
+
 ## Handle responses and failures
 
 - A request using `Http.expectText()` returns `HttpResponse[str]`. `Http.expectJson()` without a

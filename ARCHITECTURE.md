@@ -479,7 +479,7 @@ At runtime (`runtime/src/http/client.ts`):
 - Appends `query` to the URL with `URLSearchParams`.
 - Classifies failures into `HttpError.kind`: `network`, `timeout`, `abort`, `decode`, `status`, `unknown`.
 - Decodes body per `expect` (`"json"` → `response.json()`, `"text"` → `response.text()`).
-- With `expectJson(T)`, validates the body against the shape that `fleur.core._shape` derives from `T` (`runtime/src/http/shape.ts`); a mismatch is a `decode` error and a non-2xx status is a `status` error.
+- With `expectJson(T)`, validates the body against the shape that `fleur.core._shape` derives from `T` (`runtime/src/http/shape.ts`); a mismatch is a `decode` error and a non-2xx status is a `status` error. A `status` error carries the response body in `body`, checked against `expectJson(T, error=E)` when given and `null` when it has another shape.
 
 `HttpError` is a frozen dataclass (`src/fleur/builtins/http.py`) describing failures: `kind`, `message`, `url`, `status`, `status_text`.
 
