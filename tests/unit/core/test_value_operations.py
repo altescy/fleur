@@ -156,15 +156,15 @@ class Picker(Model):
     flag: State[bool]
 
 
-def test_when_some_uses_present_values_once_in_javascript() -> None:
+def test_maybe_uses_present_values_once_in_javascript() -> None:
     runner = shutil.which("node") or shutil.which("bun")
     if runner is None:
         pytest.skip("JavaScript execution requires Node or Bun")
 
     operations = {
-        "present": Cond.when_some(Picker.current, lambda book: book.owner.name, otherwise="nobody"),
-        "missing_item": Cond.when_some(Array.get(Picker.books, 5), lambda book: book.title, otherwise="none"),
-        "zero": Cond.when_some(Picker.count, lambda count: count + 1, otherwise=-1),
+        "present": Cond.maybe(Picker.current, lambda book: book.owner.name, otherwise="nobody"),
+        "missing_item": Cond.maybe(Array.get(Picker.books, 5), lambda book: book.title, otherwise="none"),
+        "zero": Cond.maybe(Picker.count, lambda count: count + 1, otherwise=-1),
         "chosen": Cond.when(Picker.flag, Picker.books[0], Picker.books[1]).title,
     }
     program = {name: emit(value.__compile__()) for name, value in operations.items()}

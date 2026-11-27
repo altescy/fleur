@@ -72,20 +72,21 @@ class DomAction:
         )
 
     @staticmethod
-    def when_some(
+    def maybe(
         value: Expr[JsonValueT | None],
-        action: Callable[[Expr[JsonValueT]], DomAction],
+        then: Callable[[Expr[JsonValueT]], DomAction],
         *,
         otherwise: DomAction | None = None,
     ) -> DomAction:
-        """Read a value once and pass it to the action when it is present.
+        """Run `then` with the value when it is present, and `otherwise` when it is missing.
 
-        Both `None` and a missing value, such as an absent mapping key, take the `otherwise` branch.
+        The action counterpart of `Cond.maybe`, like Haskell's `maybe` or Rust's `map_or`. The value
+        is read once; both `None` and a missing value, such as an absent mapping key, run `otherwise`.
         """
 
         def branch(snapshot: Expr[JsonValueT | None]) -> DomAction:
             return DomAction.when(
-                Cond.not_equal(snapshot, None), action(Expr[JsonValueT](snapshot.__compile__())), otherwise=otherwise
+                Cond.not_equal(snapshot, None), then(Expr[JsonValueT](snapshot.__compile__())), otherwise=otherwise
             )
 
         return DomAction.with_value(value, branch)

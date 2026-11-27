@@ -243,7 +243,7 @@ See `tests/typecheck/` for the cases the type checker rejects.
 
 `Cond` (`src/fleur/core/cond.py`) provides conditional expression helpers:
 - `Cond.when(cond, consequent, alternate)` → ternary `(cond ? conseq : alt)`
-- `Cond.when_some(value, then, otherwise=None)` → `(function(v){return v != null ? then(v) : otherwise})(value)`, evaluating the value once; `then` receives a model value as an instance of its model
+- `Cond.maybe(value, then, otherwise=None)` → `(function(v){return v != null ? then(v) : otherwise})(value)`, evaluating the value once (Haskell's `maybe`, Rust's `map_or`); `then` receives a model value as an instance of its model. `DomAction.maybe` is the counterpart for DOM actions
 - `Cond.some(*conds)` → `(a || b || c)`
 - `Cond.every(*conds)` → `(a && b && c)`
 

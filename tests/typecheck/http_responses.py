@@ -49,7 +49,7 @@ def optional_models() -> None:
     """Model values from conditions and optional lookups read fields as attributes."""
     assert_type(Cond.when(Picker.flag, Screen.todos[0], Screen.todos[1]), Todo)
     assert_type(Cond.when(Picker.flag, Screen.todos[0], Screen.todos[1]).title, Expr[str])
-    assert_type(Cond.when_some(Picker.current, lambda todo: todo.title, otherwise="none"), Expr[str])
-    assert_type(Cond.when_some(Array.get(Screen.todos, 0), lambda todo: todo.id), Expr[int | None])
-    assert_type(Cond.when_some(Picker.count, lambda count: count + 1, otherwise=0), Expr[int])
-    Cond.when_some(Picker.current, lambda todo: todo.titel)  # pyright: ignore[reportAttributeAccessIssue]
+    assert_type(Cond.maybe(Picker.current, lambda todo: todo.title, otherwise="none"), Expr[str])
+    assert_type(Cond.maybe(Array.get(Screen.todos, 0), lambda todo: todo.id), Expr[int | None])
+    assert_type(Cond.maybe(Picker.count, lambda count: count + 1, otherwise=0), Expr[int])
+    Cond.maybe(Picker.current, lambda todo: todo.titel)  # pyright: ignore[reportAttributeAccessIssue]

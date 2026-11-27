@@ -97,7 +97,7 @@ def toast_effect(open: bool | Expr[bool], duration_ms: int | Expr[int | None] | 
                     ),
                     announcement.set_text(message.text),
                     pause,
-                    DomAction.when_some(duration, set_timeout, otherwise=timed.set(False)),
+                    DomAction.maybe(duration, then=set_timeout, otherwise=timed.set(False)),
                     update_delay,
                 ),
             )

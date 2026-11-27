@@ -57,7 +57,7 @@ class Cond:
 
     @overload
     @staticmethod
-    def when_some(  # pyright: ignore[reportOverlappingOverload]
+    def maybe(  # pyright: ignore[reportOverlappingOverload]
         value: "Expr[ModelT | None]",
         then: Callable[[ModelT], FleurValueT | Expr[FleurValueT]],
         *,
@@ -66,7 +66,7 @@ class Cond:
 
     @overload
     @staticmethod
-    def when_some(
+    def maybe(
         value: "Expr[_PresentT | None]",
         then: Callable[[Expr[_PresentT]], FleurValueT | Expr[FleurValueT]],
         *,
@@ -74,17 +74,19 @@ class Cond:
     ) -> "Expr[FleurValueT | FleurValueU]": ...
 
     @staticmethod
-    def when_some(
+    def maybe(
         value: "Expr[_PresentT | None]",
         then: Callable[[_ArgT], FleurValueT | Expr[FleurValueT]],
         *,
         otherwise: FleurValueU | Expr[FleurValueU] = None,
     ) -> "Expr[FleurValueT | FleurValueU]":
-        """Use the value when it is present, like Elm's `Maybe.map` with a default.
+        """Apply `then` to the value when it is present, or give `otherwise` when it is missing.
 
-        `then` receives the value without `None`: a model as an instance of its model, whose fields
-        read as attributes, and any other value as an expression. A missing value (`None` or
-        `undefined`) gives `otherwise`. The value is evaluated once.
+        Like Haskell's `maybe` or Rust's `map_or`; without `otherwise` it is Rust's `map`, giving
+        `None` for a missing value. `then` receives the value without `None`: a model as an instance
+        of its model, whose fields read as attributes, and any other value as an expression. Both
+        `None` and `undefined` count as missing. The value is evaluated once. `DomAction.maybe` is
+        the counterpart for DOM actions.
         """
         present = ESTreeGeneratedIdentifier()
         result = ensure_expr(then(cast(_ArgT, ValueRef(present))))
