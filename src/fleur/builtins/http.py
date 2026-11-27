@@ -4,6 +4,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Generic, Literal, TypeAlias, Union, overload
 
+from typing_extensions import TypeVar
+
 from fleur.core._shape import Shape, shape_of
 from fleur.core.expr import Expr
 from fleur.core.model import Model
@@ -25,13 +27,26 @@ HttpBody: TypeAlias = Union[JsonValue, Expr[FleurValue], Mapping[str, "HttpBody"
 """A JSON body whose values, at any depth, may be read from the model."""
 
 
+HttpErrorBodyT = TypeVar("HttpErrorBodyT", bound=FleurValue, default=JsonValue)
+"""The type of an error response body: `JsonValue` unless `expectJson(..., error=...)` declares one."""
+_ErrorT = TypeVar("_ErrorT", bound=FleurValue)
+
+
 @dataclass(frozen=True, slots=True)
-class HttpError(Model):
+class HttpError(Model, Generic[HttpErrorBodyT]):
+    """A failed request.
+
+    For `kind="status"`, `body` holds the response body: checked against the `error` type given
+    to `expectJson`, and `None` when it has another shape; without that type, the decoded JSON,
+    or the text when the body is not JSON. Other kinds have no body.
+    """
+
     kind: HttpErrorKind
     message: str
     url: str | None = None
     status: int | None = None
     status_text: str | None = None
+    body: HttpErrorBodyT | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,7 +60,7 @@ class HttpResponse(Model, Generic[TaskValueT]):
 
 
 @dataclass(frozen=True, slots=True)
-class _HttpTask(TaskLike[HttpResponse[TaskValueT], HttpError]):
+class _HttpTask(TaskLike[HttpResponse[TaskValueT], HttpError[HttpErrorBodyT]]):
     expr: ESTreeExpression
 
     def __compile__(self) -> ESTreeExpression:
@@ -53,9 +68,10 @@ class _HttpTask(TaskLike[HttpResponse[TaskValueT], HttpError]):
 
 
 @dataclass(frozen=True, slots=True)
-class _Expect(Generic[TaskValueT]):
+class _Expect(Generic[TaskValueT, HttpErrorBodyT]):
     name: str = field(repr=False)
     shape: Shape | None = field(default=None, repr=False)
+    error_shape: Shape | None = field(default=None, repr=False)
 
 
 def _compile_body(value: HttpBody) -> ESTreeExpression:
@@ -83,27 +99,39 @@ class Http:
 
     @staticmethod
     @overload
-    def expectJson() -> _Expect[JsonValue]: ...
+    def expectJson() -> _Expect[JsonValue, JsonValue]: ...
 
     @staticmethod
     @overload
-    def expectJson(body: type[TaskValueT]) -> _Expect[TaskValueT]: ...
+    def expectJson(body: type[TaskValueT]) -> _Expect[TaskValueT, JsonValue]: ...
 
     @staticmethod
-    def expectJson(body: type[TaskValueT] | None = None) -> _Expect[TaskValueT] | _Expect[JsonValue]:
+    @overload
+    def expectJson(body: type[TaskValueT], *, error: type[_ErrorT]) -> _Expect[TaskValueT, _ErrorT]: ...
+
+    @staticmethod
+    def expectJson(
+        body: type[TaskValueT] | None = None, *, error: type[_ErrorT] | None = None
+    ) -> _Expect[TaskValueT, _ErrorT] | _Expect[TaskValueT, JsonValue] | _Expect[JsonValue, JsonValue]:
         """Decode a JSON body, optionally checking it against a type such as `TodoOut` or `list[TodoOut]`.
 
         With a type, the runtime validates the body like an Elm JSON decoder: a body of another
         shape fails with `HttpError(kind="decode")`, and a response whose status is not 2xx fails
-        with `HttpError(kind="status")` instead of reaching the response handler. Without a type,
-        the body is any `JsonValue` and every status reaches the response handler.
+        with `HttpError(kind="status")` instead of reaching the response handler. Its `body` is the
+        error response, checked against `error` when given (for example FastAPI's validation
+        error), so the handler takes `Msg[HttpError[ValidationError]]`. Without a type, the body is
+        any `JsonValue` and every status reaches the response handler.
         """
         if body is None:
-            return _Expect[JsonValue]("json")
-        return _Expect[TaskValueT]("json", shape_of(body))
+            if error is not None:
+                raise TypeError("Http.expectJson(error=...) needs the type of the successful body as well")
+            return _Expect[JsonValue, JsonValue]("json")
+        if error is None:
+            return _Expect[TaskValueT, JsonValue]("json", shape_of(body))
+        return _Expect[TaskValueT, _ErrorT]("json", shape_of(body), shape_of(error))
 
     @staticmethod
-    def expectText() -> _Expect[str]:
+    def expectText() -> _Expect[str, JsonValue]:
         return _Expect("text")
 
     @staticmethod
@@ -111,18 +139,19 @@ class Http:
         method: HttpMethod,
         url: str | Expr[str],
         *,
-        expect: _Expect[TaskValueT],
+        expect: _Expect[TaskValueT, HttpErrorBodyT],
         query: HttpQuery | None = None,
         headers: HttpHeaders | None = None,
         body: HttpBody | None = None,
         timeout_ms: int | None = None,
         credentials: HttpCredentials | None = None,
-    ) -> TaskLike[HttpResponse[TaskValueT], HttpError]:
+    ) -> TaskLike[HttpResponse[TaskValueT], HttpError[HttpErrorBodyT]]:
         fields: list[tuple[str, ESTreeExpression]] = [
             ("method", json_expr(method.upper())),
             ("url", url.__compile__() if isinstance(url, Expr) else json_expr(url)),
             ("expect", json_expr(expect.name)),
             *([("shape", json_expr(expect.shape))] if expect.shape is not None else []),
+            *([("errorShape", json_expr(expect.error_shape))] if expect.error_shape is not None else []),
         ]
         if query:
             fields.append(("query", _compile_strings(query)))
@@ -134,18 +163,18 @@ class Http:
             fields.append(("timeoutMs", json_expr(timeout_ms)))
         if credentials is not None:
             fields.append(("credentials", json_expr(credentials)))
-        return _HttpTask(runtime_call((RUNTIME_HTTP, RUNTIME_REQUEST), object_expr(fields)))
+        return _HttpTask[TaskValueT, HttpErrorBodyT](runtime_call((RUNTIME_HTTP, RUNTIME_REQUEST), object_expr(fields)))
 
     @staticmethod
     def get(
         url: str | Expr[str],
         *,
-        expect: _Expect[TaskValueT],
+        expect: _Expect[TaskValueT, HttpErrorBodyT],
         query: HttpQuery | None = None,
         headers: HttpHeaders | None = None,
         timeout_ms: int | None = None,
         credentials: HttpCredentials | None = None,
-    ) -> TaskLike[HttpResponse[TaskValueT], HttpError]:
+    ) -> TaskLike[HttpResponse[TaskValueT], HttpError[HttpErrorBodyT]]:
         return Http.request(
             "GET",
             url,
@@ -160,13 +189,13 @@ class Http:
     def post(
         url: str | Expr[str],
         *,
-        expect: _Expect[TaskValueT],
+        expect: _Expect[TaskValueT, HttpErrorBodyT],
         query: HttpQuery | None = None,
         headers: HttpHeaders | None = None,
         body: HttpBody | None = None,
         timeout_ms: int | None = None,
         credentials: HttpCredentials | None = None,
-    ) -> TaskLike[HttpResponse[TaskValueT], HttpError]:
+    ) -> TaskLike[HttpResponse[TaskValueT], HttpError[HttpErrorBodyT]]:
         return Http.request(
             "POST",
             url,
@@ -182,13 +211,13 @@ class Http:
     def put(
         url: str | Expr[str],
         *,
-        expect: _Expect[TaskValueT],
+        expect: _Expect[TaskValueT, HttpErrorBodyT],
         query: HttpQuery | None = None,
         headers: HttpHeaders | None = None,
         body: HttpBody | None = None,
         timeout_ms: int | None = None,
         credentials: HttpCredentials | None = None,
-    ) -> TaskLike[HttpResponse[TaskValueT], HttpError]:
+    ) -> TaskLike[HttpResponse[TaskValueT], HttpError[HttpErrorBodyT]]:
         return Http.request(
             "PUT",
             url,
@@ -204,13 +233,13 @@ class Http:
     def patch(
         url: str | Expr[str],
         *,
-        expect: _Expect[TaskValueT],
+        expect: _Expect[TaskValueT, HttpErrorBodyT],
         query: HttpQuery | None = None,
         headers: HttpHeaders | None = None,
         body: HttpBody | None = None,
         timeout_ms: int | None = None,
         credentials: HttpCredentials | None = None,
-    ) -> TaskLike[HttpResponse[TaskValueT], HttpError]:
+    ) -> TaskLike[HttpResponse[TaskValueT], HttpError[HttpErrorBodyT]]:
         return Http.request(
             "PATCH",
             url,
@@ -226,13 +255,13 @@ class Http:
     def delete(
         url: str | Expr[str],
         *,
-        expect: _Expect[TaskValueT],
+        expect: _Expect[TaskValueT, HttpErrorBodyT],
         query: HttpQuery | None = None,
         headers: HttpHeaders | None = None,
         body: HttpBody | None = None,
         timeout_ms: int | None = None,
         credentials: HttpCredentials | None = None,
-    ) -> TaskLike[HttpResponse[TaskValueT], HttpError]:
+    ) -> TaskLike[HttpResponse[TaskValueT], HttpError[HttpErrorBodyT]]:
         return Http.request(
             "DELETE",
             url,
@@ -248,12 +277,12 @@ class Http:
     def head(
         url: str | Expr[str],
         *,
-        expect: _Expect[TaskValueT],
+        expect: _Expect[TaskValueT, HttpErrorBodyT],
         query: HttpQuery | None = None,
         headers: HttpHeaders | None = None,
         timeout_ms: int | None = None,
         credentials: HttpCredentials | None = None,
-    ) -> TaskLike[HttpResponse[TaskValueT], HttpError]:
+    ) -> TaskLike[HttpResponse[TaskValueT], HttpError[HttpErrorBodyT]]:
         return Http.request(
             "HEAD",
             url,
@@ -268,12 +297,12 @@ class Http:
     def options(
         url: str | Expr[str],
         *,
-        expect: _Expect[TaskValueT],
+        expect: _Expect[TaskValueT, HttpErrorBodyT],
         query: HttpQuery | None = None,
         headers: HttpHeaders | None = None,
         timeout_ms: int | None = None,
         credentials: HttpCredentials | None = None,
-    ) -> TaskLike[HttpResponse[TaskValueT], HttpError]:
+    ) -> TaskLike[HttpResponse[TaskValueT], HttpError[HttpErrorBodyT]]:
         return Http.request(
             "OPTIONS",
             url,

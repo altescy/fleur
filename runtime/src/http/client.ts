@@ -1,4 +1,5 @@
 import { DecodedBody, HttpBody, HttpError, HttpExpect, HttpQueryValue, HttpRequest, HttpResponse } from "./types"
+import { JsonValue } from "../core/types"
 import { findMismatch, ShapeSchema } from "./shape"
 
 const isHttpError = (error: unknown): error is HttpError => {
@@ -46,23 +47,51 @@ const buildFetchBody = (body: HttpBody | undefined): BodyInit | undefined => {
   return JSON.stringify(body)
 }
 
-const responseError = (response: Response, url: string, kind: "decode" | "status", message: string): HttpError => ({
+const responseError = (
+  response: Response,
+  url: string,
+  kind: "decode" | "status",
+  message: string,
+  body: JsonValue | null = null,
+): HttpError => ({
   kind,
   message,
   url,
   status: response.status,
   status_text: response.statusText,
+  body,
 })
+
+// Read an error response body as JSON, or as text when it is not JSON, and check it against the
+// declared error shape. A body of another shape, such as an HTML error page, becomes null, and so
+// does an empty body. A failure while reading, such as a timeout, propagates as that failure.
+const errorBody = async (response: Response, errorShape: ShapeSchema | undefined): Promise<JsonValue | null> => {
+  const text = await response.text()
+  if (text === "") return null
+  let parsed: JsonValue | undefined
+  try {
+    parsed = JSON.parse(text) as JsonValue
+  } catch {
+    parsed = undefined
+  }
+  if (errorShape === undefined) return parsed === undefined ? text : parsed
+  const fits = (value: JsonValue): boolean => findMismatch(value, errorShape.root, errorShape, "body") === null
+  // A text body such as "404" also parses as JSON, so try the text itself when the JSON does not fit.
+  if (parsed !== undefined && fits(parsed)) return parsed
+  return fits(text) ? text : null
+}
 
 const decodeResponseBody = async <TExpect extends HttpExpect>(
   response: Response,
   expect: TExpect,
   url: string,
   shape: ShapeSchema | undefined,
+  errorShape: ShapeSchema | undefined,
 ): Promise<DecodedBody<TExpect>> => {
   // A typed body describes a successful response, so another status is an error, as in Elm.
   if (shape !== undefined && !response.ok) {
-    throw responseError(response, url, "status", `HTTP ${response.status} ${response.statusText}`.trim())
+    const message = `HTTP ${response.status} ${response.statusText}`.trim()
+    throw responseError(response, url, "status", message, await errorBody(response, errorShape))
   }
   let body: DecodedBody<TExpect>
   try {
@@ -84,7 +113,7 @@ const responseHeaders = (response: Response): Record<string, string> => {
 }
 
 const buildFetchError = (error: unknown, request: HttpRequest<HttpExpect>): HttpError => {
-  const details = { url: request.url, status: null, status_text: null }
+  const details = { url: request.url, status: null, status_text: null, body: null }
   if (isAbortError(error)) {
     return {
       ...details,
@@ -146,7 +175,7 @@ const executeRequest = async <TExpect extends HttpExpect>(
       signal: controller?.signal,
     })
 
-    const body = await decodeResponseBody(response, request.expect, request.url, request.shape)
+    const body = await decodeResponseBody(response, request.expect, request.url, request.shape, request.errorShape)
     return {
       ok: response.ok,
       status: response.status,

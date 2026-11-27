@@ -1,3 +1,5 @@
+import pytest
+
 from fleur import Cmd, Model, Msg, MsgGroup, State, Url, builtins, emit
 from fleur.types import JsonValue
 
@@ -113,3 +115,20 @@ def test_request_reads_url_query_headers_and_body_from_the_model() -> None:
 def test_static_request_omits_empty_query() -> None:
     source = emit(builtins.Http.get("/status.txt", expect=builtins.Http.expectText(), query={}).__compile__())
     assert "query" not in source
+
+
+class Problem(Model):
+    message: State[str]
+
+
+def test_typed_error_body_adds_its_shape_to_the_request() -> None:
+    typed = emit(builtins.Http.get("/todos", expect=builtins.Http.expectJson(Screen, error=Problem)).__compile__())
+    untyped = emit(builtins.Http.get("/todos", expect=builtins.Http.expectJson(Screen)).__compile__())
+
+    assert 'errorShape: {root: {kind: "ref"' in typed and ".Problem" in typed
+    assert "errorShape" not in untyped
+
+
+def test_error_type_needs_a_body_type() -> None:
+    with pytest.raises(TypeError, match="needs the type of the successful body"):
+        builtins.Http.expectJson(error=Problem)  # pyright: ignore[reportCallIssue]
