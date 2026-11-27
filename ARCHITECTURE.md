@@ -1,6 +1,6 @@
 # Fleur Architecture
 
-Fleur is an **Elm-inspired Python-to-browser-UI framework**. Users write a pure Python DSL; a Python compiler translates it into a JavaScript AST, which is serialized to JavaScript text and injected into an HTML page alongside a browser runtime bundle.
+Fleur is an **Elm-inspired Python-to-browser-UI framework**. Application and UI code is written using the Python DSL. The compiler lowers it to a JavaScript AST, and the browser runs the emitted JavaScript alongside the Fleur runtime bundle.
 
 ---
 
@@ -8,6 +8,7 @@ Fleur is an **Elm-inspired Python-to-browser-UI framework**. Users write a pure 
 
 1. [High-Level Overview](#1-high-level-overview)
 2. [Layer Structure](#2-layer-structure)
+   - [Python and JavaScript boundary](#21-python-and-javascript-boundary)
 3. [Python DSL Layer (`src/fleur/core/`)](#3-python-dsl-layer-srcfleurcore)
 4. [JS AST Layer (`src/fleur/js/`)](#4-js-ast-layer-srcfleurjs)
 5. [Browser Runtime (`runtime/`)](#5-browser-runtime-runtime)
@@ -55,18 +56,48 @@ The entire pipeline has three hard stages:
 
 ```mermaid
 graph TD
+    ui["src/fleur/ui/\nBuilt-in views, interactions, and styles"]
     builtins["src/fleur/builtins/\nHttp, HttpError, …"]
     core["src/fleur/core/\nModel, Msg, Update, View,\nCmd, Sub, Component, Expr"]
     js["src/fleur/js/\nESTree AST types\nbuilder helpers\nemitter"]
     runtime["runtime/src/\nTypeScript browser runtime\nvdom · diff · patch · effects · program"]
+    browser["Browser"]
 
+    ui --> core
     builtins --> core
     builtins --> js
     core --> js
-    js -.->|"bundled → fleur.js"| runtime
+    js -->|"generated application JavaScript"| browser
+    runtime -->|"bundled as fleur.js"| browser
 ```
 
-**Allowed dependency direction:** `core → js`, `builtins → core/js`. The `js` layer must not import from `core`.
+The Python dependencies flow from `ui` to `core`, from `builtins` to `core`
+and `js`, and from `core` to `js`.
+
+### 2.1 Python and JavaScript boundary
+
+Built-in UI components use the same public Python DSL as application-defined
+views. The Python UI layer defines markup, styling, accessibility attributes,
+and interaction rules such as keyboard navigation and when to move focus.
+Application state changes through the Elm-style `Model`, `Msg`, and `Update`
+loop. Transient state owned by a particular DOM element, such as a timer or a
+focus reference, can live in a `DomScope` and be cleaned up with the view.
+
+`fleur.core` exposes typed operations such as `EventBinding`, `DomAction`,
+and `DomEffect`. The compiler turns those operations into an AST, which
+`fleur.js` emits as JavaScript. The TypeScript runtime executes the message
+loop, patches the DOM, schedules commands and DOM effects, and provides
+reusable access to browser APIs. The generated application code carries the
+component's rules into the browser.
+
+When adding a component, start with native HTML behavior and compose the public
+DSL around it. If the DSL lacks an operation, add it to `fleur.core` in terms
+that also make sense for a custom view. Compose existing primitives where
+possible. Extend the runtime when a new browser capability or scheduling
+guarantee needs runtime support. For example, the Python `Dialog` decides
+when to open and close the modal, including calling native `close()` when
+its effect is removed. The runtime schedules and disposes the effect and
+exposes the native dialog methods through the DOM bridge.
 
 ---
 
@@ -436,12 +467,9 @@ All elements extend `Element` (which extends `View`). Available elements:
 `views/_utils.py` resolves those arguments and merges them into view props.
 `themes/elements.css` supplies defaults for the standard controls and layout views.
 
-The Python UI library builds the markup, styles, and interaction callbacks.
-The components use the public `EventBinding`, `DomEffect`, and element-scoped
-actions from `fleur.core`. The core compiler owns AST generation for these
-interfaces. Menus and interactive overlays use scoped effects for listeners,
-timers, and local state. The same APIs are available on a plain `View`.
-See [Add DOM behavior to a custom view](docs/building-apps.md#add-dom-behavior-to-a-custom-view).
+Menus and interactive overlays use scoped effects for listeners, timers, and
+local state. See the [Python and JavaScript boundary](#21-python-and-javascript-boundary)
+and [Add DOM behavior to a custom view](docs/building-apps.md#add-dom-behavior-to-a-custom-view).
 
 ### 7.2 Theme System
 
