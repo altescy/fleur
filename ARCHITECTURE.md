@@ -198,10 +198,12 @@ Text strings containing `${model.field}` interpolation are parsed by `_compile_t
 - `Cmd.none()` → `__fleur.Cmd.none()`
 - `Cmd.map(tagger, cmd)` → `__fleur.Cmd.map(tagger, cmd)`
 - `Cmd.task(effect, ok_msg, err_msg)` → `__fleur.Cmd.task(() => <effect>, okFn, errFn)`
+- `Cmd.batch(*cmds)` → `__fleur.Cmd.batch([cmd, …])`; every command must share the message group
 
 `Sub` (`src/fleur/core/sub.py`) represents ongoing subscriptions:
 - `Sub.none()` → `__fleur.Sub.none()`
 - `Sub.interval(key, ms, tagger)` → `__fleur.Sub.interval("key", ms, taggerFn)`
+- `Sub.batch(*subs)` → `__fleur.Sub.batch([sub, …])`; the runtime identifies subscriptions by key, so duplicate keys raise `ValueError`
 
 ### 3.7 `Component`
 

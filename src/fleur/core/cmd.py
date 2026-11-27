@@ -2,9 +2,15 @@ from typing import TYPE_CHECKING, Any, Generic
 
 from typing_extensions import TypeVar
 
-from fleur.js.ast import ESTreeExpression, ESTreeFunctionBody, ESTreeFunctionExpression, ESTreeReturnStatement
+from fleur.js.ast import (
+    ESTreeArrayExpression,
+    ESTreeExpression,
+    ESTreeFunctionBody,
+    ESTreeFunctionExpression,
+    ESTreeReturnStatement,
+)
 
-from .runtime import RUNTIME_CMD, RUNTIME_MAP, RUNTIME_NONE, RUNTIME_TASK, runtime_call
+from .runtime import RUNTIME_BATCH, RUNTIME_CMD, RUNTIME_MAP, RUNTIME_NONE, RUNTIME_TASK, runtime_call
 from .task import TaskLike
 from .types import FleurValue, ModelT, MsgGroupT
 
@@ -33,6 +39,13 @@ class Cmd(Generic[ModelT, MsgGroupT]):
     def none() -> "Cmd[Any, Any]":
         """A command that dispatches nothing, compatible with every component."""
         return Cmd()
+
+    @staticmethod
+    def batch(*cmds: "Cmd[Any, _MsgGroupT]") -> "Cmd[Any, _MsgGroupT]":
+        """Run several commands of the same message group together, like Elm's `Cmd.batch`."""
+        return Cmd(
+            runtime_call((RUNTIME_CMD, RUNTIME_BATCH), ESTreeArrayExpression([cmd.__compile__() for cmd in cmds]))
+        )
 
     @staticmethod
     def map(
