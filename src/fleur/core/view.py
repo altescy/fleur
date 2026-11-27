@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping, Sequence
-from typing import Any, Generic, TypeAlias, Union
+from typing import TYPE_CHECKING, Any, Generic, TypeAlias, TypeVar, Union
 
 from fleur.core.model import Model, ModelState
 from fleur.js.ast import (
@@ -21,19 +21,33 @@ from .msg import GroupedMsg
 from .runtime import MODEL_IDENT, RUNTIME_H, RUNTIME_HTML, RUNTIME_MAP, runtime_call, runtime_ref
 from .types import ModelT, ModelT_co, MsgGroupT, MsgGroupT_co
 
-_ViewChild = Union[JsonValue, Model, Sequence["_ViewChild"]]
-_ViewProp = Union[JsonValue, GroupedMsg[Any, Any, Any], Mapping[str, "_ViewProp"], Sequence["_ViewProp"]]
-_ViewProps = Mapping[str, _ViewProp]
-ViewChild: TypeAlias = Union[_ViewChild, Expr[_ViewChild]]
-ViewProp: TypeAlias = Union[
-    _ViewProp,
-    Expr[_ViewProp],
-    DomEffect,
-    EventBinding[Any, Any, Any],
-    Mapping[str, "ViewProp"],
-    Sequence["ViewProp"],
+if TYPE_CHECKING:
+    from .component import Component
+    from .msg import MsgGroup
+
+# Method-scoped (class-level variables are not solved in staticmethods) and invariant, so that
+# a forwarded component must have exactly the model type of its field.
+_ChildModelT = TypeVar("_ChildModelT", bound=Model)
+_ChildMsgGroupT = TypeVar("_ChildMsgGroupT", bound="MsgGroup")
+
+# Props carry the message group of the messages they dispatch. A message must have its
+# context bound, because the runtime dispatches it as is.
+_ViewProp: TypeAlias = Union[
+    JsonValue,
+    GroupedMsg[MsgGroupT, Any, None],
+    Mapping[str, "_ViewProp[MsgGroupT]"],
+    Sequence["_ViewProp[MsgGroupT]"],
 ]
-ViewProps: TypeAlias = Union[Mapping[str, ViewProp], Expr[_ViewProps]]
+_ViewProps: TypeAlias = Mapping[str, _ViewProp[MsgGroupT]]
+ViewProp: TypeAlias = Union[
+    _ViewProp[MsgGroupT],
+    Expr[_ViewProp[MsgGroupT]],
+    DomEffect,
+    EventBinding[MsgGroupT, Any],
+    Mapping[str, "ViewProp[MsgGroupT]"],
+    Sequence["ViewProp[MsgGroupT]"],
+]
+ViewProps: TypeAlias = Union[Mapping[str, ViewProp[MsgGroupT]], Expr[_ViewProps[MsgGroupT]]]
 
 
 def _compile_text_expr(text: str) -> ESTreeExpression:
@@ -59,7 +73,7 @@ def _compile_text_expr(text: str) -> ESTreeExpression:
     return expr
 
 
-def _compile_prop_value(value: ViewProp) -> ESTreeExpression:
+def _compile_prop_value(value: ViewProp[Any]) -> ESTreeExpression:
     if isinstance(value, (Expr, GroupedMsg, DomEffect, EventBinding)):
         return value.__compile__()
     if isinstance(value, Mapping):
@@ -69,7 +83,7 @@ def _compile_prop_value(value: ViewProp) -> ESTreeExpression:
     return json_expr(value)
 
 
-def _compile_child(child: ViewChild) -> ESTreeExpression:
+def _compile_child(child: ViewChild[Any, Any]) -> ESTreeExpression:
     if isinstance(child, ICompilable):
         return child.__compile__()
     if isinstance(child, str):
@@ -82,13 +96,13 @@ def _compile_child(child: ViewChild) -> ESTreeExpression:
 class View(Model, Generic[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
-        *children: ViewChild,
+        *children: ViewChild[ModelT_co, MsgGroupT_co],
         tag: str,
-        props: ViewProps,
+        props: ViewProps[MsgGroupT_co],
     ) -> None:
         self._tag = tag
-        self._props = props
-        self._children = children
+        self._props: ViewProps[Any] = props
+        self._children: tuple[ViewChild[Any, Any], ...] = children
 
     def __compile__(self) -> ESTreeExpression:
         if isinstance(self._props, Expr):
@@ -103,12 +117,12 @@ class View(Model, Generic[ModelT_co, MsgGroupT_co]):
         )
 
     @staticmethod
-    def dom_effect(*effects: DomEffect) -> Mapping[str, ViewProp]:
+    def dom_effect(*effects: DomEffect) -> Mapping[str, DomEffect]:
         """Attach effects by key. Merging props preserves effects with distinct keys."""
         return {f"domEffect:{effect.key}": effect for effect in effects}
 
     @staticmethod
-    def extend_props(props: ViewProps, extra: ViewProps) -> ViewProps:
+    def extend_props(props: ViewProps[MsgGroupT], extra: ViewProps[MsgGroupT]) -> ViewProps[MsgGroupT]:
         """Add or replace view props, evaluating dynamic inputs once."""
         if isinstance(extra, Mapping) and not extra:
             return props
@@ -125,8 +139,10 @@ class View(Model, Generic[ModelT_co, MsgGroupT_co]):
 
     @staticmethod
     def merge_styles(
-        props: ViewProps, defaults: Mapping[str, ViewProp], overrides: Mapping[str, ViewProp]
-    ) -> ViewProps:
+        props: ViewProps[MsgGroupT],
+        defaults: Mapping[str, ViewProp[MsgGroupT]],
+        overrides: Mapping[str, ViewProp[MsgGroupT]],
+    ) -> ViewProps[MsgGroupT]:
         """Layer CSS defaults, supplied properties, and overrides in CSS declaration order."""
         if not defaults and not overrides:
             return props
@@ -140,7 +156,7 @@ class View(Model, Generic[ModelT_co, MsgGroupT_co]):
                 )
             )
         supplied = props.get("style")
-        style: dict[str, ViewProp] = {}
+        style: dict[str, ViewProp[MsgGroupT]] = {}
         for layer in (defaults, supplied if isinstance(supplied, Mapping) else {}, overrides):
             for key, value in layer.items():
                 style.pop(key, None)
@@ -149,23 +165,31 @@ class View(Model, Generic[ModelT_co, MsgGroupT_co]):
 
     @staticmethod
     def map(
-        tagger: "GroupedMsg[MsgGroupT, Any, Any]",
-        view: "View[ModelT_co, MsgGroupT_co]",
-    ) -> "MappedView[ModelT_co, MsgGroupT_co, MsgGroupT]":
+        tagger: "GroupedMsg[MsgGroupT, _ChildMsgGroupT, None]",
+        view: "View[_ChildModelT, _ChildMsgGroupT]",
+    ) -> "MappedView[_ChildModelT, _ChildMsgGroupT, MsgGroupT]":
+        """Wrap each message of a child view in the tagger, whose event is the child's group."""
         return MappedView(tagger, view)
 
     @staticmethod
     def forward(
-        field: ModelState[ModelT, ModelT_co] | str,
-        view: "View[ModelT_co, MsgGroupT_co]",
-        tagger: "GroupedMsg[MsgGroupT, Any, Any]",
-    ) -> "ForwardedView[ModelT, ModelT_co, MsgGroupT_co, MsgGroupT]":
-        field_name = field if isinstance(field, str) else field._field_name
-        return ForwardedView(field_name, tagger, view)
+        field: ModelState[ModelT, _ChildModelT],
+        component: Component[_ChildModelT, _ChildMsgGroupT],
+        tagger: "GroupedMsg[MsgGroupT, _ChildMsgGroupT, None]",
+    ) -> "ForwardedView[ModelT, _ChildModelT, _ChildMsgGroupT, MsgGroupT]":
+        """Render a child component stored in `field`, whose model type must match."""
+        return ForwardedView(field._field_name, tagger, component.view)
+
+
+# A child carries the model and message group of the views it contains, so that a parent view,
+# and in the end the component, sees every message its subtree can dispatch. Defined after `View`,
+# which it refers to at runtime.
+_ViewNode: TypeAlias = Union[JsonValue, View[ModelT_co, MsgGroupT_co], Sequence["_ViewNode[ModelT_co, MsgGroupT_co]"]]
+ViewChild: TypeAlias = Union[_ViewNode[ModelT_co, MsgGroupT_co], Expr[_ViewNode[ModelT_co, MsgGroupT_co]]]
 
 
 class MappedView(View[ModelT_co, MsgGroupT], Generic[ModelT_co, MsgGroupT_co, MsgGroupT]):
-    def __init__(self, tagger: "GroupedMsg[MsgGroupT, Any, Any]", view: View[ModelT_co, MsgGroupT_co]) -> None:
+    def __init__(self, tagger: "GroupedMsg[MsgGroupT, Any, None]", view: View[ModelT_co, MsgGroupT_co]) -> None:
         self._tagger = tagger
         self._view = view
 
@@ -175,7 +199,7 @@ class MappedView(View[ModelT_co, MsgGroupT], Generic[ModelT_co, MsgGroupT_co, Ms
 
 class ForwardedView(View[ModelT, MsgGroupT], Generic[ModelT, ModelT_co, MsgGroupT_co, MsgGroupT]):
     def __init__(
-        self, field_name: str, tagger: "GroupedMsg[MsgGroupT, Any, Any]", view: View[ModelT_co, MsgGroupT_co]
+        self, field_name: str, tagger: "GroupedMsg[MsgGroupT, Any, None]", view: View[ModelT_co, MsgGroupT_co]
     ) -> None:
         self._field_name = field_name
         self._tagger = tagger

@@ -80,6 +80,12 @@ class TestModel:
         assert "||" in some_source
         assert "&&" in every_source
 
+    def test_cond_some_without_conditions_compiles_to_false(self) -> None:
+        assert emit(Cond.some().__compile__()) == "false"
+
+    def test_cond_every_without_conditions_compiles_to_true(self) -> None:
+        assert emit(Cond.every().__compile__()) == "true"
+
     def test_update_requires_explicit_set(self) -> None:
         component = Component(
             CounterModel(count=0),

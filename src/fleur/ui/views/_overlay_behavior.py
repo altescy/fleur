@@ -105,8 +105,9 @@ def _search_text(value: Expr[str]) -> Expr[str]:
     return String.trim(String.lower(String.normalize(value, form="NFKC")))
 
 
-def combobox_effect() -> DomEffect:
+def combobox_effect(value: str | Expr[str | None] | None) -> DomEffect:
     def setup(root: DomElement, scope: DomScope) -> DomLifecycle:
+        selected = scope.input(value)
         field = root.child(1).as_input()
         popup = root.child(2).as_popover()
         options, empty = popup.child(0), popup.child(1)
@@ -138,8 +139,6 @@ def combobox_effect() -> DomEffect:
             return option.with_reference(select)
 
         def sync() -> DomAction:
-            selected = root.attribute("data-fleur-value")
-
             def update_options(filter_text: Expr[str]) -> DomAction:
                 def update_option(option: DomElement, index: Expr[int]) -> DomAction:
                     chosen = Cond.equal(option.attribute("data-fleur-value"), selected)
@@ -223,7 +222,8 @@ def combobox_effect() -> DomEffect:
                     Cond.every(opened.value, Cond.equal(event.key, "Escape")),
                     DomAction.batch(event.prevent_default(), close),
                     otherwise=DomAction.when(
-                        Cond.every(opened.value, Cond.equal(event.key, "Enter")),
+                        # Without an active option, Enter keeps its native meaning, such as submitting a form.
+                        Cond.every(opened.value, active.element.exists, Cond.equal(event.key, "Enter")),
                         DomAction.batch(event.prevent_default(), active.element.click()),
                         otherwise=DomAction.when(
                             Cond.every(Boolean.negate(modified(event)), Cond.some(up, down)), navigate

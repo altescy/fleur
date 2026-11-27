@@ -7,7 +7,7 @@ from fleur.core.expr import Expr
 from fleur.core.msg import GroupedMsg
 from fleur.core.object import Object
 from fleur.core.types import KeyT, ModelT_co, MsgGroupT
-from fleur.core.view import View, ViewChild
+from fleur.core.view import View, ViewChild, ViewProp
 
 from ._overlay_behavior import combobox_effect
 from ._utils import extend_props, merge_props
@@ -29,9 +29,9 @@ class Combobox(Element[ModelT_co, MsgGroupT]):
         onselect: GroupedMsg[MsgGroupT, PointerEvent, KeyT],
         placeholder: String | None = None,
         empty_text: String = "No matching options.",
-        disabled: bool | Expr[bool] = False,
-        props: ViewProps | None = None,
-        input_props: ViewProps | None = None,
+        disabled: bool | Expr[bool] | None = None,
+        props: ViewProps[MsgGroupT] | None = None,
+        input_props: ViewProps[MsgGroupT] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         label_id = id + "-label"
@@ -44,22 +44,24 @@ class Combobox(Element[ModelT_co, MsgGroupT]):
                 props={"key": key, "role": "option", "data-fleur-value": key, "onclick": onselect.bind(key)},
             )
 
-        choices: ViewChild
+        choices: ViewChild[ModelT_co, MsgGroupT]
         if isinstance(options, Expr):
             choices = Array.map(Object.keys(options), lambda key: option(key, options[key]))
         else:
             choices = [option(key, caption) for key, caption in options.items()]
-        attrs = {
+        attrs: dict[str, ViewProp[MsgGroupT]] = {
             "id": id,
             "role": "combobox",
             "aria-autocomplete": "list",
             "aria-expanded": "false",
             "aria-controls": list_id,
             "autocomplete": "off",
-            "disabled": disabled,
             "value": None,
             "data-fleur-part": "combobox-input",
         }
+        # The attributes above are required by the combobox pattern; `disabled` keeps `input_props` unless given.
+        if disabled is not None:
+            attrs["disabled"] = disabled
         super().__init__(
             Element(label, tag="label", props={"id": label_id, "for": id}),
             Input(
@@ -82,6 +84,6 @@ class Combobox(Element[ModelT_co, MsgGroupT]):
             tag="div",
             props=extend_props(
                 merge_props(props, element="combobox", **style_args),
-                {**View.dom_effect(combobox_effect()), "data-fleur-value": value},
+                View.dom_effect(combobox_effect(value)),
             ),
         )

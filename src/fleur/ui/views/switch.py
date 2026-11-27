@@ -1,9 +1,9 @@
 from typing import Unpack
 
+from fleur.core.dom import EventMessage
 from fleur.core.events import InputEvent
 from fleur.core.expr import Expr
-from fleur.core.msg import GroupedMsg
-from fleur.core.types import ModelT_co, MsgGroupT, OptionalContextT
+from fleur.core.types import ModelT_co, MsgGroupT
 
 from ._utils import extend_props, merge_props
 from .base import Element, ViewProps
@@ -19,13 +19,13 @@ class Switch(Element[ModelT_co, MsgGroupT]):
         label: String,
         *,
         checked: bool | Expr[bool] | None = None,
-        onchange: GroupedMsg[MsgGroupT, InputEvent, OptionalContextT] | None = None,
+        onchange: EventMessage[MsgGroupT, InputEvent] | None = None,
         disabled: bool | Expr[bool] | None = None,
         required: bool | Expr[bool] | None = None,
         name: String | None = None,
         value: String | None = None,
-        props: ViewProps | None = None,
-        input_props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT] | None = None,
+        input_props: ViewProps[MsgGroupT] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         control = Element(

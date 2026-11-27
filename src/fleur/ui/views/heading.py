@@ -10,9 +10,9 @@ from .types import ViewStyleArgs
 class Heading(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
-        *children: ViewChild,
+        *children: ViewChild[ModelT_co, MsgGroupT_co],
         level: Literal[1, 2, 3, 4, 5, 6],
-        props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT_co] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         if type(level) is not int or not 1 <= level <= 6:

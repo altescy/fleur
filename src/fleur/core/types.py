@@ -1,5 +1,5 @@
 from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Any, Union
 
 from typing_extensions import TypeAlias, TypeVar
 
@@ -12,14 +12,18 @@ if TYPE_CHECKING:
 
 
 KeyT = TypeVar("KeyT", bound=str)
+# The key position is `Any` on purpose. `Mapping` is invariant in its key, so a bound of
+# `Mapping[str, ...]` would reject typed keys such as `Mapping[Literal["a", "b"], int]`, and
+# a key type variable here would stay unsolved wherever the bound is used. APIs that care
+# about keys, such as `Object.keys` or `Combobox`, take `KeyT` explicitly.
 FleurValue: TypeAlias = Union[
     "JsonValue",
-    "Function",
+    "Function[..., Any]",
     "Model",
-    list["FleurValue[KeyT]"],
-    dict[KeyT, "FleurValue[KeyT]"],
-    Sequence["FleurValue[KeyT]"],
-    Mapping[KeyT, "FleurValue[KeyT]"],
+    list["FleurValue"],
+    dict[Any, "FleurValue"],
+    Sequence["FleurValue"],
+    Mapping[Any, "FleurValue"],
 ]
 FleurValueT = TypeVar("FleurValueT", bound=FleurValue)
 FleurValueT_co = TypeVar("FleurValueT_co", bound=FleurValue, covariant=True)

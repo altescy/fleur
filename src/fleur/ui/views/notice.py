@@ -15,11 +15,11 @@ class Notice(Element[ModelT_co, MsgGroupT_co]):
 
     def __init__(
         self,
-        message: ViewChild,
-        *actions: ViewChild,
+        message: ViewChild[ModelT_co, MsgGroupT_co],
+        *actions: ViewChild[ModelT_co, MsgGroupT_co],
         variant: NoticeVariant | Expr[NoticeVariant] = "info",
         announce: Literal["polite", "assertive", "off"] = "polite",
-        props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT_co] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         role = {"polite": "status", "assertive": "alert", "off": None}[announce]

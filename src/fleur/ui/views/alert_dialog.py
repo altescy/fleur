@@ -1,9 +1,9 @@
 from typing import Unpack
 
+from fleur.core.dom import EventMessage
 from fleur.core.events import DialogCloseEvent, SubmitEvent
 from fleur.core.expr import Expr
-from fleur.core.msg import GroupedMsg
-from fleur.core.types import ModelT_co, MsgGroupT, OptionalContextT
+from fleur.core.types import ModelT_co, MsgGroupT
 
 from ._utils import extend_props
 from .base import Element, ViewProps
@@ -26,11 +26,11 @@ class AlertDialog(Dialog[ModelT_co, MsgGroupT]):
         title: String,
         description: String,
         open: bool | Expr[bool],
-        onclose: GroupedMsg[MsgGroupT, DialogCloseEvent, OptionalContextT],
-        onconfirm: GroupedMsg[MsgGroupT, SubmitEvent, OptionalContextT],
+        onclose: EventMessage[MsgGroupT, DialogCloseEvent],
+        onconfirm: EventMessage[MsgGroupT, SubmitEvent],
         cancel_label: String = "Cancel",
         confirm_label: String = "Confirm",
-        props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         title_id = id + "-title"
@@ -57,13 +57,13 @@ class AlertDialog(Dialog[ModelT_co, MsgGroupT]):
             ),
             open=open,
             onclose=onclose,
+            labelledby=title_id,
             props=extend_props(
                 {} if props is None else props,
                 {
                     "id": id,
                     "role": "alertdialog",
                     "aria-modal": "true",
-                    "aria-labelledby": title_id,
                     "aria-describedby": description_id,
                 },
             ),

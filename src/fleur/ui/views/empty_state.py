@@ -15,12 +15,12 @@ class EmptyState(Element[ModelT_co, MsgGroupT_co]):
         self,
         title: String,
         description: String | None = None,
-        *actions: ViewChild,
+        *actions: ViewChild[ModelT_co, MsgGroupT_co],
         level: Literal[1, 2, 3, 4, 5, 6] = 3,
-        props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT_co] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
-        children: list[ViewChild] = [Heading(title, level=level, font_size="base")]
+        children: list[ViewChild[ModelT_co, MsgGroupT_co]] = [Heading(title, level=level, font_size="base")]
         if description is not None:
             children.append(Element(description, tag="p", props={}))
         super().__init__(*children, *actions, tag="div", props=merge_props(props, element="empty-state", **style_args))

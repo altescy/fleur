@@ -20,13 +20,13 @@ class ThemeScope(Element[ModelT_co, MsgGroupT_co]):
 
     def __init__(
         self,
-        *children: ViewChild,
+        *children: ViewChild[ModelT_co, MsgGroupT_co],
         theme: Theme | ThemeSelection | None = None,
         mode: ThemeMode | Expr[ThemeMode] | None = None,
         colors: ThemeColors | None = None,
         space: Mapping[ThemeSpaceName, str | int | float] | None = None,
         components: ThemeComponents | None = None,
-        props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT_co] | None = None,
         **styles: Unpack[ViewStyleArgs],
     ) -> None:
         values: dict[str, str] = {}
@@ -38,7 +38,7 @@ class ThemeScope(Element[ModelT_co, MsgGroupT_co]):
         # Keep a separate inherited value for mode boundaries inside this override.
         declarations = {scope_variable(key): value for key, value in values.items()}
         declarations.update(values)
-        attrs: dict[str, ViewProp] = {"data-fleur-scope": ""}
+        attrs: dict[str, ViewProp[MsgGroupT_co]] = {"data-fleur-scope": ""}
         sheet: str | Expr[str] = ""
         if isinstance(theme, ThemeSelection):
             registered = Array.includes(array(list(theme.choices)), theme.name)

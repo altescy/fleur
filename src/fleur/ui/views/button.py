@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import Any, Literal, Unpack
+from typing import Literal, Unpack
 
+from fleur.core.dom import EventMessage
 from fleur.core.events import PointerEvent
-from fleur.core.msg import GroupedMsg
 from fleur.core.types import ModelT_co, MsgGroupT
 
 from . import _utils
@@ -14,10 +14,10 @@ from .types import ViewStyleArgs
 class Button(Element[ModelT_co, MsgGroupT]):
     def __init__(
         self,
-        *children: ViewChild,
+        *children: ViewChild[ModelT_co, MsgGroupT],
         variant: Literal["primary", "secondary", "ghost"] = "primary",
-        onclick: GroupedMsg[MsgGroupT, PointerEvent, Any] | None = None,
-        props: ViewProps | None = None,
+        onclick: EventMessage[MsgGroupT, PointerEvent] | None = None,
+        props: ViewProps[MsgGroupT] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         merged = _utils.merge_props(props, element="button", **style_args)

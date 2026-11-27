@@ -1,6 +1,8 @@
 from typing import cast
 
-from fleur import Msg, MsgGroup, emit
+import pytest
+
+from fleur import Model, Msg, MsgGroup, State, emit
 from fleur.core.msg import MessageEventRef
 
 
@@ -20,3 +22,22 @@ class TestMsg:
 
         assert 'type: "LOADED"' in source
         assert "event" in source
+
+
+class Toggles(MsgGroup):
+    OPEN: Msg[None] = Msg()
+    CLOSE: Msg[None] = Msg()
+
+
+class Flags(Model):
+    open: State[bool]
+
+
+def test_cases_must_handle_every_message_of_the_group() -> None:
+    with pytest.raises(ValueError, match=r"Toggles.cases\(\) does not handle: CLOSE"):
+        Toggles.cases(Toggles.OPEN.then(State.set(Flags.open, True)))
+
+
+def test_unchanged_handles_a_message_without_a_state_change() -> None:
+    update = Toggles.cases(Toggles.OPEN.then(State.set(Flags.open, True)), Toggles.CLOSE.then(State.unchanged()))
+    assert '"CLOSE"' in emit(update.__compile__())

@@ -41,8 +41,8 @@ class WorkspaceModel(Model):
 
 
 class WorkspaceMsg(MsgGroup):
-    FIRST = Msg()
-    SECOND = Msg()
+    FIRST: Msg[EditorMsg] = Msg()
+    SECOND: Msg[EditorMsg] = Msg()
 
 
 def app() -> Component[WorkspaceModel, WorkspaceMsg]:
@@ -56,9 +56,9 @@ def app() -> Component[WorkspaceModel, WorkspaceMsg]:
         ),
         VStack(
             Text("First editor"),
-            View.forward(WorkspaceModel.first, first.view, WorkspaceMsg.FIRST),
+            View.forward(WorkspaceModel.first, first, WorkspaceMsg.FIRST),
             Text("Second editor"),
-            View.forward(WorkspaceModel.second, second.view, WorkspaceMsg.SECOND),
+            View.forward(WorkspaceModel.second, second, WorkspaceMsg.SECOND),
             gap="md",
         ),
     )

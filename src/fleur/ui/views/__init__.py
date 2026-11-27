@@ -3,7 +3,6 @@ from fleur.core.view import ViewChild, ViewProps
 from .accordion import Accordion, AccordionItem
 from .alert_dialog import AlertDialog
 from .avatar import Avatar
-
 from .box import Box
 from .button import Button
 from .card import Card
@@ -51,8 +50,8 @@ from .textarea import Textarea
 from .toast import Toast
 from .toggle import Toggle
 from .toggle_group import ToggleGroup
-from .tooltip import Tooltip
 from .toolbar import Toolbar
+from .tooltip import Tooltip
 from .types import FlexDirection, FlexWrap, Length, Radius, RawColor, Spacing, Style, StyleMap
 from .vstack import VStack
 

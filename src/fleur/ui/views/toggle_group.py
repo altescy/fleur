@@ -29,7 +29,7 @@ class ToggleGroup(Element[ModelT_co, MsgGroupT]):
         value: Sequence[KeyT] | Expr[Sequence[KeyT]],
         onchange: GroupedMsg[MsgGroupT, PointerEvent, Sequence[KeyT]],
         orientation: Literal["horizontal", "vertical"] = "horizontal",
-        props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         selected = value if isinstance(value, Expr) else Expr[Sequence[KeyT]](ensure_expr(value))
@@ -43,7 +43,7 @@ class ToggleGroup(Element[ModelT_co, MsgGroupT]):
                 props={"key": key, "type": "button", "aria-pressed": Cond.when(pressed, "true", "false")},
             )
 
-        buttons: ViewChild
+        buttons: ViewChild[ModelT_co, MsgGroupT]
         if isinstance(options, Expr):
             buttons = Array.map(Object.keys(options), lambda key: toggle(key, options[key]))
         else:

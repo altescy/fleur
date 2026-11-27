@@ -28,7 +28,7 @@ class CheckboxGroup(Element[ModelT_co, MsgGroupT]):
         onchange: GroupedMsg[MsgGroupT, InputEvent, Sequence[KeyT]],
         name: String | None = None,
         disabled: bool | Expr[bool] = False,
-        props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         selected = value if isinstance(value, Expr) else Expr[Sequence[KeyT]](ensure_expr(value))
@@ -43,7 +43,7 @@ class CheckboxGroup(Element[ModelT_co, MsgGroupT]):
                 props={"key": key},
             )
 
-        choices: ViewChild
+        choices: ViewChild[ModelT_co, MsgGroupT]
         if isinstance(options, Expr):
             choices = Array.map(Object.keys(options), lambda key: checkbox(key, options[key]))
         else:

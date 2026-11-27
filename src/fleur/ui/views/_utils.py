@@ -5,6 +5,7 @@ from fleur.core.cond import Cond
 from fleur.core.expr import Expr
 from fleur.core.number import Number
 from fleur.core.string import String as StringValue
+from fleur.core.types import MsgGroupT
 from fleur.core.view import View, ViewProp, ViewProps
 from fleur.ui._css import CssValue, color_reference
 
@@ -26,7 +27,6 @@ from .types import (
     StyleTransformValue,
     ViewStyleArgs,
 )
-
 
 _DIMENSION_KEYWORDS = {
     "full": "100%",
@@ -121,9 +121,9 @@ def _get_style_rules() -> dict[str, StyleField]:
 _STYLE_RULES = _get_style_rules()
 
 
-def _merge_declarations(*layers: Mapping[str, ViewProp]) -> dict[str, ViewProp]:
+def _merge_declarations(*layers: Mapping[str, ViewProp[MsgGroupT]]) -> dict[str, ViewProp[MsgGroupT]]:
     """Move replaced keys to the end so later layers also win CSS shorthand conflicts."""
-    merged: dict[str, ViewProp] = {}
+    merged: dict[str, ViewProp[MsgGroupT]] = {}
     for layer in layers:
         for key, value in layer.items():
             merged.pop(key, None)
@@ -132,7 +132,7 @@ def _merge_declarations(*layers: Mapping[str, ViewProp]) -> dict[str, ViewProp]:
 
 
 def merge_props(
-    props: ViewProps | None,
+    props: ViewProps[MsgGroupT] | None,
     *,
     element: Literal[
         "box",
@@ -187,7 +187,7 @@ def merge_props(
     defaults: StyleMap | None = None,
     layout: StyleMap | None = None,
     **style_args: Unpack[ViewStyleArgs],
-) -> ViewProps:
+) -> ViewProps[MsgGroupT]:
     """Compose defaults, supplied style, layout arguments, shorthands, then explicit style."""
     style_kwargs: dict[str, Style] = {}
     for key, rule in _STYLE_RULES.items():

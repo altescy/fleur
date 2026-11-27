@@ -19,7 +19,7 @@ class Avatar(Element[ModelT_co, MsgGroupT_co]):
         name: String | None,
         fallback: String,
         src: str | Expr[str | None] | None = None,
-        props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT_co] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         super().__init__(

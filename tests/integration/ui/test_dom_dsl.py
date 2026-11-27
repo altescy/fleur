@@ -1,5 +1,5 @@
 import json
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
 from fleur import Array, Cmd, Component, Cond, Model, Msg, MsgGroup, Page, State, View, bloom
@@ -40,6 +40,113 @@ class Settings(Model):
 class Actions(MsgGroup):
     CHANGE: Msg[PointerEvent] = Msg()
     REMOVE: Msg[PointerEvent] = Msg()
+
+
+class ScopedInputs(Model):
+    enabled: State[bool]
+    duration: State[int | None]
+    visible: State[bool]
+
+
+class ScopedInputActions(MsgGroup):
+    CHANGE: Msg[PointerEvent] = Msg()
+    REMOVE: Msg[PointerEvent] = Msg()
+
+
+def test_scoped_inputs_refresh_existing_listeners(chromium_title: Callable[[str], str]) -> None:
+    def setup(root: DomElement, scope: DomScope) -> DomLifecycle:
+        enabled = scope.input(ScopedInputs.enabled)
+        duration = scope.input(ScopedInputs.duration)
+        calls = scope.value(0)
+
+        def record() -> DomAction:
+            return DomAction.batch(
+                calls.set(calls.value + 1),
+                root.set_attribute("data-calls", String.from_number(calls.value)),
+                root.set_attribute("data-enabled", Cond.when(enabled, "yes", "no")),
+                DomAction.when_some(
+                    duration,
+                    lambda milliseconds: root.set_attribute("data-duration", String.from_number(milliseconds)),
+                    otherwise=root.set_attribute("data-duration", "none"),
+                ),
+            )
+
+        return DomLifecycle(
+            mount=DomAction.batch(record(), scope.listen(root, "record", lambda _: record())),
+            dispose=root.set_attribute("data-disposed", "yes"),
+        )
+
+    app = Component(
+        ScopedInputs(enabled=False, duration=None, visible=True),
+        ScopedInputActions.cases(
+            ScopedInputActions.CHANGE.then(State.set(ScopedInputs.enabled, True), State.set(ScopedInputs.duration, 0)),
+            ScopedInputActions.REMOVE.then(State.set(ScopedInputs.visible, False)),
+        ),
+        View(
+            View("Change", tag="button", props={"id": "change", "onclick": ScopedInputActions.CHANGE}),
+            View("Remove", tag="button", props={"id": "remove", "onclick": ScopedInputActions.REMOVE}),
+            Cond.when(
+                ScopedInputs.visible,
+                View(tag="output", props={"id": "probe", **View.dom_effect(DomEffect.scoped("inputs", setup))}),
+                None,
+            ),
+            tag="div",
+            props={},
+        ),
+    )
+    probe = """<script>
+    queueMicrotask(async () => {
+        const element = document.querySelector("#probe");
+        const read = () => [element.dataset.calls, element.dataset.enabled, element.dataset.duration];
+        const initial = read();
+        document.querySelector("#change").click();
+        await Promise.resolve();
+        element.dispatchEvent(new Event("record"));
+        const updated = read();
+        const reused = document.querySelector("#probe") === element;
+        document.querySelector("#remove").click();
+        element.dispatchEvent(new Event("record"));
+        document.title = JSON.stringify([initial, updated, reused, read(), element.dataset.disposed]);
+    });
+    </script>"""
+    assert json.loads(chromium_title(bloom(app).replace("</body>", probe + "</body>"))) == [
+        ["1", "no", "none"],
+        ["2", "yes", "0"],
+        True,
+        ["2", "yes", "0"],
+        "yes",
+    ]
+
+
+class OptionalDurations(Model):
+    durations: State[Mapping[str, int | None]]
+
+
+def test_when_some_treats_missing_keys_like_none(chromium_title: Callable[[str], str]) -> None:
+    def setup(root: DomElement, scope: DomScope) -> DomLifecycle:
+        durations = scope.input(OptionalDurations.durations)
+
+        def describe(key: str) -> DomAction:
+            return DomAction.when_some(
+                durations[key],
+                lambda value: root.set_attribute(f"data-{key}", String.from_number(value)),
+                otherwise=root.set_attribute(f"data-{key}", "none"),
+            )
+
+        return DomLifecycle(mount=DomAction.batch(describe("zero"), describe("empty"), describe("missing")))
+
+    app = Component(
+        OptionalDurations(durations={"zero": 0, "empty": None}),
+        MsgGroup.cases(),
+        View(tag="output", props={"id": "probe", **View.dom_effect(DomEffect.scoped("durations", setup))}),
+    )
+    probe = """<script>
+    queueMicrotask(() => {
+        const { zero, empty, missing } = document.querySelector("#probe").dataset;
+        document.title = JSON.stringify([zero, empty, missing]);
+    });
+    </script>"""
+    assert json.loads(chromium_title(bloom(app).replace("</body>", probe + "</body>"))) == ["0", "none", "none"]
 
 
 def test_public_dom_dsl_on_plain_view(chromium_title: Callable[[str], str]) -> None:
@@ -121,7 +228,7 @@ def test_callbacks_keep_values_from_nested_array_maps(playwright_page: Callable[
         return Form(prevent_default=form)
 
     def dialog_row(dialog: Expr[str]) -> View[MappedState, MappedActions]:
-        return Dialog(open=True, onclose=MappedActions.DIALOG.bind(dialog))
+        return Dialog(open=True, onclose=MappedActions.DIALOG.bind(dialog), label=dialog)
 
     def toast_row(root: Expr[str]) -> View[MappedState, MappedActions]:
         return Toast(root, open=True, onclose=MappedActions.TOAST.bind(root), duration_ms=None)

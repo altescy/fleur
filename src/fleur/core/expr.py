@@ -10,7 +10,7 @@ from fleur.js.ast import (
     ESTreeMemberExpression,
     ESTreeUnaryExpression,
 )
-from fleur.js.builder import call, ident, json_expr, member_expr, object_expr
+from fleur.js.builder import call, ident, json_expr, object_expr
 from fleur.types import ICompilable
 
 from .function import Function
@@ -44,7 +44,7 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
 
     def __bool__(self) -> bool:
         raise TypeError(
-            "Fleur Expr cannot be used as a Python boolean; use Expr.when(condition, consequent, alternate)"
+            "Fleur Expr cannot be used as a Python boolean; use Cond.when(condition, consequent, alternate)"
         )
 
     #
@@ -56,8 +56,8 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
     @overload
     def __add__(self: "Expr[int | float]", other: "int | Expr[int | float]") -> "Expr[int | float]": ...
     @overload
-    def __add__(self: "Expr[str]", other: "str | Expr[str]") -> "Expr[str]": ...
-    def __add__(self, other: "FleurValue | Expr") -> "Expr":
+    def __add__(self: "Expr[str]", other: "int | float | str | Expr[int | float | str]") -> "Expr[str]": ...
+    def __add__(self, other: "FleurValue | Expr[FleurValue]") -> "Expr[FleurValue]":
         return Expr(ESTreeBinaryExpression(operator="+", left=self.__compile__(), right=ensure_expr(other)))
 
     @overload
@@ -66,9 +66,7 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
     def __radd__(self: "Expr[int | float]", other: "int | Expr[int | float]") -> "Expr[int | float]": ...
     @overload
     def __radd__(self: "Expr[str]", other: "int | float | str | Expr[int | float | str]") -> "Expr[str]": ...
-    @overload
-    def __radd__(self, other: "FleurValue | Expr") -> "Expr": ...
-    def __radd__(self, other: "FleurValue | Expr") -> "Expr":
+    def __radd__(self, other: "FleurValue | Expr[FleurValue]") -> "Expr[FleurValue]":
         return Expr(ESTreeBinaryExpression(operator="+", left=ensure_expr(other), right=self.__compile__()))
 
     @overload
@@ -93,7 +91,7 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
     def __lt__(self: "Expr[str]", other: "str | Expr[str]") -> "Expr[bool]": ...
     @overload
     def __lt__(self: "Expr[list[Any]]", other: "list[Any] | Expr[list[Any]]") -> "Expr[bool]": ...
-    def __lt__(self, other: "FleurValue | Expr") -> "Expr[bool]":
+    def __lt__(self, other: "FleurValue | Expr[FleurValue]") -> "Expr[bool]":
         return Expr[bool](ESTreeBinaryExpression(operator="<", left=self.__compile__(), right=ensure_expr(other)))
 
     @overload
@@ -102,7 +100,7 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
     def __le__(self: "Expr[str]", other: "str | Expr[str]") -> "Expr[bool]": ...
     @overload
     def __le__(self: "Expr[list[Any]]", other: "list[Any] | Expr[list[Any]]") -> "Expr[bool]": ...
-    def __le__(self, other: "FleurValue | Expr") -> "Expr[bool]":
+    def __le__(self, other: "FleurValue | Expr[FleurValue]") -> "Expr[bool]":
         return Expr[bool](ESTreeBinaryExpression(operator="<=", left=self.__compile__(), right=ensure_expr(other)))
 
     @overload
@@ -111,7 +109,7 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
     def __gt__(self: "Expr[str]", other: "str | Expr[str]") -> "Expr[bool]": ...
     @overload
     def __gt__(self: "Expr[list[Any]]", other: "list[Any] | Expr[list[Any]]") -> "Expr[bool]": ...
-    def __gt__(self, other: "FleurValue | Expr") -> "Expr[bool]":
+    def __gt__(self, other: "FleurValue | Expr[FleurValue]") -> "Expr[bool]":
         return Expr[bool](ESTreeBinaryExpression(operator=">", left=self.__compile__(), right=ensure_expr(other)))
 
     @overload
@@ -120,11 +118,8 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
     def __ge__(self: "Expr[str]", other: "str | Expr[str]") -> "Expr[bool]": ...
     @overload
     def __ge__(self: "Expr[list[Any]]", other: "list[Any] | Expr[list[Any]]") -> "Expr[bool]": ...
-    def __ge__(self, other: "FleurValue | Expr") -> "Expr[bool]":
+    def __ge__(self, other: "FleurValue | Expr[FleurValue]") -> "Expr[bool]":
         return Expr[bool](ESTreeBinaryExpression(operator=">=", left=self.__compile__(), right=ensure_expr(other)))
-
-    def __len__(self: "Expr[Sequence]") -> "Expr[int]":
-        return Expr[int](member_expr(self.__compile__(), "length"))
 
     #
     # Unary operators
@@ -159,6 +154,11 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
         self: "Expr[Sequence[FleurValueT] | Mapping[str, FleurValueT]]",
         key: int | str | Expr[int | str],
     ) -> "Expr[FleurValueT]":
+        """Read an item or key that is known to exist.
+
+        Like `dict[key]` in Python, the result type assumes the item is present. Use `Object.get`
+        or `Array.get` for a lookup that may miss; they return `None` instead.
+        """
         return Expr(
             ESTreeMemberExpression(
                 object=self.__compile__(),
@@ -170,7 +170,7 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
     #
     # Function
     #
-    def __call__(self: "Expr[Function[..., FleurValueT]]", *args: FleurValue | Expr) -> "Expr[FleurValueT]":
+    def __call__(self: "Expr[Function[..., FleurValueT]]", *args: FleurValue | Expr[FleurValue]) -> "Expr[FleurValueT]":
         return Expr(call(self.__compile__(), *(ensure_expr(arg) for arg in args)))
 
 

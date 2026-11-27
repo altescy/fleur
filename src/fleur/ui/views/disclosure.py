@@ -12,9 +12,9 @@ class Disclosure(Element[ModelT_co, MsgGroupT_co]):
 
     def __init__(
         self,
-        summary: ViewChild,
-        *children: ViewChild,
-        props: ViewProps | None = None,
+        summary: ViewChild[ModelT_co, MsgGroupT_co],
+        *children: ViewChild[ModelT_co, MsgGroupT_co],
+        props: ViewProps[MsgGroupT_co] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         super().__init__(

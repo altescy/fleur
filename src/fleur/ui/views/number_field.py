@@ -1,9 +1,9 @@
-from typing import Unpack
+from typing import Literal, Unpack
 
+from fleur.core.dom import EventMessage
 from fleur.core.events import InputEvent
 from fleur.core.expr import Expr
-from fleur.core.msg import GroupedMsg
-from fleur.core.types import ModelT_co, MsgGroupT, OptionalContextT
+from fleur.core.types import ModelT_co, MsgGroupT
 from fleur.core.view import View, ViewProp
 
 from ._native_behavior import number_field_effect
@@ -23,20 +23,21 @@ class NumberField(Element[ModelT_co, MsgGroupT]):
         value: str | int | float | Expr[str | int | float] | None = None,
         min: int | float | Expr[int | float] | None = None,
         max: int | float | Expr[int | float] | None = None,
-        step: int | float | Expr[int | float] = 1,
+        step: int | float | Expr[int | float] | Literal["any"] | None = None,
         label: String | None = None,
         name: String | None = None,
-        required: bool | Expr[bool] = False,
-        disabled: bool | Expr[bool] = False,
-        oninput: GroupedMsg[MsgGroupT, InputEvent, OptionalContextT] | None = None,
-        onchange: GroupedMsg[MsgGroupT, InputEvent, OptionalContextT] | None = None,
+        required: bool | Expr[bool] | None = None,
+        disabled: bool | Expr[bool] | None = None,
+        oninput: EventMessage[MsgGroupT, InputEvent] | None = None,
+        onchange: EventMessage[MsgGroupT, InputEvent] | None = None,
         decrease_label: String = "Decrease value",
         increase_label: String = "Increase value",
-        props: ViewProps | None = None,
-        input_props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT] | None = None,
+        input_props: ViewProps[MsgGroupT] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
-        attrs: dict[str, ViewProp] = {
+        # Arguments left as None keep the corresponding attribute from `input_props`.
+        given: dict[str, ViewProp[MsgGroupT] | None] = {
             "value": value,
             "min": min,
             "max": max,
@@ -44,9 +45,9 @@ class NumberField(Element[ModelT_co, MsgGroupT]):
             "name": name,
             "required": required,
             "disabled": disabled,
+            "aria-label": label,
         }
-        if label is not None:
-            attrs["aria-label"] = label
+        attrs: dict[str, ViewProp[MsgGroupT]] = {key: prop for key, prop in given.items() if prop is not None}
         super().__init__(
             Input(
                 type="number",

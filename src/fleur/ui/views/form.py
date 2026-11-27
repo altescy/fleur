@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from typing import Any, Unpack
+from typing import Unpack
 
-from fleur.core.dom import DomEvents, EventBinding
+from fleur.core.dom import DomEvents, EventBinding, EventMessage
 from fleur.core.events import SubmitEvent
 from fleur.core.expr import Expr
-from fleur.core.msg import GroupedMsg
 from fleur.core.types import ModelT_co, MsgGroupT
 
 from . import _utils
@@ -16,9 +15,9 @@ from .types import ViewStyleArgs
 class Form(Element[ModelT_co, MsgGroupT]):
     def __init__(
         self,
-        *children: ViewChild,
-        props: ViewProps | None = None,
-        onsubmit: GroupedMsg[MsgGroupT, SubmitEvent, Any] | None = None,
+        *children: ViewChild[ModelT_co, MsgGroupT],
+        props: ViewProps[MsgGroupT] | None = None,
+        onsubmit: EventMessage[MsgGroupT, SubmitEvent] | None = None,
         prevent_default: bool | Expr[bool] = False,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:

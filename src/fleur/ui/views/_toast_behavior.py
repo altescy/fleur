@@ -1,16 +1,18 @@
-from fleur.core import Boolean, Cond, DomAction, DomEffect, DomElement, Expr, Number, String
+from fleur.core import Boolean, Cond, DomAction, DomEffect, DomElement, Expr, Number
 from fleur.core.dom import DomEvents, DomLifecycle, DomScope, DomValue
 
 _MAX_DELAY = 2_147_483_647
 
 
-def toast_effect() -> DomEffect:
+def toast_effect(open: bool | Expr[bool], duration_ms: int | Expr[int | None] | None) -> DomEffect:
     def setup(root: DomElement, scope: DomScope) -> DomLifecycle:
+        opened = scope.input(open)
+        duration = scope.input(duration_ms)
         announcement, popup = root.child(0), root.child(1)
         message, dismiss = popup.child(0), popup.child(1)
         requested, hovered, focus_within = scope.value(False), scope.value(False), scope.value(False)
         last_message = scope.value("")
-        last_duration: DomValue[str | None] = scope.value(None)
+        last_duration: DomValue[int | None] = scope.value(None)
         remaining: DomValue[int | float] = scope.value(0)
         started_at: DomValue[int | float] = scope.value(0)
         timed = scope.value(False)
@@ -68,9 +70,13 @@ def toast_effect() -> DomEffect:
 
         update_delay = scope.action(update_timer())
 
+        def set_timeout(milliseconds: Expr[int]) -> DomAction:
+            return DomAction.batch(
+                timed.set(Number.is_finite(milliseconds)),
+                remaining.set(Number.clamp(milliseconds, 0, _MAX_DELAY)),
+            )
+
         def show() -> DomAction:
-            duration = root.attribute("data-fleur-toast-duration")
-            milliseconds = Number.from_string(String.or_empty(duration))
             unchanged = Cond.every(
                 requested.value, Cond.equal(last_message.value, message.text), Cond.equal(last_duration.value, duration)
             )
@@ -91,8 +97,7 @@ def toast_effect() -> DomEffect:
                     ),
                     announcement.set_text(message.text),
                     pause,
-                    timed.set(Cond.every(Cond.not_equal(duration, None), Number.is_finite(milliseconds))),
-                    remaining.set(Number.clamp(milliseconds, 0, _MAX_DELAY)),
+                    DomAction.when_some(duration, set_timeout, otherwise=timed.set(False)),
                     update_delay,
                 ),
             )
@@ -100,15 +105,15 @@ def toast_effect() -> DomEffect:
         sync = scope.action(
             DomAction.when(
                 root.connected,
-                DomAction.when(
-                    root.has_attribute("data-fleur-toast-open"),
-                    show(),
-                    otherwise=DomAction.batch(requested.set(False), conceal),
-                ),
+                DomAction.when(opened, show(), otherwise=DomAction.batch(requested.set(False), conceal)),
             )
         )
         return DomLifecycle(
             mount=DomAction.batch(
+                # The message is hidden from the tree to avoid reading it twice with the live region,
+                # so expose it as the dismiss button's description when focus reaches the toast.
+                message.ensure_id("fleur-toast-"),
+                dismiss.set_attribute("aria-describedby", message.id),
                 scope.on(
                     popup,
                     DomEvents.pointer_enter,

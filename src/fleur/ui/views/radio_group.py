@@ -23,7 +23,7 @@ class RadioGroup(Element[ModelT_co, MsgGroupT]):
         label: String,
         value: KeyT | Expr[KeyT],
         onselect: GroupedMsg[MsgGroupT, InputEvent, KeyT],
-        props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         if not name:

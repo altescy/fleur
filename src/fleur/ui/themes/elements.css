@@ -442,7 +442,12 @@ div:where([data-fleur-ui="field"]) {
   color: var(--fleur-color-muted-foreground);
 }
 
-:where([data-fleur-ui="field"]) > :where([data-fleur-part="error"]) {
+:where([data-fleur-ui="field"]) > :where([data-fleur-part="error-region"]) {
+  display: contents;
+}
+
+:where([data-fleur-ui="field"]) > :where([data-fleur-part="error"]),
+:where([data-fleur-ui="field"]) > :where([data-fleur-part="error-region"]) > :where([data-fleur-part="error"]) {
   color: var(--fleur-color-destructive);
 }
 

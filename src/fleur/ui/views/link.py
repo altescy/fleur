@@ -15,15 +15,15 @@ class Link(Element[ModelT_co, MsgGroupT_co]):
 
     def __init__(
         self,
-        *children: ViewChild,
+        *children: ViewChild[ModelT_co, MsgGroupT_co],
         href: String,
         download: String | None = None,
         disabled: bool | Expr[bool] = False,
         variant: Literal["text", "button"] = "text",
-        props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT_co] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
-        attrs: dict[str, ViewProp] = {"href": href}
+        attrs: dict[str, ViewProp[MsgGroupT_co]] = {"href": href}
         if download is not None:
             attrs["download"] = download
         if disabled is not False:

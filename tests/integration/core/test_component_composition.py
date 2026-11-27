@@ -32,7 +32,7 @@ class AppModel(Model):
 
 
 class AppMsg(MsgGroup):
-    COUNTER = Msg()
+    COUNTER: Msg[CounterMsg] = Msg()
 
 
 def app():
@@ -44,7 +44,7 @@ def app():
         ),
         VStack(
             Text("Nested"),
-            View.forward(AppModel.counter, nested_counter.view, AppMsg.COUNTER),
+            View.forward(AppModel.counter, nested_counter, AppMsg.COUNTER),
         ),
     )
 

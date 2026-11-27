@@ -2,10 +2,10 @@ from collections.abc import Callable, Mapping
 from typing import Unpack
 
 from fleur.core.cond import Cond
+from fleur.core.dom import EventMessage
 from fleur.core.events import PointerEvent
 from fleur.core.expr import Expr
-from fleur.core.msg import GroupedMsg
-from fleur.core.types import ModelT, ModelT_co, MsgGroupT, OptionalContextT
+from fleur.core.types import ModelT, ModelT_co, MsgGroupT
 from fleur.core.view import View, ViewProp
 
 from ._menu_behavior import menu_effect
@@ -20,10 +20,10 @@ class Menu(Element[ModelT, MsgGroupT]):
 
     def __init__(
         self,
-        *items: ViewChild,
+        *items: ViewChild[ModelT, MsgGroupT],
         id: String,
-        trigger: Callable[[Mapping[str, ViewProp]], View[ModelT, MsgGroupT]],
-        props: ViewProps | None = None,
+        trigger: Callable[[Mapping[str, ViewProp[MsgGroupT]]], View[ModelT, MsgGroupT]],
+        props: ViewProps[MsgGroupT] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         opener, panel, root = _anchored_panel(
@@ -42,10 +42,10 @@ class ContextMenu(Element[ModelT, MsgGroupT]):
 
     def __init__(
         self,
-        *items: ViewChild,
+        *items: ViewChild[ModelT, MsgGroupT],
         id: String,
-        trigger: Callable[[Mapping[str, ViewProp]], View[ModelT, MsgGroupT]],
-        props: ViewProps | None = None,
+        trigger: Callable[[Mapping[str, ViewProp[MsgGroupT]]], View[ModelT, MsgGroupT]],
+        props: ViewProps[MsgGroupT] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         trigger_id = id + "-trigger"
@@ -78,13 +78,13 @@ class MenuItem(Element[ModelT_co, MsgGroupT]):
 
     def __init__(
         self,
-        *children: ViewChild,
-        onclick: GroupedMsg[MsgGroupT, PointerEvent, OptionalContextT],
+        *children: ViewChild[ModelT_co, MsgGroupT],
+        onclick: EventMessage[MsgGroupT, PointerEvent],
         disabled: bool | Expr[bool] = False,
-        props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
-        attrs: dict[str, ViewProp] = {
+        attrs: dict[str, ViewProp[MsgGroupT]] = {
             "type": "button",
             "role": "menuitem",
             "tabindex": -1,

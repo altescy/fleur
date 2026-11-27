@@ -455,7 +455,7 @@ def dialogs() -> Preview:
             ),
             open=Gallery.dialog_open,
             onclose=Actions.CLOSED,
-            props={"aria-labelledby": "dialog-title"},
+            labelledby="dialog-title",
         ),
     )
 
@@ -549,7 +549,7 @@ def menus() -> Preview:
             ),
             open=Gallery.menu_editor_open,
             onclose=Actions.CLOSE_EDITOR,
-            props={"aria-labelledby": "menu-editor-title"},
+            labelledby="menu-editor-title",
         ),
         AlertDialog(
             id="clear-reading-notes",

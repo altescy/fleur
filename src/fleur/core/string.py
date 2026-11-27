@@ -3,7 +3,6 @@ from typing import Literal
 from fleur.js.builder import call, ident, member_expr
 
 from .expr import Expr, ensure_expr
-from .types import FleurValue
 
 
 class String:
@@ -49,7 +48,7 @@ class String:
         return Expr[str](call(member_expr(value.__compile__(), "trim")))
 
     @staticmethod
-    def split(value: Expr[str], separator: FleurValue | Expr) -> Expr[list[str]]:
+    def split(value: Expr[str], separator: str | Expr[str]) -> Expr[list[str]]:
         return Expr[list[str]](call(member_expr(value.__compile__(), "split"), ensure_expr(separator)))
 
     @staticmethod

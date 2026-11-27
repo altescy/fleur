@@ -118,6 +118,11 @@ class State(Generic[FleurValueT]):
         values[self._name] = value if isinstance(value, Expr) else Expr(ensure_expr(value))
 
     @staticmethod
+    def unchanged() -> "ModelUpdate[Any]":
+        """Keep the model as it is, for a message that needs no state change."""
+        return ModelUpdate()
+
+    @staticmethod
     def set(
         state: "ModelState[ModelT, FleurValueU]",
         value: FleurValueU | Expr[FleurValueU],
@@ -132,7 +137,7 @@ class State(Generic[FleurValueT]):
 
 
 class ModelUpdate(Generic[ModelT_co]):
-    def __init__(self, *updates: tuple[str, FleurValue | Expr]) -> None:
+    def __init__(self, *updates: tuple[str, FleurValue | Expr[FleurValue]]) -> None:
         self.updates = updates
 
     def __and__(self, other: "ModelUpdate[ModelT_co]") -> "ModelUpdate[ModelT_co]":

@@ -46,7 +46,7 @@ def function(fn: Callable[P, "R | Expr[R]"]) -> Function[P, R]:
         else:
             raise TypeError(f"Unsupported parameter kind {param.kind} in function {name}")
 
-    result = cast("FleurValue | Expr", fn(*map(Expr, params)))  # pyright: ignore[reportCallIssue]
+    result = cast("FleurValue | Expr[FleurValue]", fn(*map(Expr, params)))  # pyright: ignore[reportCallIssue]
 
     if isinstance(result, Expr):
         result_ast = result.__compile__()

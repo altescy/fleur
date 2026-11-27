@@ -307,6 +307,7 @@ class ESTreeBinaryExpression(ESTreeExpression):
 ESTreeLogicalOperator = Literal[
     "||",
     "&&",
+    "??",
 ]
 
 

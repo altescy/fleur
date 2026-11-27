@@ -64,7 +64,7 @@ def test_scoped_css_preserves_literal_model_placeholders(chromium_title: Callabl
     theme = Theme(extra_css=[':scope::before { content: "${model.mode}"; }'])
     app = Component(
         Appearance(mode="light"),
-        Actions.cases(),
+        MsgGroup.cases(),
         Box(
             ThemeScope(Text("Fixed"), theme=theme, props={"id": "fixed"}),
             ThemeScope(

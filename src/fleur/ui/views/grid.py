@@ -17,8 +17,8 @@ from .types import Length, Style, ViewStyleArgs
 class Grid(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
-        *children: ViewChild,
-        props: ViewProps | None = None,
+        *children: ViewChild[ModelT_co, MsgGroupT_co],
+        props: ViewProps[MsgGroupT_co] | None = None,
         columns: int | Expr[int] | None = None,
         min_col: Length | None = None,
         **style_args: Unpack[ViewStyleArgs],
@@ -46,8 +46,8 @@ class Grid(Element[ModelT_co, MsgGroupT_co]):
 class GridItem(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
-        *children: ViewChild,
-        props: ViewProps | None = None,
+        *children: ViewChild[ModelT_co, MsgGroupT_co],
+        props: ViewProps[MsgGroupT_co] | None = None,
         col_span: int | None | Expr[int] = None,
         row_span: int | None | Expr[int] = None,
         **style_args: Unpack[ViewStyleArgs],

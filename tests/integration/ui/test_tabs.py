@@ -93,7 +93,10 @@ def test_reordering_tabs_keeps_input_focus_and_values(chromium_title: Callable[[
     )
     app = Component(
         Screen(selected="Two", mode="light"),
-        Actions.cases(Actions.MODE.then(State.set(Screen.mode, Actions.MODE.context))),
+        Actions.cases(
+            Actions.SELECT.then(State.unchanged()),
+            Actions.MODE.then(State.set(Screen.mode, Actions.MODE.context)),
+        ),
         Box(
             Button("Reverse", props={"id": "reverse"}, onclick=Actions.MODE.bind("dark")),
             tabs(contents, Screen.selected, props={"id": "tabs"}),

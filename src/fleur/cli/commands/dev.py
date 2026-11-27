@@ -17,7 +17,7 @@ from typing import Any
 
 from .base import Subcommand
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 # --- Hot reload state (shared between threads) ---
 

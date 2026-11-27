@@ -22,10 +22,10 @@ class Meter(Element[ModelT_co, MsgGroupT_co]):
         high: int | float | Expr[int | float] | None = None,
         optimum: int | float | Expr[int | float] | None = None,
         label: String | None = None,
-        props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT_co] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
-        attrs: dict[str, ViewProp] = {"value": value}
+        attrs: dict[str, ViewProp[MsgGroupT_co]] = {"value": value}
         for key, setting in (("min", min), ("max", max), ("low", low), ("high", high), ("optimum", optimum)):
             if setting is not None:
                 attrs[key] = setting

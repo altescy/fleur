@@ -13,7 +13,7 @@ class Divider(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
         *,
-        props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT_co] | None = None,
         color: Color | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:

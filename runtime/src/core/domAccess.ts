@@ -1,3 +1,4 @@
+import { disposeDomEffects } from "./domEffect"
 import { domEventOrigin, normalizeEventPayload } from "./events"
 import { EventPayload } from "./types"
 
@@ -21,7 +22,10 @@ export const Dom = {
   contains: (node: HTMLElement | null, other: HTMLElement | null) => node?.contains(other) ?? false,
   text: (node: HTMLElement | null) => node?.textContent ?? "",
   setText: (node: HTMLElement | null, value: string) => {
-    if (node && node.textContent !== value) node.textContent = value
+    if (!node || node.textContent === value) return
+    // Replacing the text removes the children, so release their effects first.
+    node.childNodes.forEach(disposeDomEffects)
+    node.textContent = value
   },
   hidden: (node: HTMLElement | null) => node?.hidden ?? false,
   setHidden: (node: HTMLElement | null, hidden: boolean) => {
@@ -50,8 +54,13 @@ export const Dom = {
     if (node && node.value !== value) node.value = value
   },
   step: (node: HTMLInputElement | null, direction: 1 | -1) => {
-    if (direction === 1) node?.stepUp()
-    else node?.stepDown()
+    try {
+      if (direction === 1) node?.stepUp()
+      else node?.stepDown()
+    } catch (error) {
+      // Inputs without stepping, such as type="text" or step="any", reject stepUp and stepDown.
+      if (!(error instanceof DOMException && error.name === "InvalidStateError")) throw error
+    }
   },
   imageComplete: (node: HTMLElement | null) => node instanceof HTMLImageElement && node.complete,
   imageWidth: (node: HTMLElement | null) => node instanceof HTMLImageElement ? node.naturalWidth : 0,

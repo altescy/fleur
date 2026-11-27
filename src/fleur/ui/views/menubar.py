@@ -17,7 +17,7 @@ class Menubar(Element[ModelT, MsgGroupT]):
         self,
         *menus: Menu[ModelT, MsgGroupT],
         label: String,
-        props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         super().__init__(

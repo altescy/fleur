@@ -18,7 +18,7 @@ class NavigationMenuGroup(Element[ModelT_co, MsgGroupT_co]):
         title: String,
         *links: Link[ModelT_co, MsgGroupT_co],
         id: str,
-        props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT_co] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         super().__init__(
@@ -51,7 +51,7 @@ class NavigationMenu(Element[ModelT_co, MsgGroupT_co]):
         label: String,
         auto_close: bool = True,
         multiple: bool = False,
-        props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT_co] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         super().__init__(

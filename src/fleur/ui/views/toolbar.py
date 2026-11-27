@@ -14,10 +14,10 @@ class Toolbar(Element[ModelT_co, MsgGroupT_co]):
 
     def __init__(
         self,
-        *children: ViewChild,
+        *children: ViewChild[ModelT_co, MsgGroupT_co],
         label: String,
         orientation: Literal["horizontal", "vertical"] = "horizontal",
-        props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT_co] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         super().__init__(

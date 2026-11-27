@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Any, Unpack
 
+from fleur.core.dom import EventMessage
 from fleur.core.events import FocusEvent, InputEvent, KeyboardEvent
 from fleur.core.expr import Expr
-from fleur.core.msg import GroupedMsg
 from fleur.core.types import ModelT_co, MsgGroupT
 
 from . import _utils
@@ -19,17 +19,17 @@ class Textarea(Element[ModelT_co, MsgGroupT]):
     def __init__(
         self,
         *,
-        props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT] | None = None,
         value: String | None = None,
         placeholder: String | None = None,
         rows: int | Expr[int] | None = None,
         cols: int | Expr[int] | None = None,
-        oninput: GroupedMsg[MsgGroupT, InputEvent, Any] | None = None,
-        onchange: GroupedMsg[MsgGroupT, InputEvent, Any] | None = None,
-        onfocus: GroupedMsg[MsgGroupT, FocusEvent, Any] | None = None,
-        onblur: GroupedMsg[MsgGroupT, FocusEvent, Any] | None = None,
-        onkeydown: GroupedMsg[MsgGroupT, KeyboardEvent, Any] | None = None,
-        onkeyup: GroupedMsg[MsgGroupT, KeyboardEvent, Any] | None = None,
+        oninput: EventMessage[MsgGroupT, InputEvent] | None = None,
+        onchange: EventMessage[MsgGroupT, InputEvent] | None = None,
+        onfocus: EventMessage[MsgGroupT, FocusEvent] | None = None,
+        onblur: EventMessage[MsgGroupT, FocusEvent] | None = None,
+        onkeydown: EventMessage[MsgGroupT, KeyboardEvent] | None = None,
+        onkeyup: EventMessage[MsgGroupT, KeyboardEvent] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         merged = _utils.merge_props(props, element="textarea", **style_args)

@@ -7,17 +7,17 @@ import { h } from "../../src/core/vdom"
 describe("diff", () => {
   test("compares DOM effects by key and arguments", () => {
     const effect = (key: string, value: boolean): DomEffect => ({ key, args: [value], run: () => {} })
-    const before = h("div", { domEffect: effect("test", true) })
-    const same = h("div", { domEffect: effect("test", true) })
+    const before = h("div", { "domEffect:test": effect("test", true) })
+    const same = h("div", { "domEffect:test": effect("test", true) })
     const after = effect("test", false)
-    const replaced = h("div", { domEffect: effect("different", true) })
+    const replaced = h("div", { "domEffect:test": effect("different", true) })
 
     expect(diff(before, same)).toEqual([])
-    expect(diff(before, h("div", { domEffect: after }))).toEqual([
-      { type: "PROPS", path: [], props: { domEffect: after } },
+    expect(diff(before, h("div", { "domEffect:test": after }))).toEqual([
+      { type: "PROPS", path: [], props: { "domEffect:test": after } },
     ])
     expect(diff(before, replaced)).toEqual([
-      { type: "PROPS", path: [], props: { domEffect: replaced.props.domEffect } },
+      { type: "PROPS", path: [], props: { "domEffect:test": replaced.props["domEffect:test"] } },
     ])
   })
 
@@ -41,13 +41,13 @@ describe("diff", () => {
 
   test("refreshes an opted-in DOM effect after its children are patched", () => {
     const effect: DomEffect = { key: "refresh", args: [], run: () => {}, refresh: true }
-    const before = h("div", { domEffect: effect }, "A")
+    const before = h("div", { "domEffect:test": effect }, "A")
 
-    expect(diff(before, h("div", { domEffect: effect }, "B"))).toEqual([
+    expect(diff(before, h("div", { "domEffect:test": effect }, "B"))).toEqual([
       { type: "TEXT", path: [0], value: "B" },
-      { type: "PROPS", path: [], props: { domEffect: effect } },
+      { type: "PROPS", path: [], props: { "domEffect:test": effect } },
     ])
-    expect(diff(before, h("div", { domEffect: effect }, "A"))).toEqual([])
+    expect(diff(before, h("div", { "domEffect:test": effect }, "A"))).toEqual([])
   })
 
   test("creates TEXT patch when text changes", () => {

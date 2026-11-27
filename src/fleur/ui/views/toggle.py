@@ -19,14 +19,14 @@ class Toggle(Button[ModelT_co, MsgGroupT]):
 
     def __init__(
         self,
-        *children: ViewChild,
+        *children: ViewChild[ModelT_co, MsgGroupT],
         pressed: bool | Expr[bool],
         onchange: GroupedMsg[MsgGroupT, PointerEvent, bool],
         disabled: bool | Expr[bool] | None = None,
-        props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
-        attrs: dict[str, ViewProp] = {
+        attrs: dict[str, ViewProp[MsgGroupT]] = {
             "type": "button",
             "aria-pressed": Cond.when(pressed, "true", "false"),
             "data-fleur-part": "toggle",

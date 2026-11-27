@@ -28,6 +28,7 @@ from .dom import (
     DomTimer,
     DomValue,
     EventBinding,
+    EventMessage,
 )
 from .events import (
     DialogCloseEvent,
@@ -88,6 +89,7 @@ __all__ = [
     "DomTimer",
     "DomValue",
     "EventBinding",
+    "EventMessage",
     "Expr",
     "FocusEvent",
     "GroupedMsg",

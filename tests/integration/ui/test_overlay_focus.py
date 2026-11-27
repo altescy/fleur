@@ -35,7 +35,7 @@ def test_escape_returns_focus_to_the_overlay_opener(overlay_focus_page: Callable
                 Input(props={"autofocus": True, "aria-label": "Name"}),
                 open=Screen.dialog_open,
                 onclose=Actions.CLOSE_DIALOG,
-                props={"aria-label": "Profile"},
+                label="Profile",
             ),
             Popover(
                 Input(props={"autofocus": True, "aria-label": "Title"}),

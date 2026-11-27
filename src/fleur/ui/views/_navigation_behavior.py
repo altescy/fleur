@@ -24,6 +24,13 @@ def navigation_menu_effect() -> DomEffect:
         expanded = root.query_all(f':scope > ul > li > {_NAV_TRIGGER}[aria-expanded="true"]')
         multiple = root.has_attribute("data-fleur-multiple")
         keep_open = root.has_attribute("data-fleur-keep-open")
+        # Safari and Firefox on macOS do not focus a clicked button, so focus leaves an open group
+        # with no related target while its trigger is pressed. Let the click decide instead.
+        pressing = scope.value(False)
+        released = [
+            scope.document_listener(root, name, lambda _: pressing.set(False), capture=True)
+            for name in ("pointerup", "pointercancel")
+        ]
 
         def expanded_for(target: DomElement) -> DomElement:
             return expanded.find(lambda trigger: trigger.parent.contains(target))
@@ -86,13 +93,21 @@ def navigation_menu_effect() -> DomEffect:
 
         return DomLifecycle(
             mount=DomAction.batch(
+                *(listener.attach() for listener in released),
                 scope.on(root, DomEvents.click, on_click),
                 scope.on(root, DomEvents.key_down, on_key),
                 scope.listen(
                     root,
+                    "pointerdown",
+                    lambda _: pressing.set(True),
+                    capture=True,
+                ),
+                scope.listen(
+                    root,
                     "focusout",
                     lambda event: DomAction.when(
-                        Boolean.negate(Cond.some(keep_open, root.contains(event.related_target))), close_all()
+                        Boolean.negate(Cond.some(keep_open, pressing.value, root.contains(event.related_target))),
+                        close_all(),
                     ),
                 ),
             )

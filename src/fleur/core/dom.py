@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Generic, Literal, TypeVar
+from typing import ClassVar, Final, Generic, Literal, TypeVar
 
 from typing_extensions import TypeAlias
 
@@ -17,20 +17,22 @@ from fleur.js.ast import (
     ESTreeExpressionStatement,
     ESTreeGeneratedIdentifier,
     ESTreeNewExpression,
+    ESTreeNode,
     ESTreeReturnStatement,
     ESTreeStatement,
 )
 from fleur.js.builder import call, function_expr, ident, if_stmt, literal, member_expr, object_expr, variable
+from fleur.js.traverse import bound_generated_identifiers, generated_identifiers, identifiers
 from fleur.types import JsonValue, JsonValueT
 
 from .boolean import Boolean
 from .cond import Cond
 from .events import FocusEvent, InputEvent, KeyboardEvent, PointerEvent, SubmitEvent
 from .expr import Expr, ensure_expr
-from .msg import GroupedMsg
-from .runtime import runtime_ref
+from .msg import GroupedMsg, MsgGroup
+from .runtime import MESSAGE_IDENT, MODEL_IDENT, runtime_ref
 from .task import TaskLike
-from .types import MsgGroupT, OptionalContextT, OptionalEventT
+from .types import MsgGroupT, OptionalEventT
 
 
 def _dom_call(name: str, *args: ESTreeExpression) -> ESTreeExpression:
@@ -68,6 +70,25 @@ class DomAction:
                 ),
             )
         )
+
+    @staticmethod
+    def when_some(
+        value: Expr[JsonValueT | None],
+        action: Callable[[Expr[JsonValueT]], DomAction],
+        *,
+        otherwise: DomAction | None = None,
+    ) -> DomAction:
+        """Read a value once and pass it to the action when it is present.
+
+        Both `None` and a missing value, such as an absent mapping key, take the `otherwise` branch.
+        """
+
+        def branch(snapshot: Expr[JsonValueT | None]) -> DomAction:
+            return DomAction.when(
+                Cond.not_equal(snapshot, None), action(Expr[JsonValueT](snapshot.__compile__())), otherwise=otherwise
+            )
+
+        return DomAction.with_value(value, branch)
 
 
 def _action(expression: ESTreeExpression) -> DomAction:
@@ -483,6 +504,7 @@ class DomScope:
     """Allocate state and listeners for a single installation of an effect."""
 
     def __init__(self) -> None:
+        self._inputs: list[tuple[ESTreeGeneratedIdentifier, ESTreeExpression]] = []
         self._declarations: list[ESTreeStatement] = []
         self._cleanup: list[DomAction] = []
         self._controller: ESTreeGeneratedIdentifier | None = None
@@ -491,6 +513,16 @@ class DomScope:
         ref = ESTreeGeneratedIdentifier()
         self._declarations.append(variable(ref, initial))
         return ref
+
+    def input(self, value: JsonValueT | Expr[JsonValueT]) -> Expr[JsonValueT]:
+        """Read the latest value of a render-time expression within this effect.
+
+        The value is evaluated outside the effect, so it must not refer to inputs,
+        local values, or other bindings created by this effect.
+        """
+        ref = ESTreeGeneratedIdentifier()
+        self._inputs.append((ref, ensure_expr(value)))
+        return Expr(ref)
 
     def value(self, initial: JsonValueT | Expr[JsonValueT]) -> DomValue[JsonValueT]:
         return DomValue(self._local(ensure_expr(initial)))
@@ -565,6 +597,40 @@ class DomScope:
 _Setup = Callable[[DomElement, DomScope], DomLifecycle]
 
 
+_RENDER_TIME_NAMES: Final = frozenset({MODEL_IDENT, MESSAGE_IDENT})
+
+
+def _reads_render_time_value(node: ESTreeNode, bound: set[int]) -> bool:
+    """Whether the node refers to the model, a message, or a binding from the enclosing view."""
+    return any(
+        id(ref) not in bound if isinstance(ref, ESTreeGeneratedIdentifier) else ref.name in _RENDER_TIME_NAMES
+        for ref in identifiers(node)
+    )
+
+
+def _validate_scoped_effect(key: str, run: ESTreeExpression, inputs: Sequence[ESTreeExpression]) -> None:
+    """Keep render-time values and effect-local bindings on their own side of `DomScope.input()`.
+
+    A scoped effect is installed once and keeps its closures, so a render-time value read directly
+    inside it would stay at its first value. Inputs are evaluated during rendering, so they cannot
+    see bindings that only exist inside the effect.
+    """
+    bound = {id(ref) for ref in bound_generated_identifiers(run)}
+    if _reads_render_time_value(run, bound):
+        raise ValueError(
+            f"The setup of scoped effect {key!r} reads a render-time value, such as a model field or an item "
+            "of a mapped view, directly. The effect is installed once, so that value would never update. "
+            "Read it through DomScope.input() instead."
+        )
+    for position, value in enumerate(inputs):
+        if any(id(ref) in bound for ref in generated_identifiers(value)):
+            raise ValueError(
+                f"DomScope.input() #{position + 1} of effect {key!r} refers to a value created inside the effect, "
+                "such as another input or a scope value. Inputs are evaluated during rendering, so pass a "
+                "render-time expression and derive effect-local values inside the effect instead."
+            )
+
+
 class DomEffect:
     """Run an element-scoped action when a view mounts and dependencies change.
 
@@ -605,29 +671,48 @@ class DomEffect:
         effect._setup = setup
         return effect
 
-    def _compile_setup(self, setup: _Setup) -> ESTreeExpression:
+    def _compile_setup(self, setup: _Setup) -> tuple[ESTreeExpression, ESTreeArrayExpression]:
         root, scope = ESTreeGeneratedIdentifier(), DomScope()
         actions = setup(DomElement(root), scope)
+        inputs = [ref for ref, _ in scope._inputs]
         hooks: dict[str, ESTreeExpression] = {}
-        if actions.update is not None:
-            hooks["update"] = function_expr([], *actions.update._statements)
+        if inputs or actions.update is not None:
+            latest = [ESTreeGeneratedIdentifier() for _ in inputs]
+            # Installed callbacks share the input bindings throughout the effect's lifetime.
+            refresh = (
+                ESTreeExpressionStatement(ESTreeAssignmentExpression(ref, value))
+                for ref, value in zip(inputs, latest, strict=True)
+            )
+            update = actions.update._statements if actions.update is not None else ()
+            hooks["update"] = function_expr(latest, *refresh, *update)
         cleanup = DomAction.batch(*scope._cleanup, actions.dispose or DomAction())
         if cleanup._statements:
             hooks["dispose"] = function_expr([], *cleanup._statements)
         mount = actions.mount._statements if actions.mount is not None else ()
-        return function_expr([root], *scope._declarations, *mount, ESTreeReturnStatement(object_expr(hooks.items())))
+        run = function_expr(
+            [root, *inputs], *scope._declarations, *mount, ESTreeReturnStatement(object_expr(hooks.items()))
+        )
+        values = [value for _, value in scope._inputs]
+        _validate_scoped_effect(self._key, run, values)
+        return run, ESTreeArrayExpression(values)
 
     def __compile__(self) -> ESTreeExpression:
         def hook(callback: _ElementAction) -> ESTreeExpression:
             root = ESTreeGeneratedIdentifier()
             return function_expr([root], *callback(DomElement(root))._statements)
 
+        if self._setup is None:
+            run = hook(self._update)
+            args = ESTreeArrayExpression([ensure_expr(value) for value in self._dependencies])
+        else:
+            run, args = self._compile_setup(self._setup)
+
         props = {
             "key": literal(self._key),
-            "args": ESTreeArrayExpression([ensure_expr(value) for value in self._dependencies]),
+            "args": args,
             "refresh": literal(self._watch_subtree),
             "sync": literal(not self._after_connect),
-            "run": hook(self._update) if self._setup is None else self._compile_setup(self._setup),
+            "run": run,
         }
         if self._mount is not None:
             props["mount"] = hook(self._mount)
@@ -770,6 +855,8 @@ class DomInputEvent(DomEvent):
 
 _DomEventT = TypeVar("_DomEventT", bound=DomEvent)
 _PayloadT = TypeVar("_PayloadT")
+# Method-scoped: class-level variables of `EventBinding` are not solved in its staticmethods.
+_OnGroupT = TypeVar("_OnGroupT", bound=MsgGroup)
 
 
 class DomEventType(Generic[_DomEventT, _PayloadT]):
@@ -821,19 +908,19 @@ def _pointer_event(name: str) -> DomEventType[DomPointerEvent, PointerEvent]:
 class DomEvents:
     """Typed descriptors for common native events."""
 
-    key_down = _keyboard_event("keydown")
-    key_up = _keyboard_event("keyup")
-    click = _pointer_event("click")
-    double_click = _pointer_event("dblclick")
-    mouse_down = _pointer_event("mousedown")
-    context_menu = _pointer_event("contextmenu")
-    pointer_enter = _pointer_event("pointerenter")
-    pointer_leave = _pointer_event("pointerleave")
-    input = DomEventType[DomInputEvent, InputEvent]("input", DomInputEvent)
-    change = DomEventType[DomInputEvent, InputEvent]("change", DomInputEvent)
-    submit = DomEventType[DomEvent, SubmitEvent]("submit", DomEvent)
-    focus = DomEventType[DomEvent, FocusEvent]("focus", DomEvent)
-    blur = DomEventType[DomEvent, FocusEvent]("blur", DomEvent)
+    key_down: ClassVar[DomEventType[DomKeyboardEvent, KeyboardEvent]] = _keyboard_event("keydown")
+    key_up: ClassVar[DomEventType[DomKeyboardEvent, KeyboardEvent]] = _keyboard_event("keyup")
+    click: ClassVar[DomEventType[DomPointerEvent, PointerEvent]] = _pointer_event("click")
+    double_click: ClassVar[DomEventType[DomPointerEvent, PointerEvent]] = _pointer_event("dblclick")
+    mouse_down: ClassVar[DomEventType[DomPointerEvent, PointerEvent]] = _pointer_event("mousedown")
+    context_menu: ClassVar[DomEventType[DomPointerEvent, PointerEvent]] = _pointer_event("contextmenu")
+    pointer_enter: ClassVar[DomEventType[DomPointerEvent, PointerEvent]] = _pointer_event("pointerenter")
+    pointer_leave: ClassVar[DomEventType[DomPointerEvent, PointerEvent]] = _pointer_event("pointerleave")
+    input: ClassVar[DomEventType[DomInputEvent, InputEvent]] = DomEventType("input", DomInputEvent)
+    change: ClassVar[DomEventType[DomInputEvent, InputEvent]] = DomEventType("change", DomInputEvent)
+    submit: ClassVar[DomEventType[DomEvent, SubmitEvent]] = DomEventType("submit", DomEvent)
+    focus: ClassVar[DomEventType[DomEvent, FocusEvent]] = DomEventType("focus", DomEvent)
+    blur: ClassVar[DomEventType[DomEvent, FocusEvent]] = DomEventType("blur", DomEvent)
 
 
 DomFocusError = Literal["not_found", "not_focusable"]
@@ -857,14 +944,17 @@ class Dom:
         return _FocusTask(element_id, prevent_scroll)
 
 
-_EventMessage: TypeAlias = (
-    GroupedMsg[MsgGroupT, OptionalEventT, OptionalContextT]
-    | GroupedMsg[MsgGroupT, OptionalEventT | None, OptionalContextT]
-    | GroupedMsg[MsgGroupT, None, OptionalContextT]
+# A message that an event handler can dispatch. The handler dispatches it as is, so a message
+# that needs a context must be bound first. It may ignore the event (`Msg[None]`) or accept it
+# optionally (`Msg[E | None]`), as an Elm `onClick Increment` would.
+EventMessage: TypeAlias = (
+    GroupedMsg[MsgGroupT, OptionalEventT, None]
+    | GroupedMsg[MsgGroupT, OptionalEventT | None, None]
+    | GroupedMsg[MsgGroupT, None, None]
 )
 
 
-class EventBinding(Generic[MsgGroupT, OptionalEventT, OptionalContextT]):
+class EventBinding(Generic[MsgGroupT, OptionalEventT]):
     """Combine synchronous DOM actions and an optional Fleur message.
 
     The predicate gates the entire binding. Cancellation and actions run before
@@ -873,7 +963,7 @@ class EventBinding(Generic[MsgGroupT, OptionalEventT, OptionalContextT]):
 
     def __init__(
         self,
-        message: _EventMessage[MsgGroupT, OptionalEventT, OptionalContextT] | None = None,
+        message: EventMessage[MsgGroupT, OptionalEventT] | None = None,
         *,
         when: Callable[[DomEvent], Expr[bool]] | None = None,
         prevent_default: bool | Expr[bool] = False,
@@ -889,13 +979,13 @@ class EventBinding(Generic[MsgGroupT, OptionalEventT, OptionalContextT]):
     @staticmethod
     def on(
         event: DomEventType[_DomEventT, _PayloadT],
-        message: _EventMessage[MsgGroupT, _PayloadT, OptionalContextT] | None = None,
+        message: EventMessage[_OnGroupT, _PayloadT] | None = None,
         *,
         when: Callable[[_DomEventT], Expr[bool]] | None = None,
         prevent_default: bool | Expr[bool] = False,
         action: Callable[[_DomEventT], DomAction] | None = None,
         capture: bool = False,
-    ) -> dict[str, EventBinding[MsgGroupT, _PayloadT, OptionalContextT]]:
+    ) -> dict[str, EventBinding[_OnGroupT, _PayloadT]]:
         """Bind a native event with matching types for the action and the message."""
 
         def accepts(ref: DomEvent) -> Expr[bool]:
@@ -909,9 +999,7 @@ class EventBinding(Generic[MsgGroupT, OptionalEventT, OptionalContextT]):
             action=(lambda ref: action(event._read(ref))) if action is not None else None,
         ).properties(event.name, capture=capture)
 
-    def properties(
-        self, event: str, *, capture: bool = False
-    ) -> dict[str, EventBinding[MsgGroupT, OptionalEventT, OptionalContextT]]:
+    def properties(self, event: str, *, capture: bool = False) -> dict[str, EventBinding[MsgGroupT, OptionalEventT]]:
         """Make a view prop for the given native event and propagation phase."""
         return {("onCapture:" if capture else "on") + event: self}
 

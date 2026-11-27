@@ -15,8 +15,8 @@ class Accordion(Element[ModelT_co, MsgGroupT_co]):
 
     def __init__(
         self,
-        *items: ViewChild,
-        props: ViewProps | None = None,
+        *items: ViewChild[ModelT_co, MsgGroupT_co],
+        props: ViewProps[MsgGroupT_co] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         super().__init__(
@@ -34,9 +34,9 @@ class AccordionItem(Disclosure[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
         title: String,
-        *children: ViewChild,
+        *children: ViewChild[ModelT_co, MsgGroupT_co],
         initial_open: bool = False,
-        props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT_co] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         super().__init__(

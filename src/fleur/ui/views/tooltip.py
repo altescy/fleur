@@ -18,8 +18,8 @@ class Tooltip(Element[ModelT, MsgGroupT]):
         text: String,
         *,
         id: String,
-        trigger: Callable[[Mapping[str, ViewProp]], View[ModelT, MsgGroupT]],
-        props: ViewProps | None = None,
+        trigger: Callable[[Mapping[str, ViewProp[MsgGroupT]]], View[ModelT, MsgGroupT]],
+        props: ViewProps[MsgGroupT] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         content = Element(text, tag="span", props=merge_props(props, element="tooltip", **style_args))

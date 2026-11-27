@@ -77,7 +77,7 @@ def tabs(
     label: String = "Tabs",
     tab_class: String | None = None,
     tab_style: StyleMap | None = None,
-    props: ViewProps | None = None,
+    props: ViewProps[MsgGroupT] | None = None,
     **style_args: Unpack[ViewStyleArgs],
 ) -> View[ModelT, MsgGroupT]:
     """Render a labelled tab list with manual activation and caller-controlled selection."""
@@ -85,7 +85,7 @@ def tabs(
     names = Object.keys(panels)
 
     def trigger(name: Expr[KeyT]) -> View[ModelT, MsgGroupT]:
-        attrs: dict[str, ViewProp] = {
+        attrs: dict[str, ViewProp[MsgGroupT]] = {
             "key": name,
             "type": "button",
             "role": "tab",

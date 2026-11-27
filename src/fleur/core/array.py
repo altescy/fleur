@@ -1,6 +1,7 @@
 from collections.abc import Callable, Sequence
 from typing import TypeVar, cast, overload
 
+from fleur.js.ast import ESTreeLogicalExpression
 from fleur.js.builder import call, literal, member_expr
 
 from .expr import Expr, ensure_expr
@@ -12,6 +13,15 @@ _SortKeyT = TypeVar("_SortKeyT", int, float, str)
 
 
 class Array:
+    @staticmethod
+    def get(array: Expr[Sequence[FleurValueT]], index: int | Expr[int]) -> Expr[FleurValueT | None]:
+        """Read an item that may be out of range, counting negative indices from the end.
+
+        `array[index]` assumes that the item exists. This returns `None` outside the array.
+        """
+        item = call(member_expr(array.__compile__(), "at"), ensure_expr(index))
+        return Expr(ESTreeLogicalExpression(operator="??", left=item, right=literal(None)))
+
     @staticmethod
     def length(array: Expr[Sequence[FleurValueT]]) -> Expr[int]:
         """Read the number of items in a browser array."""

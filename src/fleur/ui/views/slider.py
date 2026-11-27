@@ -1,9 +1,9 @@
 from typing import Literal, Unpack
 
+from fleur.core.dom import EventMessage
 from fleur.core.events import InputEvent
 from fleur.core.expr import Expr
-from fleur.core.msg import GroupedMsg
-from fleur.core.types import ModelT_co, MsgGroupT, OptionalContextT
+from fleur.core.types import ModelT_co, MsgGroupT
 from fleur.core.view import ViewProp
 
 from ._utils import extend_props, merge_props
@@ -22,14 +22,14 @@ class Slider(Element[ModelT_co, MsgGroupT]):
         max: int | float | Expr[int | float] = 100,
         step: int | float | Expr[int | float] | Literal["any"] = 1,
         label: String | None = None,
-        oninput: GroupedMsg[MsgGroupT, InputEvent, OptionalContextT] | None = None,
-        onchange: GroupedMsg[MsgGroupT, InputEvent, OptionalContextT] | None = None,
+        oninput: EventMessage[MsgGroupT, InputEvent] | None = None,
+        onchange: EventMessage[MsgGroupT, InputEvent] | None = None,
         name: String | None = None,
         disabled: bool | Expr[bool] | None = None,
-        props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
-        attrs: dict[str, ViewProp] = {"type": "range", "min": min, "max": max, "step": step}
+        attrs: dict[str, ViewProp[MsgGroupT]] = {"type": "range", "min": min, "max": max, "step": step}
         if value is not None:
             attrs["value"] = value
         if label is not None:

@@ -66,7 +66,9 @@ class Subcommand:
 
     def __init__(
         self,
-        parser_or_subparsers: argparse.ArgumentParser | argparse._SubParsersAction | None = None,
+        parser_or_subparsers: argparse.ArgumentParser
+        | argparse._SubParsersAction[argparse.ArgumentParser]
+        | None = None,
         subcommand_info: SubcommandInfo | None = None,
     ) -> None:
         cls = type(self)

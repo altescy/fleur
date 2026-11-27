@@ -3,10 +3,10 @@ from __future__ import annotations
 from typing import Any, Unpack
 
 from fleur.core.cond import Cond
+from fleur.core.dom import EventMessage
 from fleur.core.events import PointerEvent
 from fleur.core.expr import Expr
-from fleur.core.msg import GroupedMsg
-from fleur.core.types import ModelT_co, MsgGroupT, MsgGroupT_co, OptionalContextT
+from fleur.core.types import ModelT_co, MsgGroupT, MsgGroupT_co
 from fleur.types import JsonValue
 
 from . import _utils
@@ -18,8 +18,8 @@ from .types import ViewStyleArgs
 class Table(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
-        *children: ViewChild,
-        props: ViewProps | None = None,
+        *children: ViewChild[ModelT_co, MsgGroupT_co],
+        props: ViewProps[MsgGroupT_co] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         merged = _utils.merge_props(
@@ -32,7 +32,10 @@ class Table(Element[ModelT_co, MsgGroupT_co]):
 
 class TableHeader(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
-        self, *children: ViewChild, props: ViewProps | None = None, **style_args: Unpack[ViewStyleArgs]
+        self,
+        *children: ViewChild[ModelT_co, MsgGroupT_co],
+        props: ViewProps[MsgGroupT_co] | None = None,
+        **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         merged = _utils.merge_props(props, **style_args)
         super().__init__(*children, tag="thead", props=merged)
@@ -40,7 +43,10 @@ class TableHeader(Element[ModelT_co, MsgGroupT_co]):
 
 class TableBody(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
-        self, *children: ViewChild, props: ViewProps | None = None, **style_args: Unpack[ViewStyleArgs]
+        self,
+        *children: ViewChild[ModelT_co, MsgGroupT_co],
+        props: ViewProps[MsgGroupT_co] | None = None,
+        **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         merged = _utils.merge_props(props, **style_args)
         super().__init__(*children, tag="tbody", props=merged)
@@ -48,7 +54,10 @@ class TableBody(Element[ModelT_co, MsgGroupT_co]):
 
 class TableFooter(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
-        self, *children: ViewChild, props: ViewProps | None = None, **style_args: Unpack[ViewStyleArgs]
+        self,
+        *children: ViewChild[ModelT_co, MsgGroupT_co],
+        props: ViewProps[MsgGroupT_co] | None = None,
+        **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         merged = _utils.merge_props(props, **style_args)
         super().__init__(*children, tag="tfoot", props=merged)
@@ -57,8 +66,8 @@ class TableFooter(Element[ModelT_co, MsgGroupT_co]):
 class TableRow(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
-        *children: ViewChild,
-        props: ViewProps | None = None,
+        *children: ViewChild[ModelT_co, MsgGroupT_co],
+        props: ViewProps[MsgGroupT_co] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         merged = _utils.merge_props(props, element="table-row", **style_args)
@@ -68,17 +77,17 @@ class TableRow(Element[ModelT_co, MsgGroupT_co]):
 class TableHead(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
-        *children: ViewChild,
-        props: ViewProps | None = None,
+        *children: ViewChild[ModelT_co, MsgGroupT_co],
+        props: ViewProps[MsgGroupT_co] | None = None,
         colspan: int | Expr[int] | None = None,
         rowspan: int | Expr[int] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
-        normalized_style = (
-            ViewStyleArgs(**{**style_args, "align": None, "text_align": style_args["align"]})
-            if "align" in style_args and "text_align" not in style_args
-            else ViewStyleArgs(**style_args)
-        )
+        normalized_style = ViewStyleArgs(**style_args)
+        if "align" in style_args and "text_align" not in style_args:
+            # In a table cell, `align` sets the text alignment.
+            normalized_style["text_align"] = style_args["align"]
+            normalized_style["align"] = None
         merged = _utils.merge_props(
             props,
             element="table-head",
@@ -98,12 +107,12 @@ class SortableTableHead(TableHead[ModelT_co, MsgGroupT]):
 
     def __init__(
         self,
-        label: ViewChild,
+        label: ViewChild[ModelT_co, MsgGroupT],
         *,
         active: bool | Expr[bool],
         descending: bool | Expr[bool] = False,
-        onsort: GroupedMsg[MsgGroupT, PointerEvent, OptionalContextT],
-        props: ViewProps | None = None,
+        onsort: EventMessage[MsgGroupT, PointerEvent],
+        props: ViewProps[MsgGroupT] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         direction = Cond.when(active, Cond.when(descending, "descending", "ascending"), None)
@@ -124,17 +133,17 @@ class SortableTableHead(TableHead[ModelT_co, MsgGroupT]):
 class TableCell(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
-        *children: ViewChild,
-        props: ViewProps | None = None,
+        *children: ViewChild[ModelT_co, MsgGroupT_co],
+        props: ViewProps[MsgGroupT_co] | None = None,
         colspan: int | Expr[JsonValue] | None = None,
         rowspan: int | Expr[JsonValue] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
-        normalized_style = (
-            ViewStyleArgs(**{**style_args, "align": None, "text_align": style_args["align"]})
-            if "align" in style_args and "text_align" not in style_args
-            else ViewStyleArgs(**style_args)
-        )
+        normalized_style = ViewStyleArgs(**style_args)
+        if "align" in style_args and "text_align" not in style_args:
+            # In a table cell, `align` sets the text alignment.
+            normalized_style["text_align"] = style_args["align"]
+            normalized_style["align"] = None
         merged = _utils.merge_props(props, element="table-cell", **normalized_style)
         extra: dict[str, Any] = {}
         if colspan is not None:
@@ -148,8 +157,8 @@ class TableCell(Element[ModelT_co, MsgGroupT_co]):
 class TableCaption(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
-        *children: ViewChild,
-        props: ViewProps | None = None,
+        *children: ViewChild[ModelT_co, MsgGroupT_co],
+        props: ViewProps[MsgGroupT_co] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         merged = _utils.merge_props(

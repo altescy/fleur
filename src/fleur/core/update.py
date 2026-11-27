@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generic, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, Union
 
 from typing_extensions import TypeAlias
 
@@ -26,17 +26,15 @@ from .types import ModelT, ModelT_co, MsgGroupT, MsgGroupT_co
 
 if TYPE_CHECKING:
     from .component import Component
-    from .msg import GroupedMsg
+    from .model import Model
+    from .msg import GroupedMsg, MsgGroup
 
 
-@runtime_checkable
-class _CompiledUpdateResult(Protocol):
-    def __compile_update_result__(self) -> ESTreeExpression: ...
-
-
-CaseValue: TypeAlias = (
-    ModelUpdate["ModelT_co"] | tuple[ModelUpdate["ModelT_co"], Cmd["ModelT_co", "MsgGroupT_co"]] | _CompiledUpdateResult
-)
+# Method-scoped: class-level variables of `Update` are not solved in its staticmethods.
+_ParentModelT = TypeVar("_ParentModelT", bound="Model")
+_ParentMsgGroupT = TypeVar("_ParentMsgGroupT", bound="MsgGroup")
+_ChildModelT = TypeVar("_ChildModelT", bound="Model")
+_ChildMsgGroupT = TypeVar("_ChildMsgGroupT", bound="MsgGroup")
 
 
 class ForwardedUpdate(Generic[ModelT_co, MsgGroupT_co]):
@@ -44,7 +42,7 @@ class ForwardedUpdate(Generic[ModelT_co, MsgGroupT_co]):
         self,
         field_name: str,
         component: "Component[Any, Any]",
-        tagger: "GroupedMsg[MsgGroupT_co, Any, Any]",
+        tagger: "GroupedMsg[MsgGroupT_co, Any, None]",
     ) -> None:
         self.field_name = field_name
         self.component = component
@@ -78,7 +76,16 @@ class ForwardedUpdate(Generic[ModelT_co, MsgGroupT_co]):
         )
 
 
-def _compile_case_result(value: CaseValue) -> ESTreeExpression:
+# What a case produces. Every form carries the group of the messages it may dispatch, so a
+# command or a forwarded child tagged with another group does not match the update.
+CaseValue: TypeAlias = Union[
+    ModelUpdate[ModelT],
+    tuple[ModelUpdate[ModelT], Cmd[ModelT, MsgGroupT]],
+    ForwardedUpdate[ModelT, MsgGroupT],
+]
+
+
+def _compile_case_result(value: CaseValue[Any, Any]) -> ESTreeExpression:
     if isinstance(value, tuple):
         operation, cmd = value
         return ESTreeArrayExpression(elements=[operation.__compile__(), cmd.__compile__()])
@@ -86,28 +93,40 @@ def _compile_case_result(value: CaseValue) -> ESTreeExpression:
     if isinstance(value, ModelUpdate):
         return ESTreeArrayExpression(elements=[value.__compile__(), Cmd.none().__compile__()])
 
-    if isinstance(value, _CompiledUpdateResult):
+    if isinstance(value, ForwardedUpdate):
         return value.__compile_update_result__()
 
     raise TypeError("Update case must return ModelState.set(...), (ModelUpdate, Cmd), or Update.forward(...)")
 
 
-class Update(Generic[ModelT_co, MsgGroupT_co]):
+class Update(Generic[ModelT, MsgGroupT]):
+    """Handle the messages of one group, reading and writing one model type.
+
+    Invariant in both, so that a component takes its model and message group from its update
+    and checks the view, commands and subscriptions against them. A covariant parameter would
+    let the checker widen the component to a union, and a contravariant group would let a view
+    without typed messages erase the group.
+    """
+
     @staticmethod
     def forward(
-        field: ModelState[ModelT, Any] | str,
-        component: "Component[Any, Any]",
-        tagger: "GroupedMsg[MsgGroupT, Any, Any]",
-    ) -> ForwardedUpdate[ModelT, MsgGroupT]:
-        field_name = field if isinstance(field, str) else field._field_name
-        return ForwardedUpdate(field_name, component, tagger)
+        field: ModelState[_ParentModelT, _ChildModelT],
+        component: "Component[_ChildModelT, _ChildMsgGroupT]",
+        tagger: "GroupedMsg[_ParentMsgGroupT, _ChildMsgGroupT, None]",
+    ) -> ForwardedUpdate[_ParentModelT, _ParentMsgGroupT]:
+        """Delegate a message to a child component stored in `field`.
+
+        The field must hold the child's model type, and the tagger must carry the child's message
+        group as its event, as in `CHILD: Msg[ChildMsg] = Msg()`.
+        """
+        return ForwardedUpdate(field._field_name, component, tagger)
 
     def __init__(
         self,
         cases: list[
             tuple[
-                "GroupedMsg[MsgGroupT_co, Any, Any]",
-                CaseValue[ModelT_co, MsgGroupT_co],
+                "GroupedMsg[MsgGroupT, Any, Any]",
+                CaseValue[ModelT, MsgGroupT],
             ]
         ],
     ) -> None:

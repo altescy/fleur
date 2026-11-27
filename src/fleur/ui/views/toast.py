@@ -1,11 +1,10 @@
 from typing import Unpack
 
 from fleur.core.cond import Cond
-from fleur.core.dom import EventBinding
+from fleur.core.dom import EventBinding, EventMessage
 from fleur.core.events import ToastCloseEvent
 from fleur.core.expr import Expr
-from fleur.core.msg import GroupedMsg
-from fleur.core.types import ModelT_co, MsgGroupT, OptionalContextT
+from fleur.core.types import ModelT_co, MsgGroupT
 from fleur.core.view import View
 
 from ._toast_behavior import toast_effect
@@ -23,13 +22,13 @@ class Toast(Element[ModelT_co, MsgGroupT]):
         message: String,
         *,
         open: bool | Expr[bool],
-        onclose: GroupedMsg[MsgGroupT, ToastCloseEvent, OptionalContextT],
-        duration_ms: int | Expr[int] | None = 5000,
+        onclose: EventMessage[MsgGroupT, ToastCloseEvent],
+        duration_ms: int | Expr[int | None] | None = 5000,
         dismiss_label: String = "Dismiss",
-        props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
-        close = EventBinding(
+        close = EventBinding[MsgGroupT, ToastCloseEvent](
             onclose,
             payload=lambda event: {"reason": Cond.when(Cond.equal(event.detail_text, "timeout"), "timeout", "dismiss")},
         )
@@ -50,10 +49,8 @@ class Toast(Element[ModelT_co, MsgGroupT]):
             ),
             tag="div",
             props={
-                **View.dom_effect(toast_effect()),
+                **View.dom_effect(toast_effect(open, duration_ms)),
                 "data-fleur-part": "toast-root",
-                "data-fleur-toast-open": open,
-                "data-fleur-toast-duration": duration_ms,
                 **close.properties("toastclose"),
             },
         )

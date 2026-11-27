@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 
 import { removeProp, setProp } from "../../src/core/dom"
+import { Dom } from "../../src/core/domAccess"
 import { disposeDomEffects } from "../../src/core/domEffect"
 import { DomEffect, JsonValue } from "../../src/core/types"
 
@@ -84,18 +85,18 @@ describe("setProp", () => {
       run: (_element, next) => { applied.push(next) },
     })
 
-    setProp(target, "domEffect", effect("before insertion"))
+    setProp(target, "domEffect:test", effect("before insertion"))
     element.isConnected = true
-    setProp(target, "domEffect", effect("latest"))
+    setProp(target, "domEffect:test", effect("latest"))
     expect(applied).toEqual([])
     await Promise.resolve()
     expect(applied).toEqual(["latest"])
     expect(element.attrs).toEqual({})
 
-    setProp(target, "domEffect", effect("cancelled"))
-    removeProp(target, "domEffect")
+    setProp(target, "domEffect:test", effect("cancelled"))
+    removeProp(target, "domEffect:test")
     await Promise.resolve()
-    setProp(target, "domEffect", effect("unmounted"))
+    setProp(target, "domEffect:test", effect("unmounted"))
     element.isConnected = false
     await Promise.resolve()
     expect(applied).toEqual(["latest"])
@@ -117,11 +118,11 @@ describe("setProp", () => {
       },
     }
 
-    setProp(target, "domEffect", effect)
+    setProp(target, "domEffect:test", effect)
     await Promise.resolve()
-    setProp(target, "domEffect", { ...effect, args: [2] })
+    setProp(target, "domEffect:test", { ...effect, args: [2] })
     await Promise.resolve()
-    setProp(target, "domEffect", { ...effect, args: [3] })
+    setProp(target, "domEffect:test", { ...effect, args: [3] })
     disposeDomEffects(ancestor)
     await Promise.resolve()
     expect(calls).toEqual(["setup", 1, 2, "dispose"])
@@ -160,5 +161,30 @@ describe("setProp", () => {
     })
 
     expect(calls).toEqual(["dispose"])
+  })
+})
+
+describe("Dom", () => {
+  test("setText disposes effects of the children it replaces", async () => {
+    const child = { isConnected: true, childNodes: [] } as unknown as Element
+    const calls: string[] = []
+    setProp(child, "domEffect:child", {
+      key: "child", args: [], run: () => ({ dispose: () => { calls.push("dispose") } }),
+    })
+    await Promise.resolve()
+    const parent = { textContent: "", childNodes: [child] } as unknown as HTMLElement
+
+    Dom.setText(parent, "replaced")
+
+    expect(calls).toEqual(["dispose"])
+    expect(parent.textContent).toBe("replaced")
+  })
+
+  test("step ignores inputs that do not support stepping", () => {
+    const reject = () => { throw new DOMException("not supported", "InvalidStateError") }
+    const input = { stepUp: reject, stepDown: reject } as unknown as HTMLInputElement
+
+    expect(() => Dom.step(input, 1)).not.toThrow()
+    expect(() => Dom.step(input, -1)).not.toThrow()
   })
 })

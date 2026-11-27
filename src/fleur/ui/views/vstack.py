@@ -16,8 +16,8 @@ from .types import ViewStyleArgs
 class VStack(Element[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
-        *children: ViewChild,
-        props: ViewProps | None = None,
+        *children: ViewChild[ModelT_co, MsgGroupT_co],
+        props: ViewProps[MsgGroupT_co] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         merged = _utils.merge_props(props, element="vstack", **style_args)

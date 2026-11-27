@@ -15,9 +15,9 @@ class PreviewCard(Element[ModelT_co, MsgGroupT_co]):
 
     def __init__(
         self,
-        *children: ViewChild,
+        *children: ViewChild[ModelT_co, MsgGroupT_co],
         trigger: Link[ModelT_co, MsgGroupT_co],
-        props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT_co] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         content = Element(

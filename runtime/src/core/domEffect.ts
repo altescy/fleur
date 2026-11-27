@@ -7,7 +7,7 @@ type EffectSlot = { pending?: PendingEffect; active?: InstalledEffect }
 
 const slotsByNode = new WeakMap<Node, Map<string, EffectSlot>>()
 
-export const isDomEffectProp = (name: string): boolean => name === "domEffect" || name.startsWith("domEffect:")
+export const isDomEffectProp = (name: string): boolean => name.startsWith("domEffect:")
 
 export const isDomEffect = (value: VPropValue): value is DomEffect =>
   typeof value === "object" && value !== null

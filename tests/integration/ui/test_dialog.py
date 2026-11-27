@@ -38,7 +38,7 @@ def test_modal_state_and_keyboard_focus(playwright_page: Callable[[str, Path], s
                 Form(Button("Cancel", props={"type": "submit"}), props={"method": "dialog"}),
                 open=Screen.editing,
                 onclose=Actions.CLOSED,
-                props={"aria-labelledby": "profile-title"},
+                labelledby="profile-title",
                 display="grid",
             ),
         ),
@@ -65,7 +65,10 @@ def test_reusing_a_dialog_element_releases_its_modal_state(
 ) -> None:
     app = Component(
         Replacement(swapped=False),
-        ReplacementActions.cases(ReplacementActions.SWAP.then(State.set(Replacement.swapped, True))),
+        ReplacementActions.cases(
+            ReplacementActions.SWAP.then(State.set(Replacement.swapped, True)),
+            ReplacementActions.CLOSE.then(State.unchanged()),
+        ),
         VStack(
             Button("Outside"),
             Cond.when(
@@ -75,6 +78,7 @@ def test_reusing_a_dialog_element_releases_its_modal_state(
                     Button("Swap", onclick=ReplacementActions.SWAP),
                     open=True,
                     onclose=ReplacementActions.CLOSE,
+                    label="Replacement",
                     props={"id": "panel"},
                 ),
             ),

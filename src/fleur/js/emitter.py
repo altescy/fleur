@@ -20,6 +20,13 @@ def _as_block(statement: ast.ESTreeStatement) -> ast.ESTreeBlockStatement:
     return statement if isinstance(statement, ast.ESTreeBlockStatement) else ast.ESTreeBlockStatement(body=[statement])
 
 
+def _operand_space(operator: str, operand: str, space: str) -> str:
+    """Keep `-` followed by `-1` (or `+` by `+`) from merging into `--` or `++`."""
+    if not space and operator[-1:] in ("+", "-") and operand.startswith(operator[-1]):
+        return " "
+    return space
+
+
 def _emit(node: ast.ESTreeNode, settings: EmitterSettings, level: int, names: dict[int, str]) -> str:
     comma = ", " if settings.space_after_comma else ","
     op_space = " " if settings.space_around_operators else ""
@@ -93,12 +100,13 @@ def _emit(node: ast.ESTreeNode, settings: EmitterSettings, level: int, names: di
         operator_space = " " if node.operator in ("in", "instanceof") else op_space
         left = _emit(node.left, settings, level, names)
         right = _emit(node.right, settings, level, names)
-        return f"({left}{operator_space}{node.operator}{operator_space}{right})"
+        return f"({left}{operator_space}{node.operator}{_operand_space(node.operator, right, operator_space)}{right})"
     elif isinstance(node, ast.ESTreeAssignmentExpression):
         return f"({_emit(node.left, settings, level, names)}{op_space}{node.operator}{op_space}{_emit(node.right, settings, level, names)})"
     elif isinstance(node, ast.ESTreeUnaryExpression):
         operator_space = " " if node.operator.isalpha() else op_space
-        return f"({node.operator}{operator_space}{_emit(node.argument, settings, level, names)})"
+        argument = _emit(node.argument, settings, level, names)
+        return f"({node.operator}{_operand_space(node.operator, argument, operator_space)}{argument})"
     elif isinstance(node, ast.ESTreeLogicalExpression):
         return f"({_emit(node.left, settings, level, names)}{op_space}{node.operator}{op_space}{_emit(node.right, settings, level, names)})"
     elif isinstance(node, ast.ESTreeConditionalExpression):

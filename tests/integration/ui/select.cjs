@@ -20,6 +20,7 @@ async function run() {
     assert.equal(await selectedIndex(), 1);
     assert.equal(await select.getAttribute("aria-describedby"), "choice-description");
     assert.equal(await error.isVisible(), false);
+    assert.equal(await error.evaluate(el => el.closest("[aria-live]")?.getAttribute("aria-live")), "polite");
 
     const appearance = () => select.evaluate(el => {
       const style = getComputedStyle(el);
