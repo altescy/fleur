@@ -34,7 +34,7 @@ class Function(Generic[P, R]):
 
 
 def function(fn: Callable[P, "R | Expr[R]"]) -> Function[P, R]:
-    from .expr import Expr, ensure_expr
+    from .expr import Expr, ValueRef, ensure_expr
 
     name = fn.__name__
     sig = inspect.signature(fn)
@@ -46,7 +46,8 @@ def function(fn: Callable[P, "R | Expr[R]"]) -> Function[P, R]:
         else:
             raise TypeError(f"Unsupported parameter kind {param.kind} in function {name}")
 
-    result = cast("FleurValue | Expr[FleurValue]", fn(*map(Expr, params)))  # pyright: ignore[reportCallIssue]
+    # Arguments read fields as attributes, so a model item can be typed as the model itself.
+    result = cast("FleurValue | Expr[FleurValue]", fn(*map(ValueRef, params)))  # pyright: ignore[reportCallIssue]
 
     if isinstance(result, Expr):
         result_ast = result.__compile__()

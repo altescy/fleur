@@ -747,6 +747,25 @@ missing, use `Array.get(items, index)` or `Object.get(scores, key)`. They return
 `Cond.equal(value, None)` or `DomAction.when_some(value, action)`. `Array.get` also
 accepts negative indices counted from the end.
 
+An item of a list of models is seen as an instance of its model: in
+`Array.map(Board.todos, lambda todo: Text(todo.title))`, `Array.filter` and `Array.sort_by`
+callbacks, and in `Board.todos[0]`. Read its fields as attributes; a nested model field reads
+the same way (`todo.owner.name`), and a misspelled field is a type error. At runtime the item is
+an expression, so compare it with `Cond.equal` rather than `==`. `Cond.when` with a model in
+both branches also gives a model.
+
+Use `Cond.when_some` for a value that may be `None`, like Elm's `Maybe.map` with a default.
+It passes the present value to a callback, as a model when it is one, and evaluates the value
+once:
+
+```python
+Cond.when_some(Board.current, lambda todo: Text(todo.title), otherwise=Text("Nothing selected"))
+Cond.when_some(Array.get(Board.todos, 0), lambda todo: todo.title, otherwise="")
+```
+
+Without `otherwise`, a missing value gives `None`, which renders nothing in a view.
+`DomAction.when_some` is the counterpart for actions in DOM effects.
+
 `Number.from_string` uses JavaScript's number conversion rules. Empty text becomes zero,
 and invalid text becomes `NaN`. Use `Number.is_finite` and any application constraints to
 validate an input. Use `String.replace_all` for text such as quoted CSV fields, and

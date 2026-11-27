@@ -1,8 +1,9 @@
 import { JsonValue } from "../core/types"
+import { ShapeSchema } from "./shape"
 
 export type HttpExpect = "json" | "text"
 export type HttpCredentials = "omit" | "same-origin" | "include"
-export type HttpErrorKind = "network" | "timeout" | "abort" | "decode" | "unknown"
+export type HttpErrorKind = "network" | "timeout" | "abort" | "decode" | "status" | "unknown"
 
 export type DecodedBody<TExpect extends HttpExpect> = TExpect extends "json" ? JsonValue : string
 
@@ -23,6 +24,8 @@ export type HttpRequest<TExpect extends HttpExpect = HttpExpect> = {
   method: string
   url: string
   query?: Record<string, HttpQueryValue>
+  // With a shape, a JSON body is validated and a status other than 2xx is an error.
+  shape?: ShapeSchema
   expect: TExpect
   headers?: Record<string, string>
   body?: HttpBody

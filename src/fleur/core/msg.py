@@ -8,9 +8,8 @@ from typing_extensions import Self, TypeVar
 
 from fleur.js.ast import ESTreeExpression, ESTreeFunctionBody, ESTreeFunctionExpression, ESTreeReturnStatement
 from fleur.js.builder import ident, json_expr, member_expr, object_expr
-from fleur.types import ICompilable
 
-from .expr import Expr, ensure_expr
+from .expr import Expr, ValueRef, ensure_expr
 from .model import Model
 from .runtime import MESSAGE_CONTEXT, MESSAGE_EVENT, MESSAGE_IDENT, MESSAGE_TYPE
 from .types import ModelT, MsgGroupT, OptionalContextT, OptionalEventT
@@ -37,38 +36,39 @@ class MsgGroup:
         return Update(list(cases))
 
 
-class MessageEventRef(Generic[OptionalEventT], ICompilable[ESTreeExpression]):
+class MessageEventRef(ValueRef, Generic[OptionalEventT]):
+    """The payload of the message being handled, `message.event`, with fields read as attributes.
+
+    It is an expression, so operators such as `+` work on it and its fields at runtime.
+    """
+
     def __init__(self, path: tuple[str, ...] = ()) -> None:
-        self._path = path
-
-    def __getattr__(self, item: str) -> "MessageEventRef[Any]":
-        return MessageEventRef((*self._path, item))
-
-    def __getitem__(self, item: str) -> "MessageEventRef[Any]":
-        return MessageEventRef((*self._path, item))
-
-    def __compile__(self) -> ESTreeExpression:
         expr: ESTreeExpression = member_expr(ident(MESSAGE_IDENT), MESSAGE_EVENT)
-        for part in self._path:
+        for part in path:
             expr = member_expr(expr, part)
-        return expr
-
-
-class MessageContextRef(Generic[OptionalContextT], ICompilable[ESTreeExpression]):
-    def __init__(self, path: tuple[str, ...] = ()) -> None:
+        super().__init__(expr)
         self._path = path
 
-    def __getattr__(self, item: str) -> "MessageContextRef[Any]":
-        return MessageContextRef((*self._path, item))
+    def __getattr__(self, name: str) -> "MessageEventRef[Any]":
+        if name.startswith("_"):
+            raise AttributeError(name)
+        return MessageEventRef((*self._path, name))
 
-    def __getitem__(self, item: str) -> "MessageContextRef[Any]":
-        return MessageContextRef((*self._path, item))
 
-    def __compile__(self) -> ESTreeExpression:
+class MessageContextRef(ValueRef, Generic[OptionalContextT]):
+    """The context bound to the message being handled, `message.context`."""
+
+    def __init__(self, path: tuple[str, ...] = ()) -> None:
         expr: ESTreeExpression = member_expr(ident(MESSAGE_IDENT), MESSAGE_CONTEXT)
-        for part in self._path:
+        for part in path:
             expr = member_expr(expr, part)
-        return expr
+        super().__init__(expr)
+        self._path = path
+
+    def __getattr__(self, name: str) -> "MessageContextRef[Any]":
+        if name.startswith("_"):
+            raise AttributeError(name)
+        return MessageContextRef((*self._path, name))
 
 
 class GroupedMsg(Model, Generic[MsgGroupT, OptionalEventT, OptionalContextT]):

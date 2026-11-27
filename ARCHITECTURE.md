@@ -243,6 +243,7 @@ See `tests/typecheck/` for the cases the type checker rejects.
 
 `Cond` (`src/fleur/core/cond.py`) provides conditional expression helpers:
 - `Cond.when(cond, consequent, alternate)` → ternary `(cond ? conseq : alt)`
+- `Cond.when_some(value, then, otherwise=None)` → `(function(v){return v != null ? then(v) : otherwise})(value)`, evaluating the value once; `then` receives a model value as an instance of its model
 - `Cond.some(*conds)` → `(a || b || c)`
 - `Cond.every(*conds)` → `(a && b && c)`
 
@@ -476,8 +477,9 @@ the model, and `Url.path("/todos/{id}", id=...)` encodes path parameters.
 At runtime (`runtime/src/http/client.ts`):
 - Wraps browser `fetch` with `AbortController` for timeout support.
 - Appends `query` to the URL with `URLSearchParams`.
-- Classifies failures into `HttpError.kind`: `network`, `timeout`, `abort`, `decode`, `unknown`.
+- Classifies failures into `HttpError.kind`: `network`, `timeout`, `abort`, `decode`, `status`, `unknown`.
 - Decodes body per `expect` (`"json"` → `response.json()`, `"text"` → `response.text()`).
+- With `expectJson(T)`, validates the body against the shape that `fleur.core._shape` derives from `T` (`runtime/src/http/shape.ts`); a mismatch is a `decode` error and a non-2xx status is a `status` error.
 
 `HttpError` is a frozen dataclass (`src/fleur/builtins/http.py`) describing failures: `kind`, `message`, `url`, `status`, `status_text`.
 
@@ -742,6 +744,7 @@ fleur/
 │   │   ├── component.py         # Component
 │   │   ├── cond.py              # Cond (when, some, every)
 │   │   ├── dom.py               # DomEffect, DomScope, DomAction, EventBinding, Dom tasks
+│   │   ├── _shape.py            # JSON shape of a value type, validated by the runtime for typed HTTP
 │   │   ├── events.py            # Event Protocols (PointerEvent, KeyboardEvent, …)
 │   │   └── template.py          # Page, BloomContext, render_script, render_template
 │   ├── js/
@@ -780,7 +783,8 @@ fleur/
 │           └── program.ts       # program() — app loop
 │       └── http/
 │           ├── types.ts         # HttpRequest, HttpError types
-│           └── client.ts        # Http.request (wraps fetch)
+│           ├── client.ts        # Http.request (wraps fetch)
+│           └── shape.ts         # Validates decoded JSON against a shape
 │
 └── tests/
     ├── unit/
