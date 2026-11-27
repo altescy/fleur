@@ -1,18 +1,27 @@
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Generic, Literal
+from typing import Generic, Literal, TypeAlias, Union
 
+from fleur.core.expr import Expr
 from fleur.core.model import Model
 from fleur.core.runtime import RUNTIME_HTTP, RUNTIME_REQUEST, runtime_call
 from fleur.core.task import TaskLike, TaskValueT
-from fleur.js.ast import ESTreeExpression
-from fleur.js.builder import json_expr
+from fleur.core.types import FleurValue
+from fleur.js.ast import ESTreeArrayExpression, ESTreeExpression
+from fleur.js.builder import json_expr, object_expr
 from fleur.types import JsonValue
 
 HttpMethod = Literal["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
 HttpErrorKind = Literal["network", "timeout", "abort", "decode", "unknown"]
 HttpCredentials = Literal["omit", "same-origin", "include"]
+HttpQueryValue: TypeAlias = str | int | float | bool
+HttpQuery: TypeAlias = Mapping[str, HttpQueryValue | Expr[HttpQueryValue]]
+"""Query parameters, encoded and appended to the URL by the runtime."""
+HttpHeaders: TypeAlias = Mapping[str, str | Expr[str]]
+HttpBody: TypeAlias = Union[JsonValue, Expr[FleurValue], Mapping[str, "HttpBody"], Sequence["HttpBody"]]
+"""A JSON body whose values, at any depth, may be read from the model."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,7 +56,29 @@ class _Expect(Generic[TaskValueT]):
     name: str = field(repr=False)
 
 
+def _compile_body(value: HttpBody) -> ESTreeExpression:
+    if isinstance(value, Expr):
+        return value.__compile__()
+    if isinstance(value, Mapping):
+        return object_expr((key, _compile_body(item)) for key, item in value.items())
+    if isinstance(value, Sequence) and not isinstance(value, str):
+        return ESTreeArrayExpression([_compile_body(item) for item in value])
+    return json_expr(value)
+
+
+def _compile_strings(values: Mapping[str, HttpQueryValue | Expr[HttpQueryValue]]) -> ESTreeExpression:
+    return object_expr(
+        (key, value.__compile__() if isinstance(value, Expr) else json_expr(value)) for key, value in values.items()
+    )
+
+
 class Http:
+    """Describe requests that the browser runs when a command schedules them.
+
+    `url`, `query`, `headers` and `body` accept values read from the model. Build paths with
+    parameters through `Url.path("/todos/{id}", id=...)`, which encodes each value.
+    """
+
     @staticmethod
     def expectJson() -> _Expect[JsonValue]:
         return _Expect("json")
@@ -59,37 +90,39 @@ class Http:
     @staticmethod
     def request(
         method: HttpMethod,
-        url: str,
+        url: str | Expr[str],
         *,
         expect: _Expect[TaskValueT],
-        headers: dict[str, str] | None = None,
-        body: JsonValue | None = None,
+        query: HttpQuery | None = None,
+        headers: HttpHeaders | None = None,
+        body: HttpBody | None = None,
         timeout_ms: int | None = None,
         credentials: HttpCredentials | None = None,
     ) -> TaskLike[HttpResponse[TaskValueT], HttpError]:
-        request: dict[str, JsonValue] = {
-            "method": method.upper(),
-            "url": url,
-            "expect": expect.name,
-        }
+        fields: list[tuple[str, ESTreeExpression]] = [
+            ("method", json_expr(method.upper())),
+            ("url", url.__compile__() if isinstance(url, Expr) else json_expr(url)),
+            ("expect", json_expr(expect.name)),
+        ]
+        if query:
+            fields.append(("query", _compile_strings(query)))
         if headers is not None:
-            request["headers"] = {k: v for k, v in headers.items()}
+            fields.append(("headers", _compile_strings(headers)))
         if body is not None:
-            request["body"] = body
+            fields.append(("body", _compile_body(body)))
         if timeout_ms is not None:
-            request["timeoutMs"] = timeout_ms
+            fields.append(("timeoutMs", json_expr(timeout_ms)))
         if credentials is not None:
-            request["credentials"] = credentials
-
-        compiled = runtime_call((RUNTIME_HTTP, RUNTIME_REQUEST), json_expr(request))
-        return _HttpTask(compiled)
+            fields.append(("credentials", json_expr(credentials)))
+        return _HttpTask(runtime_call((RUNTIME_HTTP, RUNTIME_REQUEST), object_expr(fields)))
 
     @staticmethod
     def get(
-        url: str,
+        url: str | Expr[str],
         *,
         expect: _Expect[TaskValueT],
-        headers: dict[str, str] | None = None,
+        query: HttpQuery | None = None,
+        headers: HttpHeaders | None = None,
         timeout_ms: int | None = None,
         credentials: HttpCredentials | None = None,
     ) -> TaskLike[HttpResponse[TaskValueT], HttpError]:
@@ -97,6 +130,7 @@ class Http:
             "GET",
             url,
             expect=expect,
+            query=query,
             headers=headers,
             timeout_ms=timeout_ms,
             credentials=credentials,
@@ -104,11 +138,12 @@ class Http:
 
     @staticmethod
     def post(
-        url: str,
+        url: str | Expr[str],
         *,
         expect: _Expect[TaskValueT],
-        body: JsonValue | None = None,
-        headers: dict[str, str] | None = None,
+        query: HttpQuery | None = None,
+        headers: HttpHeaders | None = None,
+        body: HttpBody | None = None,
         timeout_ms: int | None = None,
         credentials: HttpCredentials | None = None,
     ) -> TaskLike[HttpResponse[TaskValueT], HttpError]:
@@ -116,6 +151,7 @@ class Http:
             "POST",
             url,
             expect=expect,
+            query=query,
             headers=headers,
             body=body,
             timeout_ms=timeout_ms,
@@ -124,11 +160,12 @@ class Http:
 
     @staticmethod
     def put(
-        url: str,
+        url: str | Expr[str],
         *,
         expect: _Expect[TaskValueT],
-        body: JsonValue | None = None,
-        headers: dict[str, str] | None = None,
+        query: HttpQuery | None = None,
+        headers: HttpHeaders | None = None,
+        body: HttpBody | None = None,
         timeout_ms: int | None = None,
         credentials: HttpCredentials | None = None,
     ) -> TaskLike[HttpResponse[TaskValueT], HttpError]:
@@ -136,6 +173,7 @@ class Http:
             "PUT",
             url,
             expect=expect,
+            query=query,
             headers=headers,
             body=body,
             timeout_ms=timeout_ms,
@@ -144,11 +182,12 @@ class Http:
 
     @staticmethod
     def patch(
-        url: str,
+        url: str | Expr[str],
         *,
         expect: _Expect[TaskValueT],
-        body: JsonValue | None = None,
-        headers: dict[str, str] | None = None,
+        query: HttpQuery | None = None,
+        headers: HttpHeaders | None = None,
+        body: HttpBody | None = None,
         timeout_ms: int | None = None,
         credentials: HttpCredentials | None = None,
     ) -> TaskLike[HttpResponse[TaskValueT], HttpError]:
@@ -156,6 +195,7 @@ class Http:
             "PATCH",
             url,
             expect=expect,
+            query=query,
             headers=headers,
             body=body,
             timeout_ms=timeout_ms,
@@ -164,11 +204,12 @@ class Http:
 
     @staticmethod
     def delete(
-        url: str,
+        url: str | Expr[str],
         *,
         expect: _Expect[TaskValueT],
-        body: JsonValue | None = None,
-        headers: dict[str, str] | None = None,
+        query: HttpQuery | None = None,
+        headers: HttpHeaders | None = None,
+        body: HttpBody | None = None,
         timeout_ms: int | None = None,
         credentials: HttpCredentials | None = None,
     ) -> TaskLike[HttpResponse[TaskValueT], HttpError]:
@@ -176,6 +217,7 @@ class Http:
             "DELETE",
             url,
             expect=expect,
+            query=query,
             headers=headers,
             body=body,
             timeout_ms=timeout_ms,
@@ -184,10 +226,11 @@ class Http:
 
     @staticmethod
     def head(
-        url: str,
+        url: str | Expr[str],
         *,
         expect: _Expect[TaskValueT],
-        headers: dict[str, str] | None = None,
+        query: HttpQuery | None = None,
+        headers: HttpHeaders | None = None,
         timeout_ms: int | None = None,
         credentials: HttpCredentials | None = None,
     ) -> TaskLike[HttpResponse[TaskValueT], HttpError]:
@@ -195,6 +238,7 @@ class Http:
             "HEAD",
             url,
             expect=expect,
+            query=query,
             headers=headers,
             timeout_ms=timeout_ms,
             credentials=credentials,
@@ -202,10 +246,11 @@ class Http:
 
     @staticmethod
     def options(
-        url: str,
+        url: str | Expr[str],
         *,
         expect: _Expect[TaskValueT],
-        headers: dict[str, str] | None = None,
+        query: HttpQuery | None = None,
+        headers: HttpHeaders | None = None,
         timeout_ms: int | None = None,
         credentials: HttpCredentials | None = None,
     ) -> TaskLike[HttpResponse[TaskValueT], HttpError]:
@@ -213,6 +258,7 @@ class Http:
             "OPTIONS",
             url,
             expect=expect,
+            query=query,
             headers=headers,
             timeout_ms=timeout_ms,
             credentials=credentials,

@@ -17,9 +17,12 @@ export type HttpResponse<TExpect extends HttpExpect> = {
 
 export type HttpBody = BodyInit | JsonValue | null
 
+export type HttpQueryValue = string | number | boolean
+
 export type HttpRequest<TExpect extends HttpExpect = HttpExpect> = {
   method: string
   url: string
+  query?: Record<string, HttpQueryValue>
   expect: TExpect
   headers?: Record<string, string>
   body?: HttpBody
