@@ -28,6 +28,10 @@ jobs:
       - run: uv run pyright
         env:
           PYTHONPATH: ${{ github.workspace }}
+      - name: Keep the public API fully typed
+        run: uv run pyright --verifytypes fleur --ignoreexternal
+        env:
+          PYTHONPATH: ${{ github.workspace }}
 
   python-test:
     runs-on: ubuntu-latest
