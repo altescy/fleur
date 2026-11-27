@@ -55,7 +55,10 @@ export const wrapDispatch = (dispatch: Dispatch, vnode: VNode): VNode => {
       for (const [k, v] of Object.entries(vnode.props || {})) {
         if (k.startsWith("on") && typeof v === "function") {
           const handler = v as EventHandler
-          newProps[k] = (payload) => dispatch(handler(payload))
+          newProps[k] = (payload, element, event) => {
+            const message = handler(payload, element, event)
+            if (message != null) return dispatch(message)
+          }
           continue
         }
         newProps[k] = v

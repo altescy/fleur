@@ -78,9 +78,10 @@ Open `http://127.0.0.1:8000` and click Refresh.
 - A request using `Http.expectText()` returns `HttpResponse[str]`. Use `Http.expectJson()`
   for a response whose body is a `JsonValue`.
 - A decoded HTTP response arrives in the response handler even for a 404 or 500.
-  Use `response.ok` or `response.status` to choose what to display.
+  Use `response.ok`, `response.status`, or `response.status_text` to choose what to display.
 - A network failure, timeout, abort, or decoding failure arrives in the error handler.
-  Read `error.kind` for the category and `error.message` for details.
+  Read `error.kind` for the category and `error.message` for details. The status fields
+  are `None` when a response is unavailable.
 
 Requests use the browser's fetch API and follow its CORS rules. Use relative URLs for resources
 served alongside the app. A cross-origin endpoint must allow the page's origin.

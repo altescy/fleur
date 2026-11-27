@@ -4,8 +4,9 @@ from fleur.core.events import InputEvent
 from fleur.core.expr import Expr
 from fleur.core.msg import GroupedMsg
 from fleur.core.types import ModelT_co, MsgGroupT, OptionalContextT
-from fleur.core.view import ViewProp
+from fleur.core.view import View, ViewProp
 
+from ._native_behavior import number_field_effect
 from ._utils import extend_props, merge_props
 from .base import Element, ViewProps
 from .button import Button
@@ -56,5 +57,7 @@ class NumberField(Element[ModelT_co, MsgGroupT]):
             Button("−", variant="ghost", props={"type": "button", "aria-label": decrease_label}),
             Button("+", variant="ghost", props={"type": "button", "aria-label": increase_label}),
             tag="div",
-            props=extend_props(merge_props(props, element="number-field", **style_args), {"fleurNumberField": True}),
+            props=extend_props(
+                merge_props(props, element="number-field", **style_args), View.dom_effect(number_field_effect())
+            ),
         )

@@ -1,7 +1,9 @@
 from typing import Unpack
 
 from fleur.core.types import ModelT_co, MsgGroupT_co
+from fleur.core.view import View
 
+from ._native_behavior import accordion_effect
 from ._utils import extend_props, merge_props
 from .base import Element, ViewChild, ViewProps
 from .disclosure import Disclosure
@@ -20,7 +22,9 @@ class Accordion(Element[ModelT_co, MsgGroupT_co]):
         super().__init__(
             *items,
             tag="div",
-            props=extend_props(merge_props(props, element="accordion", **style_args), {"fleurAccordion": True}),
+            props=extend_props(
+                merge_props(props, element="accordion", **style_args), View.dom_effect(accordion_effect())
+            ),
         )
 
 

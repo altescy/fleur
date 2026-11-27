@@ -1,7 +1,9 @@
 from typing import Unpack
 
 from fleur.core.types import ModelT, MsgGroupT
+from fleur.core.view import View
 
+from ._navigation_behavior import menubar_effect
 from ._utils import extend_props, merge_props
 from .base import Element, ViewProps
 from .menu import Menu
@@ -23,6 +25,6 @@ class Menubar(Element[ModelT, MsgGroupT]):
             tag="div",
             props=extend_props(
                 merge_props(props, element="menubar", **style_args),
-                {"role": "menubar", "aria-label": label, "fleurMenubar": True},
+                {"role": "menubar", "aria-label": label, **View.dom_effect(menubar_effect())},
             ),
         )

@@ -61,7 +61,7 @@ const decodeResponseBody = async <TExpect extends HttpExpect>(
       message: toMessage(error),
       url,
       status: response.status,
-      statusText: response.statusText,
+      status_text: response.statusText,
     }
     throw httpError
   }
@@ -76,26 +76,27 @@ const responseHeaders = (response: Response): Record<string, string> => {
 }
 
 const buildFetchError = (error: unknown, request: HttpRequest<HttpExpect>): HttpError => {
+  const details = { url: request.url, status: null, status_text: null }
   if (isAbortError(error)) {
     return {
+      ...details,
       kind: request.timeoutMs !== undefined ? "timeout" : "abort",
       message: request.timeoutMs !== undefined ? `Request timed out after ${request.timeoutMs}ms` : "Request aborted",
-      url: request.url,
     }
   }
 
   if (error instanceof TypeError) {
     return {
+      ...details,
       kind: "network",
       message: error.message,
-      url: request.url,
     }
   }
 
   return {
+    ...details,
     kind: "unknown",
     message: toMessage(error),
-    url: request.url,
   }
 }
 
@@ -126,7 +127,7 @@ const executeRequest = async <TExpect extends HttpExpect>(request: HttpRequest<T
     return {
       ok: response.ok,
       status: response.status,
-      statusText: response.statusText,
+      status_text: response.statusText,
       url: response.url,
       headers: responseHeaders(response),
       body,

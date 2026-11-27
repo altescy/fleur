@@ -3,10 +3,10 @@ import { describe, expect, test } from "bun:test"
 import { normalizeEventPayload } from "../../src/core/events"
 
 describe("normalizeEventPayload", () => {
-  test("preserves the reason for closing a toast", () => {
-    for (const reason of ["timeout", "dismiss"]) {
-      const event = new CustomEvent("toastclose", { detail: reason })
-      expect(normalizeEventPayload(event.type, event)).toEqual({ type: event.type, reason })
+  test("normalizes native toggle state", () => {
+    for (const newState of ["open", "closed"]) {
+      const event = { type: "toggle", newState } as unknown as Event
+      expect(normalizeEventPayload(event.type, event)).toEqual({ type: "toggle", open: newState === "open" })
     }
   })
 

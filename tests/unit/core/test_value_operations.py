@@ -4,7 +4,7 @@ import subprocess
 
 import pytest
 
-from fleur import Array, Model, Number, State, String, Url, emit
+from fleur import Array, Expr, Model, Number, State, String, Url, emit
 from fleur.core import array
 
 
@@ -13,6 +13,10 @@ class Values(Model):
     parts: State[list[str]]
     separator: State[str]
     text: State[str]
+
+
+def _increment(amount: Expr[int]) -> Expr[int]:
+    return amount + 1
 
 
 def test_value_operations_evaluate_in_javascript() -> None:
@@ -25,6 +29,8 @@ def test_value_operations_evaluate_in_javascript() -> None:
         "sum": Array.sum(Values.amounts),
         "empty_sum": Array.sum(array([])),
         "decimal_sum": Array.sum(array([1.25, 2])),
+        "mapped": Array.map(Values.amounts, _increment),
+        "mapped_again": Array.map(Values.amounts, _increment),
         "joined": Array.join(Values.parts, Values.separator),
         "number": Number.from_string(Values.text),
         "empty_number": Number.from_string(""),
@@ -51,6 +57,8 @@ def test_value_operations_evaluate_in_javascript() -> None:
         "sum": 142,
         "empty_sum": 0,
         "decimal_sum": 3.25,
+        "mapped": [43, 101],
+        "mapped_again": [43, 101],
         "joined": 'a"b / "c"',
         "number": 12.5,
         "empty_number": 0,

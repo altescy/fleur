@@ -14,11 +14,11 @@ const Cmd = {
       cmd((m) => dispatch(tagger(m))),
   task:
     <T, E = Error>(fn: () => Promise<T>, ok: (value: T) => Msg, err: (error: E) => Msg) =>
-    (dispatch: Dispatch): void => {
-      fn()
-        .then((v) => dispatch(ok(v)))
-        .catch((e: E) => dispatch(err(e)))
-    },
+    (dispatch: Dispatch): Promise<void> =>
+      fn().then(
+        (value) => dispatch(ok(value)),
+        (error: E) => dispatch(err(error)),
+      ),
 }
 
 const Sub = {

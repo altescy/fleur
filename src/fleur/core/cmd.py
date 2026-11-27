@@ -31,6 +31,7 @@ class Cmd(Generic[ModelT, MsgGroupT]):
         ok: "GroupedMsg[MsgGroupT, TaskValueT, Any]",
         err: "GroupedMsg[MsgGroupT, TaskErrorT, Any]",
     ) -> "Cmd[ModelT, MsgGroupT]":
+        """Run a task and dispatch its result or error to a message that accepts that payload."""
         effect_thunk = ESTreeFunctionExpression(
             id=None,
             params=[],

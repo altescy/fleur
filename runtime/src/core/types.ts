@@ -9,9 +9,23 @@ export type EventPayload = { type: string } & Record<string, EventPayloadValue>
 
 export type StyleValue = string | number | null | undefined
 export type StyleProps = Record<string, StyleValue>
-export type EventHandler = (payload: EventPayload) => Msg
-export type RuntimeEventHandler = (payload: EventPayload) => void
-export type VPropValue = string | number | boolean | null | undefined | StyleProps | EventHandler | RuntimeEventHandler
+export type EventHandler = (payload: EventPayload, element: Element, event: Event) => Msg | null | void
+export type RuntimeEventHandler = (payload: EventPayload, element: Element, event: Event) => void
+export type DomEffectLifecycle = {
+  update?: (...args: readonly JsonValue[]) => void
+  dispose?: () => void
+}
+export type DomEffect = {
+  key: string
+  args: readonly JsonValue[]
+  refresh?: boolean
+  sync?: boolean
+  mount?: (element: Element) => void
+  dispose?: (element: Element) => void
+  run: (element: Element, ...args: readonly JsonValue[]) => void | DomEffectLifecycle
+}
+export type VPropValue =
+  | string | number | boolean | null | undefined | StyleProps | EventHandler | RuntimeEventHandler | DomEffect
 export type VProps = Record<string, VPropValue>
 
 export type VText = {

@@ -1,12 +1,14 @@
 from collections.abc import Callable, Mapping
 from typing import Literal, Unpack
 
+from fleur.core import Boolean, Cond, DomAction, DomEffect, DomElement, DomEvent, DomEvents, EventBinding
 from fleur.core.events import ToggleEvent
 from fleur.core.expr import Expr
 from fleur.core.msg import GroupedMsg
 from fleur.core.types import ModelT, MsgGroupT, OptionalContextT
 from fleur.core.view import View, ViewProp
 
+from ._dom_helpers import focus_opener
 from ._utils import extend_props, merge_props
 from .base import Element, ViewChild, ViewProps
 from .types import String, ViewStyleArgs
@@ -40,6 +42,20 @@ def _anchored_panel(
     return trigger(trigger_attrs), panel, {"data-fleur-part": "popover-root", **root_props}
 
 
+def _focus_native_trigger(event: DomEvent) -> DomAction:
+    root = event.current_target
+    trigger, panel = root.child(0), root.child(1).as_popover()
+    return DomAction.when(
+        Cond.every(
+            Boolean.negate(event.default_prevented),
+            Boolean.negate(panel.is_open),
+            trigger.contains(event.target),
+            Cond.equal(trigger.attribute("popovertarget"), panel.id),
+        ),
+        trigger.focus(prevent_scroll=True),
+    )
+
+
 class Popover(Element[ModelT, MsgGroupT]):
     """A non-modal panel. Forward the trigger attributes to a native button."""
 
@@ -53,9 +69,16 @@ class Popover(Element[ModelT, MsgGroupT]):
         props: ViewProps | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
-        attrs: dict[str, ViewProp] = {}
-        if open is not None:
-            attrs["fleurPopoverOpen"] = open
+        # Keep the panel identity when switching between model control and native toggling.
+        def sync(element: DomElement) -> DomAction:
+            panel = element.as_popover()
+            desired_open = Cond.equal(open, True)
+            return DomAction.when(
+                Cond.every(Cond.equal(panel.mode, "auto"), Cond.not_equal(panel.is_open, desired_open)),
+                DomAction.batch(DomAction.when(desired_open, focus_opener(panel)), panel.toggle(desired_open)),
+            )
+
+        attrs = dict(View.dom_effect(DomEffect("popover", sync, dependencies=[open])))
         if ontoggle is not None:
             attrs["ontoggle"] = ontoggle
         opener, panel, root = _anchored_panel(
@@ -64,6 +87,6 @@ class Popover(Element[ModelT, MsgGroupT]):
             trigger=trigger,
             role="dialog",
             panel_props=extend_props(merge_props(props, element="popover", **style_args), attrs),
-            root_props={},
+            root_props=EventBinding.on(DomEvents.click, action=_focus_native_trigger, capture=True),
         )
         super().__init__(opener, panel, tag="div", props=root)

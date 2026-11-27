@@ -1,7 +1,9 @@
 from typing import Unpack
 
 from fleur.core.types import ModelT_co, MsgGroupT_co
+from fleur.core.view import View
 
+from ._overlay_behavior import hover_panel_effect
 from ._utils import extend_props, merge_props
 from .base import Element, ViewChild, ViewProps
 from .link import Link
@@ -32,5 +34,5 @@ class PreviewCard(Element[ModelT_co, MsgGroupT_co]):
             trigger,
             panel,
             tag="span",
-            props={"data-fleur-part": "preview-card-root", "fleurPreviewCard": True},
+            props={"data-fleur-part": "preview-card-root", **View.dom_effect(hover_panel_effect(preview=True))},
         )

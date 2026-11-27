@@ -313,10 +313,34 @@ VLazy    { type:"LAZY",    fn, args, vnode:VNode|null }   ← memoization
 `setProp(el, key, value)` handles all prop types:
 - `className` → `setAttribute("class", …)`
 - `style` object → `el.style.setProperty(…)` per entry
-- `on*` functions → `addEventListener` (old listener removed first; stored on `el.__listeners`)
+- `on*` functions → `addEventListener` (old listener removed first and stored on `el.__listeners`)
+- `onCapture:<event>` functions → capture-phase listeners
+- `domEffect:<key>` → manage a named effect once the element's props and children are ready
 - Anything else → `setAttribute`
 
-Event listeners call `normalizeEventPayload` before invoking the handler.
+Event listeners pass the normalized payload, the registered element, and the
+native event to the handler. A handler may return without a message.
+DOM effects can read the originating event target through
+`DomElement.event_origin(event)`. The runtime carries the origin through queued
+messages and deferred DOM effects.
+
+A DOM effect has a `key`, an array of `args`, and a `run(element, ...args)`
+callback. Effect identity is scoped to the element. Adding and removing effects
+installs or disposes their individual slots on the existing DOM node. Removed
+effects are disposed before applying the element's new props. For the same key,
+a change of arguments schedules the effect. With `refresh`, changes to
+the element or its children also schedule it. With `sync`, the effect runs
+immediately after those DOM updates, including during construction before the
+element joins the document. Otherwise, effects run in a microtask on connected
+elements and coalesce by slot.
+
+The public Python `DomEffect` compiles to an update callback and optional
+`mount` and `dispose` hooks. The update uses the latest rendered dependencies.
+The runtime calls the mount hook on installation and disposes effects on removal.
+Scoped effects use setup callbacks that allocate local state and return update
+and disposal hooks. Their listeners and timers are released on removal.
+For an application-directed focus change, `Dom.focus()` supplies a task for
+`Cmd.task` and reports the result through the message loop after rendering.
 
 ### 5.6 Event normalization (`events.ts`)
 
@@ -392,7 +416,7 @@ Both compile to `__fleur.Http.request({method:"GET", url:"/api/data", expect:"js
 
 At runtime (`runtime/src/http/client.ts`):
 - Wraps browser `fetch` with `AbortController` for timeout support.
-- Classifies failures into `HttpError.kind`: `network`, `timeout`, `abort`, `http_status`, `decode`, `unknown`.
+- Classifies failures into `HttpError.kind`: `network`, `timeout`, `abort`, `decode`, `unknown`.
 - Decodes body per `expect` (`"json"` → `response.json()`, `"text"` → `response.text()`).
 
 `HttpError` is a frozen dataclass (`src/fleur/builtins/http.py`) describing failures: `kind`, `message`, `url`, `status`, `status_text`.
@@ -411,6 +435,13 @@ All elements extend `Element` (which extends `View`). Available elements:
 `views/types.py` defines shorthand arguments and token types.
 `views/_utils.py` resolves those arguments and merges them into view props.
 `themes/elements.css` supplies defaults for the standard controls and layout views.
+
+The Python UI library builds the markup, styles, and interaction callbacks.
+The components use the public `EventBinding`, `DomEffect`, and element-scoped
+actions from `fleur.core`. The core compiler owns AST generation for these
+interfaces. Menus and interactive overlays use scoped effects for listeners,
+timers, and local state. The same APIs are available on a plain `View`.
+See [Add DOM behavior to a custom view](docs/building-apps.md#add-dom-behavior-to-a-custom-view).
 
 ### 7.2 Theme System
 
@@ -598,6 +629,9 @@ flowchart LR
 
 ### 11.2 `Cmd.task` compilation
 
+Each task declares its result and error types through `TaskLike[Result, Error]`.
+The success and error messages must accept the corresponding payloads.
+
 `Cmd.task(effect, ok_msg, err_msg)` compiles to:
 
 ```js
@@ -612,10 +646,10 @@ __fleur.Cmd.task(
 
 At runtime, `Http.request` wraps browser `fetch`:
 - Attaches an `AbortController` when `timeout_ms` is set.
-- Classifies failures into `HttpError.kind`: `network`, `timeout`, `abort`, `http_status`, `decode`, `unknown`.
+- Classifies failures into `HttpError.kind`: `network`, `timeout`, `abort`, `decode`, `unknown`.
 - Parses the response body according to `expect` (`"json"` or `"text"`).
 
-On success: `dispatch(ok(parsedBody))` → dispatches e.g. `{type:"LOADED", event:<json data>}`.
+On success, `dispatch(ok(response))` sends an `HttpResponse` with status, headers, and the decoded body.
 On failure: `dispatch(err(httpError))` → dispatches e.g. `{type:"FAILED", event:<HttpError>}`.
 
 ---
@@ -637,7 +671,7 @@ fleur/
 │   │   ├── view.py              # View, MappedView, ForwardedView
 │   │   ├── cmd.py               # Cmd
 │   │   ├── sub.py               # Sub
-│   │   ├── task.py              # TaskLike protocol
+│   │   ├── task.py              # TaskLike generic task base
 │   │   ├── component.py         # Component, Init
 │   │   ├── cond.py              # Cond (when, some, every)
 │   │   ├── events.py            # Event Protocols (PointerEvent, KeyboardEvent, …)

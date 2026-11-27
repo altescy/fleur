@@ -4,6 +4,7 @@ from typing import Unpack
 from fleur.core.types import ModelT, MsgGroupT
 from fleur.core.view import View, ViewProp
 
+from ._overlay_behavior import hover_panel_effect
 from ._utils import merge_props
 from .base import Element, ViewProps
 from .types import String, ViewStyleArgs
@@ -31,5 +32,5 @@ class Tooltip(Element[ModelT, MsgGroupT]):
             trigger({"aria-describedby": id}),
             panel,
             tag="span",
-            props={"data-fleur-part": "tooltip-root", "fleurTooltip": True},
+            props={"data-fleur-part": "tooltip-root", **View.dom_effect(hover_panel_effect(preview=False))},
         )

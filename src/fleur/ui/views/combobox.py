@@ -7,8 +7,9 @@ from fleur.core.expr import Expr
 from fleur.core.msg import GroupedMsg
 from fleur.core.object import Object
 from fleur.core.types import KeyT, ModelT_co, MsgGroupT
-from fleur.core.view import ViewChild
+from fleur.core.view import View, ViewChild
 
+from ._overlay_behavior import combobox_effect
 from ._utils import extend_props, merge_props
 from .base import Element, ViewProps
 from .input import Input
@@ -81,6 +82,6 @@ class Combobox(Element[ModelT_co, MsgGroupT]):
             tag="div",
             props=extend_props(
                 merge_props(props, element="combobox", **style_args),
-                {"fleurCombobox": True, "data-fleur-value": value},
+                {**View.dom_effect(combobox_effect()), "data-fleur-value": value},
             ),
         )

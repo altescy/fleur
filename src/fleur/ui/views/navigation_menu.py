@@ -1,7 +1,9 @@
 from typing import Unpack
 
 from fleur.core.types import ModelT_co, MsgGroupT_co
+from fleur.core.view import View
 
+from ._navigation_behavior import navigation_menu_effect
 from ._utils import extend_props, merge_props
 from .base import Element, ViewProps
 from .link import Link
@@ -61,7 +63,7 @@ class NavigationMenu(Element[ModelT_co, MsgGroupT_co]):
                     "aria-label": label,
                     "data-fleur-keep-open": not auto_close,
                     "data-fleur-multiple": multiple,
-                    "fleurNavigationMenu": True,
+                    **View.dom_effect(navigation_menu_effect()),
                 },
             ),
         )

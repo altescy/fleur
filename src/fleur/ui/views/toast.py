@@ -1,10 +1,14 @@
 from typing import Unpack
 
+from fleur.core.cond import Cond
+from fleur.core.dom import EventBinding
 from fleur.core.events import ToastCloseEvent
 from fleur.core.expr import Expr
 from fleur.core.msg import GroupedMsg
 from fleur.core.types import ModelT_co, MsgGroupT, OptionalContextT
+from fleur.core.view import View
 
+from ._toast_behavior import toast_effect
 from ._utils import extend_props, merge_props
 from .base import Element, ViewProps
 from .button import Button
@@ -25,6 +29,10 @@ class Toast(Element[ModelT_co, MsgGroupT]):
         props: ViewProps | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
+        close = EventBinding(
+            onclose,
+            payload=lambda event: {"reason": Cond.when(Cond.equal(event.detail_text, "timeout"), "timeout", "dismiss")},
+        )
         super().__init__(
             Element(
                 tag="div",
@@ -42,10 +50,10 @@ class Toast(Element[ModelT_co, MsgGroupT]):
             ),
             tag="div",
             props={
-                "fleurToast": True,
+                **View.dom_effect(toast_effect()),
                 "data-fleur-part": "toast-root",
                 "data-fleur-toast-open": open,
                 "data-fleur-toast-duration": duration_ms,
-                "ontoastclose": onclose,
+                **close.properties("toastclose"),
             },
         )

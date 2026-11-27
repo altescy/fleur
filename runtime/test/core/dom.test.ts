@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test"
 
-import { setProp } from "../../src/core/dom"
+import { removeProp, setProp } from "../../src/core/dom"
+import { disposeDomEffects } from "../../src/core/domEffect"
+import { DomEffect, JsonValue } from "../../src/core/types"
 
 type FakeStyle = {
   values: Record<string, string>
@@ -70,5 +72,93 @@ describe("setProp", () => {
 
     expect(el.attrs.tabindex).toBe("0")
     expect(el.attrs["aria-label"]).toBe("")
+  })
+
+  test("runs only the latest pending DOM effect on a connected element", async () => {
+    const element = { ...createFakeElement(), isConnected: false }
+    const target = element as unknown as Element
+    const applied: JsonValue[] = []
+    const effect = (value: JsonValue): DomEffect => ({
+      key: "test",
+      args: [value],
+      run: (_element, next) => { applied.push(next) },
+    })
+
+    setProp(target, "domEffect", effect("before insertion"))
+    element.isConnected = true
+    setProp(target, "domEffect", effect("latest"))
+    expect(applied).toEqual([])
+    await Promise.resolve()
+    expect(applied).toEqual(["latest"])
+    expect(element.attrs).toEqual({})
+
+    setProp(target, "domEffect", effect("cancelled"))
+    removeProp(target, "domEffect")
+    await Promise.resolve()
+    setProp(target, "domEffect", effect("unmounted"))
+    element.isConnected = false
+    await Promise.resolve()
+    expect(applied).toEqual(["latest"])
+  })
+
+  test("updates an installed DOM effect and disposes it when an ancestor is removed", async () => {
+    const target = { isConnected: true, childNodes: [] } as unknown as Element
+    const ancestor = { childNodes: [target] } as unknown as Node
+    const calls: JsonValue[] = []
+    const effect: DomEffect = {
+      key: "test",
+      args: [1],
+      run: () => {
+        calls.push("setup")
+        return {
+          update: (value) => { calls.push(value) },
+          dispose: () => { calls.push("dispose") },
+        }
+      },
+    }
+
+    setProp(target, "domEffect", effect)
+    await Promise.resolve()
+    setProp(target, "domEffect", { ...effect, args: [2] })
+    await Promise.resolve()
+    setProp(target, "domEffect", { ...effect, args: [3] })
+    disposeDomEffects(ancestor)
+    await Promise.resolve()
+    expect(calls).toEqual(["setup", 1, 2, "dispose"])
+  })
+
+  test("cancels a pending effect without cancelling its sibling", async () => {
+    const target = { isConnected: true, childNodes: [] } as unknown as Element
+    const calls: string[] = []
+    const effect = (key: string): DomEffect => ({
+      key, args: [], run: () => { calls.push(key) },
+    })
+
+    setProp(target, "domEffect:a", effect("cancelled"))
+    setProp(target, "domEffect:b", effect("B"))
+    removeProp(target, "domEffect:a")
+    setProp(target, "domEffect:a", effect("A"))
+    await Promise.resolve()
+
+    expect(calls).toEqual(["B", "A"])
+  })
+
+  test("cleans up a scoped effect removed during setup", () => {
+    const target = { isConnected: true, childNodes: [] } as unknown as Element
+    const calls: string[] = []
+    setProp(target, "domEffect:self", {
+      key: "self",
+      args: [],
+      sync: true,
+      run: () => {
+        removeProp(target, "domEffect:self")
+        return {
+          update: () => { calls.push("update") },
+          dispose: () => { calls.push("dispose") },
+        }
+      },
+    })
+
+    expect(calls).toEqual(["dispose"])
   })
 })

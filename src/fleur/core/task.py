@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Protocol
+from abc import abstractmethod
+from typing import Any, Generic
 
 from typing_extensions import TypeVar
 
@@ -15,5 +16,8 @@ TaskErrorT = TypeVar("TaskErrorT", bound=FleurValue, default=Any)
 TaskErrorT_co = TypeVar("TaskErrorT_co", bound=FleurValue, default=Any, covariant=True)
 
 
-class TaskLike(ICompilable[ESTreeExpression], Protocol[TaskValueT_co, TaskErrorT_co]):
-    """Marker protocol for task effects used by Cmd.task."""
+class TaskLike(Generic[TaskValueT_co, TaskErrorT_co], ICompilable[ESTreeExpression]):
+    """Subclass with the success and error payload types and implement __compile__."""
+
+    @abstractmethod
+    def __compile__(self) -> ESTreeExpression: ...

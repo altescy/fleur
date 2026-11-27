@@ -29,5 +29,6 @@ ModelT = TypeVar("ModelT", bound="Model")
 ModelT_co = TypeVar("ModelT_co", bound="Model", covariant=True)
 MsgGroupT = TypeVar("MsgGroupT", bound="MsgGroup")
 MsgGroupT_co = TypeVar("MsgGroupT_co", bound="MsgGroup", covariant=True)
-OptionalEventT = TypeVar("OptionalEventT", default=None, covariant=True)
+# A message receives this payload and exposes it through its event property.
+OptionalEventT = TypeVar("OptionalEventT", default=None)
 OptionalContextT = TypeVar("OptionalContextT", bound=FleurValue, default=None)

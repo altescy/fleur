@@ -1,5 +1,6 @@
 import { Patch, PatchType, VElement, VNode, VNodeType } from "./types"
 import { resolveLazy, shallowArgsEqual } from "./vdom"
+import { isDomEffect, isDomEffectProp } from "./domEffect"
 
 const getKey = (node: VNode): string | number | null => {
   if (node.type !== VNodeType.ELEMENT) return null
@@ -25,20 +26,7 @@ export const diff = (oldV: VNode | undefined, newV: VNode | undefined, path: num
   if (
     oldV.type !== newV.type
     || (oldV.type === VNodeType.ELEMENT && newV.type === VNodeType.ELEMENT
-      && (oldV.tag !== newV.tag || oldV.props.fleurTabs !== newV.props.fleurTabs
-        || oldV.props.fleurMenu !== newV.props.fleurMenu
-        || (newV.props.fleurMenu && oldV.props["data-fleur-part"] !== newV.props["data-fleur-part"])
-        || oldV.props.fleurTooltip !== newV.props.fleurTooltip
-        || oldV.props.fleurPreviewCard !== newV.props.fleurPreviewCard
-        || oldV.props.fleurCombobox !== newV.props.fleurCombobox
-        || oldV.props.fleurToast !== newV.props.fleurToast
-        || oldV.props.fleurAccordion !== newV.props.fleurAccordion
-        || oldV.props.fleurToolbar !== newV.props.fleurToolbar
-        || oldV.props.fleurMenubar !== newV.props.fleurMenubar
-        || oldV.props.fleurAvatar !== newV.props.fleurAvatar
-        || oldV.props.fleurNavigationMenu !== newV.props.fleurNavigationMenu
-        || oldV.props.fleurNumberField !== newV.props.fleurNumberField
-        || (newV.tag === "dialog" && oldV.props["data-fleur-ui"] !== newV.props["data-fleur-ui"])))
+      && oldV.tag !== newV.tag)
   ) {
     return [{ type: PatchType.REPLACE, path, vnode: newV }]
   }
@@ -113,17 +101,19 @@ export const diff = (oldV: VNode | undefined, newV: VNode | undefined, path: num
   }
 
   const propPatches = {} as VElement["props"]
-  if (newElement.props.fleurTabs && patches.length > 0) {
-    propPatches.fleurTabs = true
-  }
+  const propNames = Object.keys({ ...oldElement.props, ...newElement.props })
+  const effects = propNames.filter(isDomEffectProp)
+  const removedEffects = effects.filter(k => isDomEffect(oldElement.props[k]) && !isDomEffect(newElement.props[k]))
+  // Cleanup runs before ordinary props so it can release the old DOM state.
+  for (const k of removedEffects) propPatches[k] = undefined
+
   // Changed options can reset the browser selection even when the model value is unchanged.
   if (newElement.tag === "select" && newElement.props.value != null && patches.length > 0) {
     propPatches.value = newElement.props.value
   }
-  for (const k in { ...oldElement.props, ...newElement.props }) {
-    if (oldElement.props[k] !== newElement.props[k]) {
-      propPatches[k] = newElement.props[k]
-    }
+  for (const k of propNames) {
+    if (isDomEffectProp(k)) continue
+    if (oldElement.props[k] !== newElement.props[k]) propPatches[k] = newElement.props[k]
   }
   if (newElement.tag === "input" && newElement.props.type === "range") {
     const boundsChanged = "min" in propPatches || "max" in propPatches || "step" in propPatches || "type" in propPatches
@@ -133,14 +123,14 @@ export const diff = (oldV: VNode | undefined, newV: VNode | undefined, path: num
       propPatches.value = newElement.props.value
     }
   }
-  if (patches.length > 0 || Object.keys(propPatches).length > 0) {
-    if (newElement.props.fleurCombobox) propPatches.fleurCombobox = true
-    if (newElement.props.fleurToast) propPatches.fleurToast = true
-    if (newElement.props.fleurAccordion) propPatches.fleurAccordion = true
-    if (newElement.props.fleurToolbar) propPatches.fleurToolbar = true
-    if (newElement.props.fleurMenubar) propPatches.fleurMenubar = true
-    if (newElement.props.fleurAvatar) propPatches.fleurAvatar = true
-    if (newElement.props.fleurNumberField) propPatches.fleurNumberField = true
+  const hasChanges = patches.length > 0 || Object.keys(propPatches).length > removedEffects.length
+  for (const k of effects) {
+    const before = oldElement.props[k]
+    const after = newElement.props[k]
+    if (!isDomEffect(after)) continue
+    const unchanged = before === after || (isDomEffect(before) && before.key === after.key
+      && before.refresh === after.refresh && before.sync === after.sync && shallowArgsEqual(before.args, after.args))
+    if (!unchanged || (after.refresh && hasChanges)) propPatches[k] = after
   }
   if (Object.keys(propPatches).length > 0) {
     patches.push({ type: PatchType.PROPS, path, props: propPatches })

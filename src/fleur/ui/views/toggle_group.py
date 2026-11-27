@@ -8,8 +8,9 @@ from fleur.core.expr import Expr, ensure_expr
 from fleur.core.msg import GroupedMsg
 from fleur.core.object import Object
 from fleur.core.types import KeyT, ModelT_co, MsgGroupT
-from fleur.core.view import ViewChild
+from fleur.core.view import View, ViewChild
 
+from ._navigation_behavior import toolbar_effect
 from ._selection import toggle_selection
 from ._utils import extend_props, merge_props
 from .base import Element, ViewProps
@@ -56,7 +57,7 @@ class ToggleGroup(Element[ModelT_co, MsgGroupT]):
                     "role": "group",
                     "aria-label": label,
                     "data-fleur-orientation": orientation,
-                    "fleurToolbar": True,
+                    **View.dom_effect(toolbar_effect()),
                 },
             ),
         )

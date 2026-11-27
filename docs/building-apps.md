@@ -128,8 +128,9 @@ def app() -> Component[Settings, Actions]:
     )
 ```
 
-The dialog opens with `showModal()`. The browser focuses the element marked `autofocus`
-and restores focus to the previously focused element when the dialog closes.
+The dialog opens with `showModal()` and focuses the element marked `autofocus`.
+Escape restores focus to the button that opened the dialog. For model changes
+without an activating button, the browser uses the previously focused element.
 
 ## Confirm an operation
 
@@ -158,7 +159,8 @@ Declare `CLEAR_NOTES` as `Msg[SubmitEvent]` and perform the operation in its upd
 
 Give the panel a unique `id` and forward the trigger attributes to a native button.
 The button opens the panel with a click, Enter, or Space. Escape or a click outside
-closes it. Add `autofocus` to the control that should receive focus on opening.
+closes it. Escape returns focus to the opening button when focus is still in the
+panel. Add `autofocus` to the control that should receive focus on opening.
 
 ```python
 Popover(
@@ -525,6 +527,88 @@ Set `auto_close=False` for a sidebar that should stay open when a link is
 followed or focus leaves the navigation.
 With `multiple=True`, several groups can stay open together. Escape closes
 the group that contains focus and returns focus to its button.
+
+## Add DOM behavior to a custom view
+
+Use `EventBinding` for actions that must run during a browser event. A binding
+can cancel the browser's default action, perform a `DomAction`, and dispatch a
+message. Use `EventBinding.on()` with a descriptor from `DomEvents` for native
+events. For example, a keyboard callback receives a `DomKeyboardEvent` and
+can send a message declared with `KeyboardEvent`. A plain event named
+`keydown` without keyboard data does not call the typed binding.
+Pass `capture=True` when the binding needs the capture phase.
+
+```python
+from fleur import View
+from fleur.core import DomEvents, EventBinding
+
+search = View(
+    View(tag="input", props={"aria-label": "Search"}),
+    View("Focus search", tag="button", props={"type": "button"}),
+    tag="section",
+    props=EventBinding.on(
+        DomEvents.click,
+        action=lambda event: event.current_target.query("input").focus(),
+    ),
+)
+```
+
+Use `EventBinding(...).properties("event-name")` for custom events. For
+example, check that `event.detail_text` is present in `when` before including
+it in the message's `payload`. The generic event reference returns `None`
+for unavailable values such as the key of a mouse event.
+
+Attach element-scoped effects with `View.dom_effect(*effects)`. A view can
+combine effect props from several helpers with `View.extend_props`. Distinct
+effect keys coexist. A later prop with the same key takes that slot. Across
+renders, the same key identifies the same installed behavior. Change its
+dependencies to supply new values, or use a new key to install a different effect.
+Adding or removing an effect preserves the element, its focus, and unsaved
+input values as long as the view keeps the same element identity.
+
+An effect normally runs once the element is connected. List the model
+expressions its update reads in `dependencies` so it runs when their values
+change. Use `watch_subtree=True` to also update after patches to the element
+or its descendants. An optional `mount` runs once per installation, and
+`dispose` runs when the effect or element is removed. Use
+`after_connect=False` for operations such as linking IDs that must be ready
+as soon as rendering returns.
+
+The Python callbacks describe browser actions. Use `DomAction.when` to branch
+on a browser value and `DomAction.batch` to run actions in order. Element
+references from event targets and queries are local to those callbacks. Check
+`exists` when you need to distinguish a missing element.
+
+Use `DomEffect.scoped(key, setup)` when an effect owns listeners, timers, or
+browser-local state. Its setup callback receives the element and a `DomScope`
+and returns a `DomLifecycle`. Allocate values with `scope.value()` and element
+references with `scope.reference()`. Use `scope.on()` and `scope.on_document()`
+with the same descriptors as `EventBinding.on()`. For custom event names,
+use `scope.listen()` or `scope.document_listener()`. The scope releases listeners and cancels
+its timers when the view is removed. A scoped effect's callbacks read live DOM
+and scope values. Use view props for model values that change after setup.
+
+### Request focus from an update
+
+Use a command when an application message decides where focus should move.
+For example, this update reveals an editor whose input has `id="editor"`
+and requests focus after the view renders.
+
+```python
+from fleur import Cmd, State
+from fleur.core import Dom
+
+Actions.EDIT.then(
+    (
+        State.set(Screen.editing, True),
+        Cmd.task(Dom.focus("editor", prevent_scroll=True), Actions.FOCUSED, Actions.FOCUS_FAILED),
+    )
+)
+```
+
+Declare `FOCUSED` as `Msg[None]` and `FOCUS_FAILED` as `Msg[DomFocusError]`.
+The failure message carries `"not_found"` or `"not_focusable"`. Use a
+view effect for behavior tied to the lifetime of a particular element.
 
 ## Work with browser values
 

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import html
-import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Protocol, cast
+
+from fleur.js.builder import literal
+from fleur.js.emitter import emit
 
 from .runtime import RUNTIME_NAMESPACE, RUNTIME_PROGRAM
 
@@ -94,7 +96,7 @@ def render_app(page: Page) -> str:
 
 
 def render_script(*, component_js: str, runtime_js: str, page: Page) -> str:
-    mount_id = json.dumps(page.mount_id)
+    mount_id = emit(literal(page.mount_id))
     return "".join(
         (
             runtime_js.strip(),

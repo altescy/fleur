@@ -1,7 +1,9 @@
 from typing import Literal, Unpack
 
 from fleur.core.types import ModelT_co, MsgGroupT_co
+from fleur.core.view import View
 
+from ._navigation_behavior import toolbar_effect
 from ._utils import extend_props, merge_props
 from .base import Element, ViewChild, ViewProps
 from .types import String, ViewStyleArgs
@@ -27,7 +29,7 @@ class Toolbar(Element[ModelT_co, MsgGroupT_co]):
                     "role": "toolbar",
                     "aria-label": label,
                     "aria-orientation": orientation,
-                    "fleurToolbar": True,
+                    **View.dom_effect(toolbar_effect()),
                 },
             ),
         )

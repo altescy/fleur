@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Generic, Literal, cast
+from typing import Generic, Literal
 
 from fleur.core.model import Model
 from fleur.core.runtime import RUNTIME_HTTP, RUNTIME_REQUEST, runtime_call
@@ -35,7 +35,7 @@ class HttpResponse(Model, Generic[TaskValueT]):
 
 
 @dataclass(frozen=True, slots=True)
-class _HttpTask(Generic[TaskValueT], TaskLike[TaskValueT, HttpError]):
+class _HttpTask(TaskLike[HttpResponse[TaskValueT], HttpError]):
     expr: ESTreeExpression
 
     def __compile__(self) -> ESTreeExpression:
@@ -82,7 +82,7 @@ class Http:
             request["credentials"] = credentials
 
         compiled = runtime_call((RUNTIME_HTTP, RUNTIME_REQUEST), json_expr(request))
-        return cast(TaskLike[HttpResponse[TaskValueT], HttpError], _HttpTask(compiled))
+        return _HttpTask(compiled)
 
     @staticmethod
     def get(

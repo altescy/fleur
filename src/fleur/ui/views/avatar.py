@@ -2,7 +2,9 @@ from typing import Unpack
 
 from fleur.core.expr import Expr
 from fleur.core.types import ModelT_co, MsgGroupT_co
+from fleur.core.view import View
 
+from ._native_behavior import avatar_effect
 from ._utils import extend_props, merge_props
 from .base import Element, ViewProps
 from .types import String, ViewStyleArgs
@@ -36,7 +38,7 @@ class Avatar(Element[ModelT_co, MsgGroupT_co]):
             props=extend_props(
                 merge_props(props, element="avatar", **style_args),
                 {
-                    "fleurAvatar": True,
+                    **View.dom_effect(avatar_effect()),
                     "role": "img" if name is not None else None,
                     "aria-label": name,
                     "aria-hidden": "true" if name is None else None,

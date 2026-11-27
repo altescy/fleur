@@ -40,6 +40,13 @@ class ESTreeIdentifier(ESTreePattern, ESTreeExpression):
     name: str
 
 
+@dataclasses.dataclass(slots=True)
+class ESTreeGeneratedIdentifier(ESTreeIdentifier):
+    """A lexical binding whose name is assigned once per emission."""
+
+    name: str = ""
+
+
 ##
 ## Literals
 ##
@@ -315,6 +322,13 @@ class ESTreeMemberExpression(ESTreeExpression):
     object: ESTreeExpression
     property: ESTreeExpression
     computed: bool
+
+
+@dataclasses.dataclass(slots=True)
+class ESTreeAssignmentExpression(ESTreeExpression):
+    left: ESTreeIdentifier | ESTreeMemberExpression
+    right: ESTreeExpression
+    operator: Literal["="] = "="
 
 
 @dataclasses.dataclass(slots=True)

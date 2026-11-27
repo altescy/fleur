@@ -1,18 +1,27 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 
 from fleur.js.ast import (
     ESTreeArrayExpression,
     ESTreeBinaryExpression,
+    ESTreeBlockStatement,
     ESTreeCallExpression,
     ESTreeExpression,
+    ESTreeFunctionBody,
+    ESTreeFunctionExpression,
     ESTreeIdentifier,
+    ESTreeIfStatement,
     ESTreeLiteral,
+    ESTreeLogicalExpression,
+    ESTreeLogicalOperator,
     ESTreeMemberExpression,
     ESTreeObjectExpression,
     ESTreeObjectProperty,
+    ESTreeStatement,
+    ESTreeVariableDeclaration,
+    ESTreeVariableDeclarator,
 )
 from fleur.types import JsonValue
 
@@ -49,6 +58,35 @@ def index_expr(object_expr: ESTreeExpression, index: int) -> ESTreeMemberExpress
 
 def call(callee: ESTreeExpression, *args: ESTreeExpression) -> ESTreeCallExpression:
     return ESTreeCallExpression(callee=callee, arguments=list(args))
+
+
+def method_call(receiver: ESTreeExpression, name: str, *args: ESTreeExpression) -> ESTreeCallExpression:
+    return call(member_expr(receiver, name), *args)
+
+
+def function_expr(params: Sequence[ESTreeIdentifier], *body: ESTreeStatement) -> ESTreeFunctionExpression:
+    return ESTreeFunctionExpression(id=None, params=params, body=ESTreeFunctionBody(body))
+
+
+def variable(name: ESTreeIdentifier, value: ESTreeExpression) -> ESTreeVariableDeclaration:
+    return ESTreeVariableDeclaration(declarations=[ESTreeVariableDeclarator(id=name, init=value)], kind="var")
+
+
+def if_stmt(
+    test: ESTreeExpression, *body: ESTreeStatement, otherwise: Sequence[ESTreeStatement] = ()
+) -> ESTreeIfStatement:
+    return ESTreeIfStatement(
+        test=test,
+        consequent=ESTreeBlockStatement(body=body),
+        alternate=ESTreeBlockStatement(body=otherwise) if otherwise else None,
+    )
+
+
+def logical(operator: ESTreeLogicalOperator, first: ESTreeExpression, *rest: ESTreeExpression) -> ESTreeExpression:
+    result = first
+    for operand in rest:
+        result = ESTreeLogicalExpression(operator=operator, left=result, right=operand)
+    return result
 
 
 def object_expr(properties: Iterable[tuple[str, ESTreeExpression]]) -> ESTreeObjectExpression:

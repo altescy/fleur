@@ -8,7 +8,7 @@ RuntimeNamespaceName: TypeAlias = Literal["__fleur"]
 
 # Top-level runtime API members (__fleur.<member>).
 RuntimeTopLevelName: TypeAlias = Literal[
-    "h", "lazy", "Cmd", "Sub", "Html", "Http", "program", "mergeStyleProps", "sortBy"
+    "h", "lazy", "Cmd", "Dom", "Sub", "Html", "Http", "program", "mergeStyleProps", "sortBy"
 ]
 
 # Nested runtime API members (__fleur.<object>.<member>).

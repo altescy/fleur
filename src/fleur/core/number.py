@@ -5,6 +5,16 @@ from .expr import Expr, ensure_expr
 
 class Number:
     @staticmethod
+    def clamp(
+        value: int | float | Expr[int | float],
+        minimum: int | float | Expr[int | float],
+        maximum: int | float | Expr[int | float],
+    ) -> Expr[int | float]:
+        """Bound a number to the requested interval."""
+        bounded = call(member("Math", "min"), ensure_expr(value), ensure_expr(maximum))
+        return Expr(call(member("Math", "max"), ensure_expr(minimum), bounded))
+
+    @staticmethod
     def from_string(value: str | Expr[str]) -> Expr[int | float]:
         """Convert text using JavaScript Number rules. Empty text becomes zero and invalid text becomes NaN."""
         return Expr(call(ident("Number"), ensure_expr(value)))

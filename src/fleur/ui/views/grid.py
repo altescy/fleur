@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from typing import Unpack
 
-from fleur.core.expr import Expr
+from fleur.core.expr import Expr, string
 from fleur.core.types import ModelT_co, MsgGroupT_co
-from fleur.js.builder import json_expr
 
 from . import _utils
 from .base import (
@@ -29,7 +28,7 @@ class Grid(Element[ModelT_co, MsgGroupT_co]):
             grid_template_columns = (
                 f"repeat({columns}, minmax(0, 1fr))"
                 if not isinstance(columns, Expr)
-                else Expr[str](json_expr("repeat(")) + columns + ", minmax(0, 1fr))"
+                else string("repeat(") + columns + ", minmax(0, 1fr))"
             )
         elif min_col is not None:
             size = _utils.scale_value("space", min_col)
@@ -56,11 +55,11 @@ class GridItem(Element[ModelT_co, MsgGroupT_co]):
         item_style: dict[str, Style] = {}
         if col_span is not None:
             item_style["grid-column"] = (
-                f"span {col_span}" if not isinstance(col_span, Expr) else Expr[str](json_expr("span ")) + col_span
+                f"span {col_span}" if not isinstance(col_span, Expr) else string("span ") + col_span
             )
         if row_span is not None:
             item_style["grid-row"] = (
-                f"span {row_span}" if not isinstance(row_span, Expr) else Expr[str](json_expr("span ")) + row_span
+                f"span {row_span}" if not isinstance(row_span, Expr) else string("span ") + row_span
             )
         merged = _utils.merge_props(props, element="grid-item", layout=item_style, **style_args)
         super().__init__(*children, tag="div", props=merged)

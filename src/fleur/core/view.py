@@ -12,9 +12,10 @@ from fleur.js.ast import (
     ESTreeFunctionExpression,
     ESTreeReturnStatement,
 )
-from fleur.js.builder import call, concat, ident, json_expr, literal, member, object_expr
+from fleur.js.builder import call, concat, ident, json_expr, literal, member, member_expr, object_expr
 from fleur.types import ICompilable, JsonValue
 
+from .dom import DomEffect, EventBinding
 from .expr import Expr
 from .msg import GroupedMsg
 from .runtime import MODEL_IDENT, RUNTIME_H, RUNTIME_HTML, RUNTIME_MAP, runtime_call, runtime_ref
@@ -24,7 +25,14 @@ _ViewChild = Union[JsonValue, Model, Sequence["_ViewChild"]]
 _ViewProp = Union[JsonValue, GroupedMsg[Any, Any, Any], Mapping[str, "_ViewProp"], Sequence["_ViewProp"]]
 _ViewProps = Mapping[str, _ViewProp]
 ViewChild: TypeAlias = Union[_ViewChild, Expr[_ViewChild]]
-ViewProp: TypeAlias = Union[_ViewProp, Expr[_ViewProp], Mapping[str, "ViewProp"], Sequence["ViewProp"]]
+ViewProp: TypeAlias = Union[
+    _ViewProp,
+    Expr[_ViewProp],
+    DomEffect,
+    EventBinding[Any, Any, Any],
+    Mapping[str, "ViewProp"],
+    Sequence["ViewProp"],
+]
 ViewProps: TypeAlias = Union[Mapping[str, ViewProp], Expr[_ViewProps]]
 
 
@@ -52,9 +60,7 @@ def _compile_text_expr(text: str) -> ESTreeExpression:
 
 
 def _compile_prop_value(value: ViewProp) -> ESTreeExpression:
-    if isinstance(value, Expr):
-        return value.__compile__()
-    if isinstance(value, GroupedMsg):
+    if isinstance(value, (Expr, GroupedMsg, DomEffect, EventBinding)):
         return value.__compile__()
     if isinstance(value, Mapping):
         return object_expr((k, _compile_prop_value(v)) for k, v in value.items())
@@ -95,6 +101,51 @@ class View(Model, Generic[ModelT_co, MsgGroupT_co]):
             compiled_props,
             *(_compile_child(child) for child in self._children),
         )
+
+    @staticmethod
+    def dom_effect(*effects: DomEffect) -> Mapping[str, ViewProp]:
+        """Attach effects by key. Merging props preserves effects with distinct keys."""
+        return {f"domEffect:{effect.key}": effect for effect in effects}
+
+    @staticmethod
+    def extend_props(props: ViewProps, extra: ViewProps) -> ViewProps:
+        """Add or replace view props, evaluating dynamic inputs once."""
+        if isinstance(extra, Mapping) and not extra:
+            return props
+        if isinstance(props, Mapping) and isinstance(extra, Mapping):
+            return {**props, **extra}
+        return Expr(
+            call(
+                member_expr(ident("Object"), "assign"),
+                object_expr([]),
+                _compile_prop_value(props),
+                _compile_prop_value(extra),
+            )
+        )
+
+    @staticmethod
+    def merge_styles(
+        props: ViewProps, defaults: Mapping[str, ViewProp], overrides: Mapping[str, ViewProp]
+    ) -> ViewProps:
+        """Layer CSS defaults, supplied properties, and overrides in CSS declaration order."""
+        if not defaults and not overrides:
+            return props
+        if isinstance(props, Expr) or isinstance(props.get("style"), Expr):
+            return Expr(
+                runtime_call(
+                    ("mergeStyleProps",),
+                    _compile_prop_value(props),
+                    _compile_prop_value(defaults),
+                    _compile_prop_value(overrides),
+                )
+            )
+        supplied = props.get("style")
+        style: dict[str, ViewProp] = {}
+        for layer in (defaults, supplied if isinstance(supplied, Mapping) else {}, overrides):
+            for key, value in layer.items():
+                style.pop(key, None)
+                style[key] = value
+        return {**props, "style": style}
 
     @staticmethod
     def map(

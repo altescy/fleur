@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Unpack
 
+from fleur.core.dom import DomEvents, EventBinding
 from fleur.core.events import SubmitEvent
 from fleur.core.expr import Expr
 from fleur.core.msg import GroupedMsg
@@ -23,7 +24,13 @@ class Form(Element[ModelT_co, MsgGroupT]):
     ) -> None:
         merged = _utils.merge_props(props, **style_args)
         if prevent_default is not False:
-            merged = _utils.extend_props(merged, {"fleurPreventSubmitDefault": prevent_default})
+            cancel = EventBinding.on(
+                DomEvents.submit,
+                prevent_default=prevent_default,
+                when=lambda event: event.target.same_as(event.current_target),
+                capture=True,
+            )
+            merged = _utils.extend_props(merged, cancel)
         if onsubmit is not None:
             merged = _utils.extend_props(merged, {"onsubmit": onsubmit})
         super().__init__(*children, tag="form", props=merged)
