@@ -714,6 +714,13 @@ Declare `FOCUSED` as `Msg[None]` and `FOCUS_FAILED` as `Msg[DomFocusError]`.
 The failure message carries `"not_found"` or `"not_focusable"`. Use a
 view effect for behavior tied to the lifetime of a particular element.
 
+To run several commands from one case, combine them with `Cmd.batch`, for example
+`(State.set(...), Cmd.batch(load_profile, Cmd.task(Dom.focus("editor"), ...)))`. Likewise,
+pass `Sub.batch(Sub.interval("clock", 1000, Actions.TICK), ...)` as the component's
+subscriptions to run several at once. Every batched command or subscription must use the
+component's message group, and `Sub.batch` raises `ValueError` when two subscriptions share
+a key, because the runtime tells active subscriptions apart by key.
+
 ## Work with browser values
 
 Use `Array.length` to count items, `Array.sum` to total numeric values, and `Array.join` to

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 
-import { Cmd } from "../../src/core/effects"
+import { Cmd, Sub } from "../../src/core/effects"
 import { Http } from "../../src/http/client"
 
 describe("Cmd.task", () => {
@@ -167,5 +167,21 @@ describe("Http.request", () => {
     } finally {
       globalThis.fetch = originalFetch
     }
+  })
+})
+
+describe("batch", () => {
+  test("Cmd.batch runs every command in order", () => {
+    const received: string[] = []
+    const say = (type: string) => Cmd.map(() => ({ type }), (dispatch) => dispatch({ type: "inner" }))
+    Cmd.batch([say("A"), Cmd.none(), say("B")])((msg) => received.push(msg.type))
+
+    expect(received).toEqual(["A", "B"])
+  })
+
+  test("Sub.batch keeps every subscription with its key", () => {
+    const subs = Sub.batch([Sub.interval("a", 10, () => ({ type: "A" })), Sub.none(), Sub.interval("b", 20, () => ({ type: "B" }))])
+
+    expect(subs.map((sub) => sub.key)).toEqual(["a", "b"])
   })
 })
