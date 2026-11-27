@@ -15,7 +15,7 @@ class Text(Element[ModelT_co, MsgGroupT_co]):
         self,
         text: str | None | Expr[str | None],
         *,
-        props: ViewProps | None = None,
+        props: ViewProps[MsgGroupT_co] | None = None,
         **style_args: Unpack[ViewStyleArgs],
     ) -> None:
         super().__init__(

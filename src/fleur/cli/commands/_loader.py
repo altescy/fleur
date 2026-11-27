@@ -24,7 +24,7 @@ def load_component(target: str) -> Any:
     module_path, attr = target.rsplit(":", 1)
 
     p = Path(module_path)
-    if p.suffix == ".py" or p.exists():
+    if p.suffix == ".py" or p.is_file():
         p = p.with_suffix(".py") if not p.suffix else p
         spec = importlib.util.spec_from_file_location(_FILE_MODULE_NAME, p)
         if spec is None or not isinstance(spec.loader, importlib.abc.Loader):

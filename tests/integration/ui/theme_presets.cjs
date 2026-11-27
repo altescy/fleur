@@ -50,11 +50,11 @@ async function run() {
         };
         const button = root.getByRole("button", { name: "Action" });
         const input = root.getByRole("textbox");
-        const tab = name => root.getByRole("button", { name, exact: true });
+        const tab = name => root.getByRole("tab", { name, exact: true });
         async function checkSelection(name) {
           const other = name === "One" ? "Two" : "One";
-          assert.equal(await tab(name).getAttribute("aria-pressed"), "true");
-          assert.equal(await tab(other).getAttribute("aria-pressed"), "false");
+          assert.equal(await tab(name).getAttribute("aria-selected"), "true");
+          assert.equal(await tab(other).getAttribute("aria-selected"), "false");
           assert(await root.getByText("Panel " + name).isVisible());
           assert(!(await root.getByText("Panel " + other).isVisible()));
           await check(tab(name), "backgroundColor", colors.card);
@@ -87,12 +87,12 @@ async function run() {
         await check(button, "boxShadow", colors.buttonFocus);
         await page.keyboard.press("Tab");
         await page.keyboard.press("Tab");
-        await check(tab("One"), "boxShadow", colors.buttonFocus);
+        await check(tab(selected), "boxShadow", colors.buttonFocus);
       }
       // Switch a real tab in the child and keep its state through the next mode change.
       selected = selected === "One" ? "Two" : "One";
       const child = page.locator("#child");
-      await child.getByRole("button", { name: selected, exact: true }).click();
+      await child.getByRole("tab", { name: selected, exact: true }).click();
       assert(await child.getByText("Panel " + selected).isVisible());
     }
   } finally {

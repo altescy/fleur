@@ -160,6 +160,132 @@ Inline declarations are applied in order from `props["style"]` to layout argumen
 the axes, and individual sides such as `pl` take precedence. Both `props` and its `style` entry can be
 reactive expressions. Other attributes and event handlers are carried through the merge.
 
+## Cards, headings and form fields
+
+Use `Card(*children)` for a padded surface. Its colors, border, radius and spacing follow the current
+theme. Children stack vertically by default. Set `flex_direction="row"` for a horizontal card.
+`Heading(..., level=1)` through `level=6` emit native headings. Choose the level for the document
+outline and use `font_size` to change the visual size independently.
+
+```python
+from fleur.ui import Card, Heading, Option, Select, field
+
+category = Card(
+    Heading("Expenses", level=2),
+    field(
+        id="expense-category",
+        label="Category",
+        description="Choose the category used in reports.",
+        control=lambda attrs: Select(
+            Option("Travel", value="travel"),
+            Option("Meals", value="meals"),
+            value=Report.category,
+            onchange=Msgs.CATEGORY,
+            props=attrs,
+        ),
+    ),
+)
+```
+
+Give each field a unique `id`. Its control receives the associated attributes and can also be an
+`Input`, `Textarea` or custom view. Pass `error` as text or a reactive expression. A nonempty
+error appears alongside the description and sets `aria-invalid` on the control. An empty string
+or `None` clears the error. Style the wrapper with `props` or view arguments, and target
+`[data-fleur-part="label"]`, `"description"` or `"error"` in its stylesheet.
+
+`Select` uses the input theme settings. Its `onchange` message receives the option value in
+`event.value`. Omitting an option's `value` uses its label. With `Select(value=...)`, the
+selection follows the supplied value as options change. If it has no matching option, the
+control shows no selection until a match returns. Omit the select's `value` to use native selection.
+
+## Sortable table headers
+
+`SortableTableHead("Amount", active=by_amount, descending=Report.descending, onsort=Msgs.SORT.bind("amount"))`
+places a button in a column header. The active header displays its direction and exposes
+`aria-sort`. Each inactive sortable header shows a bidirectional arrow. On activation, handle the
+message to choose the column and direction, then pass the ordered rows to `TableBody`.
+The expense report uses `Array.sort_by` on the filtered rows.
+
+## Empty states
+
+Use `EmptyState(title, description, *actions)` when a collection has no items to show.
+The title and optional description accept text or model expressions. Actions can be ordinary
+buttons or links. The title defaults to an `h3`; set `level` to fit the surrounding outline.
+
+```python
+EmptyState(
+    "No expenses in this category",
+    "Choose another category or show the full report.",
+    Button("Show all categories", onclick=Msgs.CLEAR_FILTER, variant="secondary"),
+)
+```
+
+## Disclosures
+
+`Disclosure("Calculation details", Text("The subtotal includes the visible rows."))` renders
+a native `<details>` with the first argument as its `<summary>`. Pass additional children for
+the expanded content. Each disclosure starts closed and opens independently. Set
+`props={"open": True}` to start one expanded.
+
+## Checkbox fields
+
+`CheckboxField("Dark mode", checked=Gallery.dark, onchange=Actions.MODE)` places a
+native checkbox inside its visible label. Clicking the label or pressing Space on the
+focused checkbox toggles it. Read `Actions.MODE.event.checked` to update the model.
+Use `name`, `value`, `required`, and `disabled` for native form behavior. View style
+arguments and `props` apply to the label, and `input_props` applies to the checkbox.
+
+## Radio groups
+
+Use `RadioGroup` to display a small set of mutually exclusive choices. The mapping's keys
+are form values and its values are visible labels. Give each independent group in the same
+form (or page, outside a form) a distinct, nonempty `name`. The `label` appears as its legend.
+
+```python
+RadioGroup(
+    {"left": "Left", "center": "Center", "right": "Right"},
+    name="title-alignment",
+    label="Title alignment",
+    value=Gallery.title_align,
+    onselect=Actions.TITLE_ALIGN,
+)
+```
+
+Declare the selection message as `Msg[InputEvent, str]` or use a narrower string literal
+type for the option keys. Set the model field from the message's `.context` on change.
+Tab enters the group at the checked radio. Arrow keys select another option in the same group.
+
+## Progress
+
+Use `Progress(label="Checking service status")` while an operation's total is unknown.
+For a known total, use `Progress(label="Book review", value=Library.reviewed, max=4)`.
+Supply a positive `max` (the browser default is 1). Both numbers can follow the model.
+A value of zero shows the start of measurable progress, and `None` switches the same bar
+to indeterminate. Use `label` or associate a visible HTML label to name the bar.
+
+## Links and notices
+
+`Link` renders a native anchor. Use a fragment or URL for `href`, or supply a file URL and
+`download` filename for a download. The destination, filename and disabled state can follow
+the model. A disabled link exposes `aria-disabled`, loses its destination and leaves the
+normal Tab order. Use `variant="button"` to apply the theme's button styling.
+
+```python
+from fleur.ui import Button, Link, Notice
+
+guide = Link("Read the guide", href="#guide")
+export = Link("Download CSV", href=Report.csv_url, download="expenses.csv",
+              disabled=Report.empty, variant="button")
+feedback = Notice("Could not save your changes.", Button("Retry", onclick=Actions.RETRY),
+                  variant="error")
+```
+
+`Notice(message, *actions)` accepts text or a view. Its `variant` can be `"info"`,
+`"success"` or `"error"` and can follow the model. The message uses `role="status"` by
+default for polite announcements. Choose `announce="assertive"` for an urgent message
+(`role="alert"`) or `announce="off"` for static information. Action buttons sit outside the
+live region so updating the message doesn't announce their labels.
+
 ## Customize grids
 
 `Grid(columns=3)` sets three equal tracks. `Grid(min_col=120)` fits as many tracks of at least 120px
@@ -170,11 +296,17 @@ can override the corresponding argument. A `GridItem` with no placement uses CSS
 
 ## Customize tabs
 
+Pass `label="Report sections"` to name the tab list for assistive technology. Tab enters the
+list on the selected tab. Left and Right move focus between tabs and wrap at either end.
+Home and End move to the first and last tab. Enter, Space or a click sends the selected key
+to `onselect`. Tab moves on to the visible panel. Each tab and its panel have linked IDs.
+Update existing tab styles that target `aria-pressed` to target `aria-selected`.
+
 In `tabs(panels, selected, onselect, tab_class="report-tab", tab_style={"padding": "6px 10px"})`,
 `tab_class` and `tab_style` apply to each tab button. The usual `props`, shorthands and `style`
 apply to the wrapper. A selected tab uses the current scope's `card` background, a border and
 heavier text. An unselected tab has a transparent background and uses `muted-foreground` for its text.
 To customize the selected background and keep the hover tint, set
-`--fleur-local-bg` on `.report-tab[aria-pressed="true"]`. A class that sets `background` directly
+`--fleur-local-bg` on `.report-tab[aria-selected="true"]`. A class that sets `background` directly
 controls the hover background too. For the same property, `tab_style` overrides ordinary class rules.
 The Button focus ring follows keyboard focus independently of selection.

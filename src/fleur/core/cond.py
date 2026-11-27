@@ -28,7 +28,7 @@ class Cond:
         *conditions: bool | Expr[bool],
     ) -> "Expr[bool]":
         if not conditions:
-            return Expr[bool](ensure_expr(True))
+            return Expr[bool](ensure_expr(False))
 
         expr = ensure_expr(conditions[0])
         for condition in conditions[1:]:
@@ -49,12 +49,13 @@ class Cond:
 
     @staticmethod
     def equal(
-        left: FleurValue | Expr,
-        right: FleurValue | Expr,
+        left: FleurValue | Expr[FleurValue],
+        right: FleurValue | Expr[FleurValue],
     ) -> "Expr[bool]":
+        """Compare strictly, except that comparing with `None` also matches a missing (`undefined`) value."""
         return Expr[bool](
             ESTreeBinaryExpression(
-                operator="===",
+                operator="==" if left is None or right is None else "===",
                 left=ensure_expr(left),
                 right=ensure_expr(right),
             )
@@ -62,12 +63,13 @@ class Cond:
 
     @staticmethod
     def not_equal(
-        left: FleurValue | Expr,
-        right: FleurValue | Expr,
+        left: FleurValue | Expr[FleurValue],
+        right: FleurValue | Expr[FleurValue],
     ) -> "Expr[bool]":
+        """Negation of `Cond.equal`, so a missing value also counts as `None`."""
         return Expr[bool](
             ESTreeBinaryExpression(
-                operator="!==",
+                operator="!=" if left is None or right is None else "!==",
                 left=ensure_expr(left),
                 right=ensure_expr(right),
             )

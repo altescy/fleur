@@ -3,7 +3,13 @@ import inspect
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Generic, ParamSpec, TypeVar, cast
 
-from fleur.js.ast import ESTreeFunctionBody, ESTreeFunctionExpression, ESTreeIdentifier, ESTreeReturnStatement
+from fleur.js.ast import (
+    ESTreeFunctionBody,
+    ESTreeFunctionExpression,
+    ESTreeGeneratedIdentifier,
+    ESTreeIdentifier,
+    ESTreeReturnStatement,
+)
 
 from .types import FleurValue
 
@@ -36,17 +42,11 @@ def function(fn: Callable[P, "R | Expr[R]"]) -> Function[P, R]:
 
     for param in sig.parameters.values():
         if param.kind in (param.POSITIONAL_ONLY, param.POSITIONAL_OR_KEYWORD):
-            params.append(ESTreeIdentifier(param.name))
+            params.append(ESTreeGeneratedIdentifier())
         else:
             raise TypeError(f"Unsupported parameter kind {param.kind} in function {name}")
 
-    overrides = {name: Expr(ESTreeIdentifier(name))}
-    fn.__globals__.update(overrides)
-    try:
-        result = cast("FleurValue | Expr", fn(*map(Expr, params)))  # pyright: ignore[reportCallIssue]
-    finally:
-        for key in overrides:
-            fn.__globals__.pop(key, None)
+    result = cast("FleurValue | Expr[FleurValue]", fn(*map(Expr, params)))  # pyright: ignore[reportCallIssue]
 
     if isinstance(result, Expr):
         result_ast = result.__compile__()

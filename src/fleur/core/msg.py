@@ -27,8 +27,13 @@ class MsgGroup:
         cls,
         *cases: tuple["GroupedMsg[Self, Any, Any]", "CaseValue[ModelT, Self]"],
     ) -> "Update[ModelT, Self]":
+        """Handle every message of the group, like an exhaustive Elm `case`."""
         from .update import Update
 
+        declared = {name for base in cls.__mro__ for name, value in vars(base).items() if isinstance(value, Msg)}
+        missing = sorted(declared - {message.name for message, _ in cases})
+        if missing:
+            raise ValueError(f"{cls.__name__}.cases() does not handle: {', '.join(missing)}")
         return Update(list(cases))
 
 
@@ -74,12 +79,10 @@ class GroupedMsg(Model, Generic[MsgGroupT, OptionalEventT, OptionalContextT]):
         self,
         group: type[MsgGroupT],
         name: str,
-        event_payload: OptionalEventT | None = None,
         context_payload: OptionalContextT | Expr[OptionalContextT] | None = None,
     ) -> None:
         self.group = group
         self.name = name
-        self._event_payload = event_payload
         self._context_payload = context_payload
 
     def __hash__(self) -> int:
@@ -93,8 +96,16 @@ class GroupedMsg(Model, Generic[MsgGroupT, OptionalEventT, OptionalContextT]):
     def context(self) -> OptionalContextT:
         return cast(OptionalContextT, MessageContextRef())
 
-    def bind(self, context: OptionalContextT | Expr[OptionalContextT]) -> Self:
-        return self.__class__(self.group, self.name, self._event_payload, context)
+    def bind(self, context: OptionalContextT | Expr[OptionalContextT]) -> "GroupedMsg[MsgGroupT, OptionalEventT, None]":
+        """Supply the context, giving a message that an event handler can dispatch as is.
+
+        The context type of a `GroupedMsg` is what a dispatcher still has to provide, so a bound
+        message has `None`; the update reads the value through the unbound `Msg.context`.
+        """
+        return cast(
+            "GroupedMsg[MsgGroupT, OptionalEventT, None]",
+            GroupedMsg(self.group, self.name, context),
+        )
 
     def then(
         self,
@@ -104,12 +115,7 @@ class GroupedMsg(Model, Generic[MsgGroupT, OptionalEventT, OptionalContextT]):
         return self, reduce(operator.and_, updates, update)
 
     def __compile__(self) -> ESTreeExpression:
-        event_expr: ESTreeExpression = ident(MESSAGE_EVENT)
         context_expr: ESTreeExpression = json_expr(None)
-
-        if self._event_payload is not None:
-            event_expr = ensure_expr(cast(Any, self._event_payload))
-
         if self._context_payload is not None:
             context_expr = ensure_expr(self._context_payload)
 
@@ -122,7 +128,7 @@ class GroupedMsg(Model, Generic[MsgGroupT, OptionalEventT, OptionalContextT]):
                         argument=object_expr(
                             [
                                 (MESSAGE_TYPE, json_expr(self.name)),
-                                (MESSAGE_EVENT, event_expr),
+                                (MESSAGE_EVENT, ident(MESSAGE_EVENT)),
                                 (MESSAGE_CONTEXT, context_expr),
                             ]
                         )
@@ -133,13 +139,12 @@ class GroupedMsg(Model, Generic[MsgGroupT, OptionalEventT, OptionalContextT]):
 
 
 class Msg(Generic[OptionalEventT, OptionalContextT]):
-    event: OptionalEventT | None
+    """Declare a message of a `MsgGroup` with its event and context types."""
 
     def __set_name__(self, owner: type[MsgGroup], name: str) -> None:
         self._name = name
 
-    def __init__(self, event: OptionalEventT | None = None) -> None:
-        self.event = event
+    def __init__(self) -> None:
         self._name: str | None = None
 
     def __get__(
@@ -148,9 +153,4 @@ class Msg(Generic[OptionalEventT, OptionalContextT]):
         del instance
         if self._name is None:
             raise AttributeError("Msg descriptor is not initialized")
-        return GroupedMsg(owner, self._name, self.event)
-
-    def __compile__(self) -> ESTreeExpression:
-        if self._name is None:
-            raise AttributeError("Msg descriptor is not initialized")
-        return json_expr({MESSAGE_TYPE: self._name})
+        return GroupedMsg(owner, self._name)

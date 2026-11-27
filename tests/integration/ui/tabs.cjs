@@ -9,10 +9,38 @@ async function run() {
     const css = (el, key) => el.evaluate((node, k) => getComputedStyle(node)[k], key);
     const clearHover = () => page.mouse.move(1099, 999);
 
+    const list = page.getByRole("tablist", { name: "Page sections" });
+    const one = list.getByRole("tab", { name: "One" });
+    const two = list.getByRole("tab", { name: "Two" });
+    const panel = page.locator("#page").getByRole("tabpanel", { name: "Two" });
+    const focused = locator => locator.evaluate(el => document.activeElement === el);
+    const tabIds = await page.getByRole("tab").evaluateAll(tabs => tabs.map(tab => {
+      const panel = document.getElementById(tab.getAttribute("aria-controls"));
+      if (!tab.id || panel?.getAttribute("aria-labelledby") !== tab.id) throw Error("Broken tab/panel association");
+      return tab.id;
+    }));
+    assert.equal(new Set(tabIds).size, tabIds.length);
+    await page.keyboard.press("Tab");
+    assert(await focused(one));
+    for (const [key, target] of [["ArrowLeft", two], ["ArrowRight", one], ["End", two], ["Home", one], ["ArrowRight", two]]) {
+      await page.keyboard.press(key);
+      assert(await focused(target));
+      assert.equal(await one.getAttribute("aria-selected"), "true");
+    }
+    await page.keyboard.press("Space");
+    assert.equal(await two.getAttribute("aria-selected"), "true");
+    assert(await panel.isVisible());
+    await page.keyboard.press("ArrowLeft");
+    assert(await focused(one));
+    await page.keyboard.press("Tab");
+    assert(await focused(panel));
+    await page.keyboard.press("Shift+Tab");
+    assert(await focused(two));
+
     async function selection(root, active) {
       for (const name of ["One", "Two"]) {
-        const button = root.getByRole("button", { name, exact: true });
-        assert.equal(await button.getAttribute("aria-pressed"), String(name === active));
+        const button = root.getByRole("tab", { name, exact: true });
+        assert.equal(await button.getAttribute("aria-selected"), String(name === active));
         assert.equal(await root.getByText("Panel " + name, { exact: true }).isVisible(), name === active);
         assert.equal(await css(button, "textDecorationLine"), "none");
         assert.equal(await css(button, "fontWeight"), name === active ? "600" : "500");
@@ -26,8 +54,8 @@ async function run() {
       const strip = dark ? "rgb(21, 37, 53)" : "rgb(221, 238, 255)";
       for (const name of ["scoped", "tinted", "classed", "styled"]) {
         const root = page.locator("#" + name);
-        const first = root.getByRole("button", { name: "One", exact: true });
-        const second = root.getByRole("button", { name: "Two", exact: true });
+        const first = root.getByRole("tab", { name: "One", exact: true });
+        const second = root.getByRole("tab", { name: "Two", exact: true });
         const fixedBackground = name === "classed" || name === "styled";
         const paint = name === "classed" ? "rgb(49, 105, 49)" : dark ? "rgb(102, 51, 34)" : "rgb(136, 68, 51)";
         const selectedBg = fixedBackground ? paint : name === "tinted" ? "rgb(170, 51, 68)" : card;
@@ -64,7 +92,7 @@ async function run() {
           assert.notEqual(idleHover, selectedHover);
         }
 
-        await page.keyboard.press("Tab"); // Focus follows One; selection stays on One until activation.
+        await page.keyboard.press("ArrowRight");
         assert(await second.evaluate(el => el.matches(":hover:focus-visible")));
         await selection(root, "One");
         assert.equal(await css(second, "boxShadow"), ring);
@@ -86,7 +114,7 @@ async function run() {
         // The callbacks deliver the tab key to shared model state. The outside palette stays light.
         const outside = page.locator("#page");
         await selection(outside, "Two");
-        const outsideTab = outside.getByRole("button", { name: "Two", exact: true });
+        const outsideTab = outside.getByRole("tab", { name: "Two", exact: true });
         assert.equal(await css(outsideTab, "backgroundColor"), "rgb(224, 239, 255)");
         assert.equal(await css(outsideTab, "borderTopColor"), "rgb(152, 165, 184)");
         await first.click();

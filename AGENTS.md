@@ -31,6 +31,7 @@ Follow it as the default development contract.
 - Single file: `PYTHONPATH=$(pwd) uv run pytest tests/unit/core/test_msg.py`
 - Single test: `PYTHONPATH=$(pwd) uv run pytest tests/unit/core/test_msg.py::test_grouped_msg_compiles_to_message_builder_function`
 - Type check: `PYTHONPATH=$(pwd) uv run pyright`
+- Public API type completeness: `PYTHONPATH=$(pwd) uv run pyright --verifytypes fleur --ignoreexternal` (keep at 100%)
 - Lint: `PYTHONPATH=$(pwd) uv run ruff check`
 - Format: `PYTHONPATH=$(pwd) uv run ruff format`
 - Import sort fix only: `PYTHONPATH=$(pwd) uv run ruff check --select I --fix`

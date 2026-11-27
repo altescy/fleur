@@ -3,6 +3,13 @@ import { describe, expect, test } from "bun:test"
 import { normalizeEventPayload } from "../../src/core/events"
 
 describe("normalizeEventPayload", () => {
+  test("normalizes native toggle state", () => {
+    for (const newState of ["open", "closed"]) {
+      const event = { type: "toggle", newState } as unknown as Event
+      expect(normalizeEventPayload(event.type, event)).toEqual({ type: "toggle", open: newState === "open" })
+    }
+  })
+
   test("normalizes click as pointer-like payload", () => {
     const payload = normalizeEventPayload(
       "click",

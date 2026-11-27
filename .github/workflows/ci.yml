@@ -28,6 +28,10 @@ jobs:
       - run: uv run pyright
         env:
           PYTHONPATH: ${{ github.workspace }}
+      - name: Keep the public API fully typed
+        run: uv run pyright --verifytypes fleur --ignoreexternal
+        env:
+          PYTHONPATH: ${{ github.workspace }}
 
   python-test:
     runs-on: ubuntu-latest
@@ -44,12 +48,12 @@ jobs:
         with:
           node-version: '26'
       - run: uv sync --locked
-      - name: Install Playwright and Chromium
+      - name: Install Playwright, Chromium, and WebKit
         env:
           NODE_PATH: ${{ runner.temp }}/fleur-browser/node_modules
         run: |
           npm install --prefix "$RUNNER_TEMP/fleur-browser" --no-save --no-package-lock playwright-core@1.65.1
-          node "$NODE_PATH/playwright-core/cli.js" install --with-deps --no-shell chromium
+          node "$NODE_PATH/playwright-core/cli.js" install --with-deps --no-shell chromium webkit
           browser="$(node -p 'require("playwright-core").chromium.executablePath()')"
           test -x "$browser"
           echo "FLEUR_TEST_CHROMIUM=$browser" >> "$GITHUB_ENV"

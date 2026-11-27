@@ -1,5 +1,6 @@
 import { Cmd, Sub } from "./effects"
 import { diff } from "./diff"
+import { DomEventOrigin, domEventOrigin, withDomEventOrigin } from "./events"
 import { patch } from "./patch"
 import { Dispatch, Msg, RuntimeComponent, Subscription, VNode } from "./types"
 import { wrapDispatch } from "./vdom"
@@ -13,11 +14,11 @@ const program =
 
     const activeSubs = new Map<string, () => void>()
 
-    const queue: Msg[] = []
+    const queue: { message: Msg; origin?: DomEventOrigin }[] = []
     let running = false
 
     const dispatch: Dispatch = (msg) => {
-      queue.push(msg)
+      queue.push({ message: msg, origin: domEventOrigin() })
       process()
     }
 
@@ -25,16 +26,20 @@ const program =
       if (running) return
       running = true
 
-      while (queue.length) {
-        const msg = queue.shift() as Msg
-        const [m, cmd] = update(model, msg)
-        model = m
-        render()
-        refreshSubs()
-        runCmd(cmd)
+      try {
+        for (let next = queue.shift(); next; next = queue.shift()) {
+          const { message, origin } = next
+          withDomEventOrigin(origin, () => {
+            const [m, cmd] = update(model, message)
+            model = m
+            render()
+            refreshSubs()
+            runCmd(cmd)
+          })
+        }
+      } finally {
+        running = false
       }
-
-      running = false
     }
 
     const runCmd = (cmd: (dispatch: Dispatch) => void): void => cmd(dispatch)

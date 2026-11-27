@@ -32,6 +32,23 @@ describe("Cmd.task", () => {
 
     expect(received).toEqual([{ type: "ERR", value: "boom" }])
   })
+
+  test("keeps update exceptions separate from task failures", async () => {
+    const updateError = new Error("update failed")
+    const received: string[] = []
+    const cmd = Cmd.task(
+      () => Promise.resolve(42),
+      () => ({ type: "OK" }),
+      () => ({ type: "ERR" }),
+    )
+
+    const result = cmd(msg => {
+      received.push(msg.type)
+      if (msg.type === "OK") throw updateError
+    })
+    await expect(result).rejects.toBe(updateError)
+    expect(received).toEqual(["OK"])
+  })
 })
 
 describe("Http.request", () => {
@@ -51,7 +68,7 @@ describe("Http.request", () => {
       await expect(Http.request({ method: "GET", url: "https://example.com/todo", expect: "json" })).resolves.toEqual({
         ok: true,
         status: 200,
-        statusText: "OK",
+        status_text: "OK",
         url: "https://example.com/todo",
         headers: { "content-type": "application/json" },
         body: { ok: true },
@@ -77,8 +94,24 @@ describe("Http.request", () => {
       await expect(Http.request({ method: "GET", url: "https://example.com/todo", expect: "json" })).resolves.toMatchObject({
         ok: false,
         status: 404,
-        statusText: "Not Found",
+        status_text: "Not Found",
         body: { code: "not_found" },
+      })
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  test("includes the HTTP status in a body decoding failure", async () => {
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (() =>
+      Promise.resolve(new Response("not JSON", { status: 502, statusText: "Bad Gateway" }))) as typeof fetch
+
+    try {
+      await expect(Http.request({ method: "GET", url: "https://example.com/todo", expect: "json" })).rejects.toMatchObject({
+        kind: "decode",
+        status: 502,
+        status_text: "Bad Gateway",
       })
     } finally {
       globalThis.fetch = originalFetch
@@ -102,6 +135,8 @@ describe("Http.request", () => {
     try {
       await expect(Http.request({ method: "GET", url: "https://example.com/todo", expect: "json", timeoutMs: 1 })).rejects.toMatchObject({
         kind: "timeout",
+        status: null,
+        status_text: null,
       })
     } finally {
       globalThis.fetch = originalFetch

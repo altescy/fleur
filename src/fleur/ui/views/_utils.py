@@ -4,9 +4,9 @@ from typing import Annotated, Literal, Unpack, assert_never, cast, get_args, get
 from fleur.core.cond import Cond
 from fleur.core.expr import Expr
 from fleur.core.number import Number
-from fleur.core.runtime import runtime_call
-from fleur.core.view import ViewProp, ViewProps, _compile_prop_value
-from fleur.js.builder import call, ident, member_expr, object_expr
+from fleur.core.string import String as StringValue
+from fleur.core.types import MsgGroupT
+from fleur.core.view import View, ViewProp, ViewProps
 from fleur.ui._css import CssValue, color_reference
 
 from .types import (
@@ -27,7 +27,6 @@ from .types import (
     StyleTransformValue,
     ViewStyleArgs,
 )
-
 
 _DIMENSION_KEYWORDS = {
     "full": "100%",
@@ -57,7 +56,7 @@ def scale_value(
     if isinstance(value, CssValue):
         return value.value
     if isinstance(value, Expr):
-        text = Expr[str](call(ident("String"), value.__compile__()))
+        text = StringValue.from_value(value)
         resolved = Cond.when(Number.is_finite(value), text + "px", f"var(--fleur-{scale}-" + text + ")")
         for name, css_value in (keywords or {}).items():
             resolved = Cond.when(Cond.equal(value, name), css_value, resolved)
@@ -122,9 +121,9 @@ def _get_style_rules() -> dict[str, StyleField]:
 _STYLE_RULES = _get_style_rules()
 
 
-def _merge_declarations(*layers: Mapping[str, ViewProp]) -> dict[str, ViewProp]:
+def _merge_declarations(*layers: Mapping[str, ViewProp[MsgGroupT]]) -> dict[str, ViewProp[MsgGroupT]]:
     """Move replaced keys to the end so later layers also win CSS shorthand conflicts."""
-    merged: dict[str, ViewProp] = {}
+    merged: dict[str, ViewProp[MsgGroupT]] = {}
     for layer in layers:
         for key, value in layer.items():
             merged.pop(key, None)
@@ -133,13 +132,45 @@ def _merge_declarations(*layers: Mapping[str, ViewProp]) -> dict[str, ViewProp]:
 
 
 def merge_props(
-    props: ViewProps | None,
+    props: ViewProps[MsgGroupT] | None,
     *,
     element: Literal[
         "box",
         "text",
         "input",
+        "number-field",
         "button",
+        "link",
+        "notice",
+        "toast",
+        "progress",
+        "meter",
+        "slider",
+        "empty-state",
+        "radio-group",
+        "checkbox-field",
+        "checkbox-group",
+        "switch",
+        "card",
+        "avatar",
+        "dialog",
+        "popover",
+        "menu",
+        "menubar",
+        "menu-item",
+        "navigation-menu",
+        "tooltip",
+        "preview-card",
+        "disclosure",
+        "accordion",
+        "scroll-area",
+        "toolbar",
+        "toggle-group",
+        "heading",
+        "field",
+        "fieldset",
+        "select",
+        "combobox",
         "grid",
         "grid-item",
         "hstack",
@@ -156,7 +187,7 @@ def merge_props(
     defaults: StyleMap | None = None,
     layout: StyleMap | None = None,
     **style_args: Unpack[ViewStyleArgs],
-) -> ViewProps:
+) -> ViewProps[MsgGroupT]:
     """Compose defaults, supplied style, layout arguments, shorthands, then explicit style."""
     style_kwargs: dict[str, Style] = {}
     for key, rule in _STYLE_RULES.items():
@@ -176,35 +207,7 @@ def merge_props(
         props = extend_props(props, {"data-fleur-bg": ""})
     defaults = defaults or {}
     overrides = _merge_declarations(layout or {}, style_kwargs, style_args.get("style") or {})
-    if not defaults and not overrides:
-        return props
-
-    if isinstance(props, Expr) or isinstance(props.get("style"), Expr):
-        return Expr(
-            runtime_call(
-                ("mergeStyleProps",),
-                _compile_prop_value(props),
-                _compile_prop_value(defaults),
-                _compile_prop_value(overrides),
-            )
-        )
-
-    supplied = props.get("style")
-    style = _merge_declarations(defaults, supplied if isinstance(supplied, Mapping) else {}, overrides)
-    return {**props, "style": style}
+    return View.merge_styles(props, defaults, overrides)
 
 
-def extend_props(props: ViewProps, extra: ViewProps) -> ViewProps:
-    """Append top-level attributes, evaluating each dynamic source once."""
-    if isinstance(extra, Mapping) and not extra:
-        return props
-    if isinstance(props, Mapping) and isinstance(extra, Mapping):
-        return {**props, **extra}
-    return Expr(
-        call(
-            member_expr(ident("Object"), "assign"),
-            object_expr([]),
-            _compile_prop_value(props),
-            _compile_prop_value(extra),
-        )
-    )
+extend_props = View.extend_props

@@ -9,7 +9,7 @@ export type DecodedBody<TExpect extends HttpExpect> = TExpect extends "json" ? J
 export type HttpResponse<TExpect extends HttpExpect> = {
   ok: boolean
   status: number
-  statusText: string
+  status_text: string
   url: string
   headers: Record<string, string>
   body: DecodedBody<TExpect>
@@ -30,7 +30,7 @@ export type HttpRequest<TExpect extends HttpExpect = HttpExpect> = {
 export type HttpError = {
   kind: HttpErrorKind
   message: string
-  url?: string
-  status?: number
-  statusText?: string
+  url: string | null
+  status: number | null
+  status_text: string | null
 }

@@ -10,7 +10,6 @@ from fleur.core.expr import Expr, ensure_expr
 from fleur.ui._css import CssValue
 from fleur.ui.themes import ThemeColorName, ThemeFontSizeName, ThemeRadiusName, ThemeSpaceName
 
-
 ColorName: TypeAlias = ThemeColorName | Literal["transparent"]
 
 

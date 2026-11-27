@@ -1,17 +1,26 @@
 """Prepare a yen expense report and download it as a CSV file."""
 
 from collections.abc import Mapping, Sequence
-from typing import cast
+from typing import Literal, cast
 
 from fleur import Array, Boolean, Component, Cond, Expr, Model, Msg, MsgGroup, Number, State, String, Url, View
-from fleur.core import InputEvent, PointerEvent, record
-from fleur.core.view import ViewChild
+from fleur.core import InputEvent, PointerEvent, SubmitEvent, record
 from fleur.ui import (
     Box,
     Button,
+    Card,
+    EmptyState,
+    Form,
     Grid,
+    Heading,
     HStack,
     Input,
+    Link,
+    NumberField,
+    Option,
+    Popover,
+    Select,
+    SortableTableHead,
     Table,
     TableBody,
     TableCell,
@@ -23,13 +32,14 @@ from fleur.ui import (
     ThemeScope,
     VStack,
     css,
+    field,
 )
 
 Expense = Mapping[str, str | int]
+SortColumn = Literal["amount", "date"]
 CATEGORIES = ("Travel", "Meals", "Supplies", "Other")
 ALL = "All categories"
 MAX_AMOUNT = 999_999_999  # Whole yen.
-PANEL_BORDER = "1px solid var(--fleur-color-border)"
 
 
 class Report(Model):
@@ -40,6 +50,8 @@ class Report(Model):
     category: State[str]
     amount: State[str]
     category_filter: State[str]
+    sort_column: State[SortColumn | None]
+    descending: State[bool]
 
 
 class Msgs(MsgGroup):
@@ -48,7 +60,9 @@ class Msgs(MsgGroup):
     CATEGORY: Msg[InputEvent] = Msg()
     AMOUNT: Msg[InputEvent] = Msg()
     FILTER: Msg[InputEvent] = Msg()
-    ADD: Msg[PointerEvent] = Msg()
+    SORT: Msg[PointerEvent, SortColumn] = Msg()
+    CLEAR_FILTER: Msg[PointerEvent] = Msg()
+    ADD: Msg[SubmitEvent] = Msg()
     REMOVE: Msg[PointerEvent, int] = Msg()
 
 
@@ -95,77 +109,59 @@ def _csv_url(expenses: Expr[Sequence[Expense]]) -> Expr[str]:
     return "data:text/csv;charset=utf-8," + Url.encode_component(data)
 
 
-def _panel(title_id: str, *children: ViewChild) -> VStack[Report, Msgs]:
-    return VStack(
-        *children,
-        props={"role": "region", "aria-labelledby": title_id},
-        bg="card",
-        border=PANEL_BORDER,
-        radius="lg",
-        p="lg",
-        min_w=0,
-        gap="md",
-    )
-
-
-def _field(field_id: str, title: str, control: View[Report, Msgs]) -> View[Report, Msgs]:
-    return VStack(
-        View(title, tag="label", props={"for": field_id}),
-        control,
-        gap="xs",
-        min_w=0,
-        font_size="sm",
-    )
-
-
-def _options(names: Sequence[str]) -> list[View[Report, Msgs]]:
-    return [View(name, tag="option", props={"value": name}) for name in names]
-
-
-def _entry_panel(valid: Expr[bool]) -> View[Report, Msgs]:
-    return _panel(
-        "entry-heading",
-        View(Text("Add an expense", font_size="lg"), tag="h2", props={"id": "entry-heading"}),
-        _field(
-            "expense-date",
-            "Date",
-            Input(type="date", value=Report.date, oninput=Msgs.DATE, props={"id": "expense-date"}),
+def _entry_panel(valid: Expr[bool], amount_error: Expr[str | None]) -> View[Report, Msgs]:
+    entry = Card(
+        Heading("Add an expense", level=2, font_size="lg", props={"id": "entry-heading"}),
+        field(
+            id="expense-date",
+            label="Date",
+            control=lambda attrs: Input(
+                type="date", value=Report.date, oninput=Msgs.DATE, props={**attrs, "required": True}
+            ),
         ),
-        _field(
-            "expense-description",
-            "Description",
-            Input(
+        field(
+            id="expense-description",
+            label="Description",
+            control=lambda attrs: Input(
                 value=Report.description,
                 placeholder="e.g. Train to the client site",
                 oninput=Msgs.DESCRIPTION,
-                props={"id": "expense-description"},
+                props={**attrs, "required": True, "pattern": r".*\S.*"},
             ),
         ),
         Grid(
-            _field(
-                "expense-category",
-                "Category",
-                View(
-                    *_options(CATEGORIES),
-                    tag="select",
-                    props={"id": "expense-category", "value": Report.category, "onchange": Msgs.CATEGORY},
+            field(
+                id="expense-category",
+                label="Category",
+                control=lambda attrs: Select(
+                    *(Option(name) for name in CATEGORIES),
+                    value=Report.category,
+                    onchange=Msgs.CATEGORY,
+                    props=attrs,
                 ),
             ),
-            _field(
-                "expense-amount",
-                "Amount (JPY)",
-                Input(
-                    type="number",
+            field(
+                id="expense-amount",
+                label="Amount (JPY)",
+                error=amount_error,
+                control=lambda attrs: NumberField(
                     value=Report.amount,
                     oninput=Msgs.AMOUNT,
-                    props={"id": "expense-amount", "min": 1, "max": MAX_AMOUNT, "step": 1},
+                    min=1,
+                    max=MAX_AMOUNT,
+                    step=1,
+                    required=True,
+                    decrease_label="Decrease amount",
+                    increase_label="Increase amount",
+                    input_props={**attrs, "inputmode": "numeric"},
                 ),
             ),
-            columns=2,
+            min_col=css("min(100%, 10.5rem)"),
             gap="sm",
         ),
-        Button("Add expense", onclick=Msgs.ADD, props={"disabled": Boolean.negate(valid)}),
+        Button("Add expense", props={"type": "submit", "disabled": Boolean.negate(valid)}),
     )
+    return Form(entry, onsubmit=Msgs.ADD, prevent_default=True, props={"aria-labelledby": "entry-heading"})
 
 
 def _row(expense: Expr[Expense]) -> View[Report, Msgs]:
@@ -198,22 +194,33 @@ def _expenses_panel() -> View[Report, Msgs]:
         ),
     )
     empty = Cond.equal(Array.length(visible), 0)
-    return _panel(
-        "expenses-heading",
+    by_amount = Cond.equal(Report.sort_column, "amount")
+    by_date = Cond.equal(Report.sort_column, "date")
+    ordered = Cond.when(
+        by_amount,
+        Array.sort_by(visible, lambda expense: _number(expense, "amount"), descending=Report.descending),
+        Cond.when(
+            by_date,
+            Array.sort_by(visible, lambda expense: _text(expense, "date"), descending=Report.descending),
+            visible,
+        ),
+    )
+    return Card(
         HStack(
-            View(Text("Expenses", font_size="lg"), tag="h2", props={"id": "expenses-heading"}),
-            _field(
-                "expense-filter",
-                "Filter by category",
-                View(
-                    *_options((ALL, *CATEGORIES)),
-                    tag="select",
-                    props={
-                        "value": Report.category_filter,
-                        "onchange": Msgs.FILTER,
-                        "id": "expense-filter",
-                    },
+            Heading("Expenses", level=2, font_size="lg", props={"id": "expenses-heading"}),
+            Popover(
+                field(
+                    id="expense-filter",
+                    label="Filter by category",
+                    control=lambda attrs: Select(
+                        *(Option(name) for name in (ALL, *CATEGORIES)),
+                        value=Report.category_filter,
+                        onchange=Msgs.FILTER,
+                        props={**attrs, "autofocus": True},
+                    ),
                 ),
+                id="expense-filters",
+                trigger=lambda attrs: Button("Filter: " + Report.category_filter, variant="secondary", props=attrs),
             ),
             align="end",
             justify="space-between",
@@ -225,13 +232,21 @@ def _expenses_panel() -> View[Report, Msgs]:
                 TableHeader(
                     TableRow(
                         TableHead("Description"),
-                        TableHead("Amount", align="right"),
-                        TableHead("Date"),
+                        SortableTableHead(
+                            "Amount",
+                            active=by_amount,
+                            descending=Report.descending,
+                            onsort=Msgs.SORT.bind("amount"),
+                            align="right",
+                        ),
+                        SortableTableHead(
+                            "Date", active=by_date, descending=Report.descending, onsort=Msgs.SORT.bind("date")
+                        ),
                         TableHead("Category"),
                         TableHead("Actions", align="right"),
                     ),
                 ),
-                TableBody(Array.map(visible, _row)),
+                TableBody(Array.map(ordered, _row)),
                 props={"aria-label": "Expenses"},
                 min_w=450,
             ),
@@ -243,14 +258,18 @@ def _expenses_panel() -> View[Report, Msgs]:
             },
             overflow_x="auto",
         ),
-        Text(
+        Cond.when(
+            empty,
             Cond.when(
-                Cond.equal(Report.category_filter, ALL),
-                "Add your first expense to start the report.",
-                "No expenses in this category.",
+                Cond.equal(Array.length(Report.expenses), 0),
+                EmptyState("No expenses yet", "Add your first expense using the form."),
+                EmptyState(
+                    "No expenses in this category",
+                    "Choose another category or show the full report.",
+                    Button("Show all categories", onclick=Msgs.CLEAR_FILTER, variant="secondary"),
+                ),
             ),
-            fg="muted-foreground",
-            props={"hidden": Boolean.negate(empty)},
+            None,
         ),
         Text(
             "Shown subtotal: " + _yen(_total(visible)),
@@ -259,6 +278,7 @@ def _expenses_panel() -> View[Report, Msgs]:
             align_self="flex-end",
             font_weight=600,
         ),
+        props={"role": "region", "aria-labelledby": "expenses-heading"},
     )
 
 
@@ -266,13 +286,15 @@ def app() -> Component[Report, Msgs]:
     amount = Number.from_string(Report.amount)
     whole_yen = Number.floor(amount)
     description = String.trim(Report.description)
-    valid = Cond.every(
-        Cond.not_equal(Report.date, ""),
-        Cond.not_equal(description, ""),
+    valid_amount = Cond.every(
         Number.is_finite(amount),
         amount > 0,
         amount <= MAX_AMOUNT,
         Cond.equal(whole_yen, amount),
+    )
+    valid = Cond.every(Cond.not_equal(Report.date, ""), Cond.not_equal(description, ""), valid_amount)
+    amount_error = Cond.when(
+        Cond.some(Cond.equal(Report.amount, ""), valid_amount), None, f"Enter a whole number from 1 to {MAX_AMOUNT:,}."
     )
     entry: Expr[Expense] = record(
         {
@@ -283,16 +305,33 @@ def app() -> Component[Report, Msgs]:
             "amount": whole_yen,
         }
     )
-    has_expenses = Cond.not_equal(Array.length(Report.expenses), 0)
 
     return Component(
-        Report(expenses=[], next_id=1, date="", description="", category=CATEGORIES[0], amount="", category_filter=ALL),
+        Report(
+            expenses=[],
+            next_id=1,
+            date="",
+            description="",
+            category=CATEGORIES[0],
+            amount="",
+            category_filter=ALL,
+            sort_column=None,
+            descending=False,
+        ),
         Msgs.cases(
             Msgs.DATE.then(State.set(Report.date, Msgs.DATE.event.value)),
             Msgs.DESCRIPTION.then(State.set(Report.description, Msgs.DESCRIPTION.event.value)),
             Msgs.CATEGORY.then(State.set(Report.category, Msgs.CATEGORY.event.value)),
             Msgs.AMOUNT.then(State.set(Report.amount, Msgs.AMOUNT.event.value)),
             Msgs.FILTER.then(State.set(Report.category_filter, Msgs.FILTER.event.value)),
+            Msgs.SORT.then(
+                State.set(
+                    Report.descending,
+                    Cond.every(Cond.equal(Report.sort_column, Msgs.SORT.context), Boolean.negate(Report.descending)),
+                )
+                & State.set(Report.sort_column, Msgs.SORT.context)
+            ),
+            Msgs.CLEAR_FILTER.then(State.set(Report.category_filter, ALL)),
             Msgs.ADD.then(
                 State.set(Report.expenses, Array.concat(Report.expenses, [entry]))
                 & State.set(Report.next_id, Report.next_id + 1)
@@ -312,7 +351,7 @@ def app() -> Component[Report, Msgs]:
             View(
                 VStack(
                     VStack(
-                        View(Text("Expense report", font_size=css("clamp(27px, 4vw, 38px)")), tag="h1", props={}),
+                        Heading("Expense report", level=1, font_size=css("clamp(27px, 4vw, 38px)")),
                         View(
                             Text(
                                 "Enter whole yen amounts and download a CSV before leaving the page.",
@@ -323,42 +362,28 @@ def app() -> Component[Report, Msgs]:
                         ),
                         gap="xs",
                     ),
-                    HStack(
+                    Card(
                         VStack(
                             Text("Total expenses"),
                             Text(_yen(_total(Report.expenses)), font_size="2xl", font_weight=700),
                         ),
-                        View(
-                            Text(
-                                "Download all expenses",
-                                bg="secondary",
-                                fg="secondary-foreground",
-                                display="inline-block",
-                                px="md",
-                                py="sm",
-                                radius="sm",
-                                font_weight=600,
-                            ),
-                            tag="a",
-                            props={
-                                "className": "expense-download",
-                                "href": Cond.when(has_expenses, _csv_url(Report.expenses), None),
-                                "download": "expenses.csv",
-                                "aria-disabled": Cond.when(has_expenses, "false", "true"),
-                            },
+                        Link(
+                            "Download all expenses",
+                            href=_csv_url(Report.expenses),
+                            download="expenses.csv",
+                            disabled=Cond.equal(Array.length(Report.expenses), 0),
+                            variant="button",
+                            bg="secondary",
+                            fg="secondary-foreground",
                         ),
-                        bg="card",
-                        border=PANEL_BORDER,
-                        radius="lg",
-                        p="lg",
+                        flex_direction="row",
                         align="center",
                         justify="space-between",
                         flex_wrap="wrap",
-                        gap="md",
                         props={"className": "expense-total"},
                     ),
                     Grid(
-                        _entry_panel(valid),
+                        _entry_panel(valid, amount_error),
                         _expenses_panel(),
                         align="start",
                         gap="md",
@@ -394,7 +419,6 @@ REPORT_THEME = Theme(
     # These rules handle viewport-dependent layout and properties without shorthand arguments.
     extra_css=[
         """
-        .expense-download[aria-disabled="true"] { opacity:.55; }
         .expense-layout { grid-template-columns:minmax(240px,1fr) minmax(0,2fr); }
         @media (max-width:760px) { .expense-layout { grid-template-columns:minmax(0,1fr); } }
         """

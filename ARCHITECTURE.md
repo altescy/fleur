@@ -1,6 +1,6 @@
 # Fleur Architecture
 
-Fleur is an **Elm-inspired Python-to-browser-UI framework**. Users write a pure Python DSL; a Python compiler translates it into a JavaScript AST, which is serialized to JavaScript text and injected into an HTML page alongside a browser runtime bundle.
+Fleur is an **Elm-inspired Python-to-browser-UI framework**. Application and UI code is written using the Python DSL. The compiler lowers it to a JavaScript AST, and the browser runs the emitted JavaScript alongside the Fleur runtime bundle.
 
 ---
 
@@ -8,6 +8,7 @@ Fleur is an **Elm-inspired Python-to-browser-UI framework**. Users write a pure 
 
 1. [High-Level Overview](#1-high-level-overview)
 2. [Layer Structure](#2-layer-structure)
+   - [Python and JavaScript boundary](#21-python-and-javascript-boundary)
 3. [Python DSL Layer (`src/fleur/core/`)](#3-python-dsl-layer-srcfleurcore)
 4. [JS AST Layer (`src/fleur/js/`)](#4-js-ast-layer-srcfleurjs)
 5. [Browser Runtime (`runtime/`)](#5-browser-runtime-runtime)
@@ -55,18 +56,48 @@ The entire pipeline has three hard stages:
 
 ```mermaid
 graph TD
+    ui["src/fleur/ui/\nBuilt-in views, interactions, and styles"]
     builtins["src/fleur/builtins/\nHttp, HttpError, …"]
     core["src/fleur/core/\nModel, Msg, Update, View,\nCmd, Sub, Component, Expr"]
     js["src/fleur/js/\nESTree AST types\nbuilder helpers\nemitter"]
     runtime["runtime/src/\nTypeScript browser runtime\nvdom · diff · patch · effects · program"]
+    browser["Browser"]
 
+    ui --> core
     builtins --> core
     builtins --> js
     core --> js
-    js -.->|"bundled → fleur.js"| runtime
+    js -->|"generated application JavaScript"| browser
+    runtime -->|"bundled as fleur.js"| browser
 ```
 
-**Allowed dependency direction:** `core → js`, `builtins → core/js`. The `js` layer must not import from `core`.
+The Python dependencies flow from `ui` to `core`, from `builtins` to `core`
+and `js`, and from `core` to `js`.
+
+### 2.1 Python and JavaScript boundary
+
+Built-in UI components use the same public Python DSL as application-defined
+views. The Python UI layer defines markup, styling, accessibility attributes,
+and interaction rules such as keyboard navigation and when to move focus.
+Application state changes through the Elm-style `Model`, `Msg`, and `Update`
+loop. Transient state owned by a particular DOM element, such as a timer or a
+focus reference, can live in a `DomScope` and be cleaned up with the view.
+
+`fleur.core` exposes typed operations such as `EventBinding`, `DomAction`,
+and `DomEffect`. The compiler turns those operations into an AST, which
+`fleur.js` emits as JavaScript. The TypeScript runtime executes the message
+loop, patches the DOM, schedules commands and DOM effects, and provides
+reusable access to browser APIs. The generated application code carries the
+component's rules into the browser.
+
+When adding a component, start with native HTML behavior and compose the public
+DSL around it. If the DSL lacks an operation, add it to `fleur.core` in terms
+that also make sense for a custom view. Compose existing primitives where
+possible. Extend the runtime when a new browser capability or scheduling
+guarantee needs runtime support. For example, the Python `Dialog` decides
+when to open and close the modal, including calling native `close()` when
+its effect is removed. The runtime schedules and disposes the effect and
+exposes the native dialog methods through the DOM bridge.
 
 ---
 
@@ -76,11 +107,11 @@ graph TD
 
 `Expr` (`src/fleur/core/expr.py`) is the central type that wraps any ESTree expression node. All DSL values (model fields, literals, computed results) are `Expr` instances. Python operators are overloaded to produce new `Expr` nodes:
 
-```python
-# Python                        →   ESTree node produced
-CounterModel.count + 1          →   ESTreeBinaryExpression("+", model.count, 1)
-CounterModel.count.eq(0)        →   ESTreeBinaryExpression("===", model.count, 0)
-CounterModel.count.neg()        →   ESTreeUnaryExpression("!", model.count)
+```text
+# Python                                  →   ESTree node produced
+CounterModel.count + 1                    →   ESTreeBinaryExpression("+", model.count, 1)
+Cond.equal(CounterModel.count, 0)         →   ESTreeBinaryExpression("===", model.count, 0)
+Boolean.negate(CounterModel.enabled)      →   ESTreeUnaryExpression("!", model.enabled)
 ```
 
 Calling `__bool__()` raises `TypeError` to prevent accidental use in Python conditionals.
@@ -185,6 +216,27 @@ Text strings containing `${model.field}` interpolation are parsed by `_compile_t
 }
 ```
 
+The message group is a type parameter of every part, and its variance makes the type checker
+enforce that the update handles every message the rest of the component can produce:
+
+- `View[M, G]`, `Cmd[M, G]` and `Sub[M, G]` produce messages. `View` is covariant in `G`, and a
+  view's children (`ViewChild[M, G]`) and props (`ViewProps[G]`) carry `G` up to the root.
+- `Update[M, G]` is invariant in both `M` and `G`, so a component takes its model and group
+  from its update. A covariant parameter would let the checker widen the component to a
+  union, and a contravariant group would let a view without typed messages erase it.
+- A `GroupedMsg[G, Event, Context]` records the context a dispatcher must still supply.
+  `bind()` returns one with `None`, which is what event handlers (`EventMessage[G, Event]`),
+  `Cmd.task` and `Sub.interval` accept.
+- A tagger for a child component declares the child's group as its event
+  (`COUNTER: Msg[CounterMsg]`), so `View.map`, `View.forward`, `Update.forward`, `Cmd.map`
+  and `Sub.map` match it against the child. The forwarding helpers also require the field to
+  hold the child component's model type.
+- Static methods use method-scoped type variables: Pyright does not solve a generic class's
+  own parameters from the arguments of its static or class methods.
+
+`MsgGroup.cases()` checks at definition time that every message of the group is handled.
+See `tests/typecheck/` for the cases the type checker rejects.
+
 ### 3.8 `Cond`
 
 `Cond` (`src/fleur/core/cond.py`) provides conditional expression helpers:
@@ -254,7 +306,7 @@ The runtime is a Bun-built TypeScript project compiled to a single `fleur.js` bu
 
 ```mermaid
 flowchart LR
-    index["index.ts\nAssembles __fleur\n{ h, lazy, Cmd, Sub, Html, Http, program }"]
+    index["index.ts\nAssembles __fleur\n{ h, lazy, Cmd, Sub, Html, Http, Dom, program, … }"]
     program["program.ts\nApp loop\ndispatch · process · render · refreshSubs · runCmd"]
     vdom["vdom.ts\nh · text · lazy · wrapDispatch · resolveLazy"]
     diff["diff.ts\ndiff(old, new) → Patch[]"]
@@ -313,10 +365,37 @@ VLazy    { type:"LAZY",    fn, args, vnode:VNode|null }   ← memoization
 `setProp(el, key, value)` handles all prop types:
 - `className` → `setAttribute("class", …)`
 - `style` object → `el.style.setProperty(…)` per entry
-- `on*` functions → `addEventListener` (old listener removed first; stored on `el.__listeners`)
+- `on*` functions → `addEventListener` (old listener removed first and stored on `el.__listeners`)
+- `onCapture:<event>` functions → capture-phase listeners
+- `domEffect:<key>` → manage a named effect once the element's props and children are ready
 - Anything else → `setAttribute`
 
-Event listeners call `normalizeEventPayload` before invoking the handler.
+Event listeners pass the normalized payload, the registered element, and the
+native event to the handler. A handler may return without a message.
+DOM effects can read the originating event target through
+`DomElement.event_origin(event)`. The runtime carries the origin through queued
+messages and deferred DOM effects.
+
+A DOM effect has a `key`, an array of `args`, and a `run(element, ...args)`
+callback. Effect identity is scoped to the element. Adding and removing effects
+installs or disposes their individual slots on the existing DOM node. Removed
+effects are disposed before applying the element's new props. For the same key,
+a change of arguments schedules the effect. With `refresh`, changes to
+the element or its children also schedule it. With `sync`, the effect runs
+immediately after those DOM updates, including during construction before the
+element joins the document. Otherwise, effects run in a microtask on connected
+elements and coalesce by slot.
+
+The public Python `DomEffect` compiles to an update callback and optional
+`mount` and `dispose` hooks. The update uses the latest rendered dependencies.
+The runtime calls the mount hook on installation and disposes effects on removal.
+Scoped effects use setup callbacks that allocate local state and return update
+and disposal hooks. A scoped effect declares typed render-time inputs with
+`scope.input()`. Its update refreshes the input bindings shared by the
+installed callbacks before running the view's update action. Its listeners and
+timers are released on removal.
+For an application-directed focus change, `Dom.focus()` supplies a task for
+`Cmd.task` and reports the result through the message loop after rendering.
 
 ### 5.6 Event normalization (`events.ts`)
 
@@ -392,7 +471,7 @@ Both compile to `__fleur.Http.request({method:"GET", url:"/api/data", expect:"js
 
 At runtime (`runtime/src/http/client.ts`):
 - Wraps browser `fetch` with `AbortController` for timeout support.
-- Classifies failures into `HttpError.kind`: `network`, `timeout`, `abort`, `http_status`, `decode`, `unknown`.
+- Classifies failures into `HttpError.kind`: `network`, `timeout`, `abort`, `decode`, `unknown`.
 - Decodes body per `expect` (`"json"` → `response.json()`, `"text"` → `response.text()`).
 
 `HttpError` is a frozen dataclass (`src/fleur/builtins/http.py`) describing failures: `kind`, `message`, `url`, `status`, `status_text`.
@@ -403,13 +482,28 @@ At runtime (`runtime/src/http/client.ts`):
 
 ### 7.1 View Elements
 
-All elements extend `Element` (which extends `View`). Available elements:
-`Box`, `Button`, `Checkbox`, `Divider`, `Form`, `Grid`/`GridItem`, `HStack`, `Input`, `Table`, `Text`, `Textarea`, `VStack`.
+All elements extend `Element` (which extends `View`). Available elements, grouped by role:
+
+- Layout: `Box`, `VStack`, `HStack`, `Grid`/`GridItem`, `Card`, `Divider`, `ScrollArea`, `Toolbar`
+- Content: `Text`, `Heading`, `Link`, `Avatar`, `EmptyState`, `Notice`, `Progress`, `Meter`,
+  `Table` and its parts, `SortableTableHead`
+- Forms: `Form`, `Fieldset`, `Input`, `Textarea`, `NumberField`, `Slider`, `Select`/`Option`,
+  `Combobox`, `Checkbox`, `CheckboxField`, `CheckboxGroup`, `RadioGroup`, `Switch`, `Toggle`, `ToggleGroup`
+- Disclosure and navigation: `Disclosure`, `Accordion`/`AccordionItem`, `NavigationMenu`/`NavigationMenuGroup`,
+  `Menubar`
+- Overlays: `Dialog`, `AlertDialog`, `Popover`, `Menu`/`ContextMenu`/`MenuItem`, `Tooltip`, `PreviewCard`, `Toast`
+
+The interactive behavior of these components lives in the private `views/_*_behavior.py`
+modules as scoped DOM effects.
 
 `src/fleur/ui/views/base.py` defines `Element`, the shared `View` subclass.
 `views/types.py` defines shorthand arguments and token types.
 `views/_utils.py` resolves those arguments and merges them into view props.
 `themes/elements.css` supplies defaults for the standard controls and layout views.
+
+Menus and interactive overlays use scoped effects for listeners, timers, and
+local state. See the [Python and JavaScript boundary](#21-python-and-javascript-boundary)
+and [Add DOM behavior to a custom view](docs/building-apps.md#add-dom-behavior-to-a-custom-view).
 
 ### 7.2 Theme System
 
@@ -424,8 +518,8 @@ See [Theming and styling](docs/theming-and-styling.md) for the public API.
 
 ### 7.3 View factories
 
-`src/fleur/ui/factories/` contains the `tabs` view factory. The caller supplies the panels,
-the selected key, and the message that updates the selection.
+`src/fleur/ui/factories/` contains `field`, which connects a control with its label, description
+and validation message, and `tabs`, which takes panels, the selected key and the selection message.
 
 ---
 
@@ -456,7 +550,7 @@ class CounterMsg(MsgGroup):
     DEC: Msg[PointerEvent] = Msg()
 
 app = Component(
-    init=Init(CounterModel(count=0)),
+    init=CounterModel(count=0),
     update=CounterMsg.cases(
         CounterMsg.INC.then(State.set(CounterModel.count, CounterModel.count + 1)),
         CounterMsg.DEC.then(State.set(CounterModel.count, CounterModel.count - 1)),
@@ -515,7 +609,7 @@ class AppModel(Model):
     counter: State[CounterModel]       # nested model field
 
 class AppMsg(MsgGroup):
-    COUNTER = Msg()                    # wrapper message carrying child messages
+    COUNTER: Msg[CounterMsg] = Msg()   # tagger: its event is a message of the child group
 ```
 
 ### 9.2 `Update.forward`
@@ -536,7 +630,7 @@ Child messages are delegated to the child's update function; the resulting model
 
 ### 9.3 `View.forward`
 
-`View.forward(AppModel.counter, counter_view, AppMsg.COUNTER)` compiles to:
+`View.forward(AppModel.counter, counter_component, AppMsg.COUNTER)` renders the child component's view and compiles to:
 
 ```js
 (function(model) { return __fleur.Html.map(counterTagger, counterViewExpr); })(model.counter)
@@ -597,6 +691,9 @@ flowchart LR
 
 ### 11.2 `Cmd.task` compilation
 
+Each task declares its result and error types through `TaskLike[Result, Error]`.
+The success and error messages must accept the corresponding payloads.
+
 `Cmd.task(effect, ok_msg, err_msg)` compiles to:
 
 ```js
@@ -611,10 +708,10 @@ __fleur.Cmd.task(
 
 At runtime, `Http.request` wraps browser `fetch`:
 - Attaches an `AbortController` when `timeout_ms` is set.
-- Classifies failures into `HttpError.kind`: `network`, `timeout`, `abort`, `http_status`, `decode`, `unknown`.
+- Classifies failures into `HttpError.kind`: `network`, `timeout`, `abort`, `decode`, `unknown`.
 - Parses the response body according to `expect` (`"json"` or `"text"`).
 
-On success: `dispatch(ok(parsedBody))` → dispatches e.g. `{type:"LOADED", event:<json data>}`.
+On success, `dispatch(ok(response))` sends an `HttpResponse` with status, headers, and the decoded body.
 On failure: `dispatch(err(httpError))` → dispatches e.g. `{type:"FAILED", event:<HttpError>}`.
 
 ---
@@ -636,23 +733,26 @@ fleur/
 │   │   ├── view.py              # View, MappedView, ForwardedView
 │   │   ├── cmd.py               # Cmd
 │   │   ├── sub.py               # Sub
-│   │   ├── task.py              # TaskLike protocol
-│   │   ├── component.py         # Component, Init
+│   │   ├── task.py              # TaskLike generic task base
+│   │   ├── component.py         # Component
 │   │   ├── cond.py              # Cond (when, some, every)
+│   │   ├── dom.py               # DomEffect, DomScope, DomAction, EventBinding, Dom tasks
 │   │   ├── events.py            # Event Protocols (PointerEvent, KeyboardEvent, …)
 │   │   └── template.py          # Page, BloomContext, render_script, render_template
 │   ├── js/
 │   │   ├── ast.py               # ESTree-compatible AST dataclasses
 │   │   ├── builder.py           # AST factory helpers (ident, literal, call, …)
 │   │   ├── emitter.py           # ESTree → JS string serializer
+│   │   ├── traverse.py          # Generic ESTree traversal (identifier and binding queries)
 │   │   └── combinators/
 │   │       └── promise.py       # Promise chain combinator
 │   ├── builtins/
 │   │   └── http.py              # Http, HttpError
 │   ├── ui/
 │   │   ├── views/               # Box, Button, Input, Text, VStack, HStack, …
-│   │   ├── themes/              # Theme, DEFAULT_THEME, BASIC_THEME, ZEN_THEME
-│   │   └── components/          # Pre-built stateful components (dialog, tabs)
+│   │   │                        #   _*_behavior.py: scoped DOM effects for interactive components
+│   │   ├── themes/              # Theme, ThemeScope, DEFAULT/BASIC/ZEN themes, elements.css
+│   │   └── factories/           # Composite views (field, tabs)
 │   ├── integrations/
 │   │   └── shadcn/themes.py     # Shadcn-compatible CSS variable mapping
 │   ├── cli/                     # CLI entrypoint
@@ -660,13 +760,16 @@ fleur/
 │
 ├── runtime/
 │   └── src/
-│       ├── index.ts             # Assembles window.__fleur
+│       ├── index.ts             # Assembles window.__fleur (h, lazy, Cmd, Sub, Html, Http, Dom, program, …)
 │       └── core/
 │           ├── types.ts         # VNode, Patch, Msg, Dispatch, Subscription, …
 │           ├── vdom.ts          # h, text, lazy, wrapDispatch, resolveLazy
 │           ├── diff.ts          # diff(old, new) → Patch[]
 │           ├── patch.ts         # apply(root, patch), patch(root, patches)
 │           ├── dom.ts           # setProp, removeProp, instantiate
+│           ├── domAccess.ts     # Dom: element operations used by compiled DOM actions
+│           ├── domEffect.ts     # Install, update and dispose element-scoped effects
+│           ├── array.ts         # sortBy
 │           ├── events.ts        # normalizeEventPayload
 │           ├── effects.ts       # Cmd, Sub, Html
 │           └── program.ts       # program() — app loop
@@ -679,7 +782,11 @@ fleur/
     │   ├── core/                # Tests for Model, Msg, Expr, etc.
     │   ├── builtins/            # Tests for Http
     │   ├── js/                  # Tests for AST/emitter
-    │   └── ui/                  # Tests for UI elements
+    │   ├── integrations/        # Tests for the shadcn theme importer
+    │   └── ui/                  # Tests for UI elements and themes
+    ├── typecheck/               # Pyright-only checks for DSL typing contracts
     └── integration/
-        └── core/                # Cross-layer tests (component composition, etc.)
+        ├── core/                # Cross-layer tests (component composition, etc.)
+        ├── cli/                 # fleur dev reload server
+        └── ui/                  # Browser tests (Playwright probes in *.cjs)
 ```

@@ -25,6 +25,11 @@ dev = [
 
 [tool.pyright]
 pythonVersion = "3.11"
+# Infer a list of views with different message groups as their union rather than a common
+# base, so that a mixed list is still checked against the component's update.
+strictListInference = true
+strictDictionaryInference = true
+strictSetInference = true
 
 [tool.ruff]
 line-length = 120

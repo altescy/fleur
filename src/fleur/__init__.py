@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from typing import Any
 
 from fleur.builtins import Http, HttpError, HttpResponse
 from fleur.core import (
@@ -36,7 +37,7 @@ from fleur.ui import DEFAULT_THEME, Theme, apply_theme
 
 
 def bloom(
-    component: Component | Callable[[], Component],
+    component: Component[Any, Any] | Callable[[], Component[Any, Any]],
     *,
     page: Page | None = None,
     theme: Theme | None = None,

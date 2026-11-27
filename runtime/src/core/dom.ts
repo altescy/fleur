@@ -1,14 +1,25 @@
-import { EventHandler, EventPayload, RuntimeEventHandler, StyleProps, VNode, VNodeType } from "./types"
+import { RuntimeEventHandler, StyleProps, VNode, VNodeType, VPropValue } from "./types"
 import { asVNode, resolveLazy } from "./vdom"
-import { normalizeEventPayload } from "./events"
+import { normalizeEventPayload, withDomEventOrigin } from "./events"
+import { cancelDomEffect, isDomEffect, isDomEffectProp, scheduleDomEffect } from "./domEffect"
 
 type ElementWithListeners = Element & { __listeners?: Record<string, EventListener> }
+
+const usesValueAttribute = (el: Element): boolean => el.localName === "progress" || el.localName === "meter"
+const eventProp = (key: string): { type: string; capture: boolean } => {
+  const capture = key.startsWith("onCapture:")
+  return { type: key.slice(capture ? "onCapture:".length : 2).toLowerCase(), capture }
+}
 
 export const setProp = (
   el: ElementWithListeners,
   key: string,
-  value: string | number | boolean | null | undefined | StyleProps | EventHandler | RuntimeEventHandler,
+  value: VPropValue,
 ): void => {
+  if (isDomEffectProp(key)) {
+    if (isDomEffect(value)) scheduleDomEffect(el, key, value)
+    return
+  }
   if (key === "className") {
     el.setAttribute("class", String(value))
     return
@@ -25,15 +36,19 @@ export const setProp = (
   }
 
   if (key.startsWith("on") && typeof value === "function") {
-    const type = key.slice(2).toLowerCase()
-    if (el.__listeners?.[key]) el.removeEventListener(type, el.__listeners[key])
+    const { type, capture } = eventProp(key)
+    if (el.__listeners?.[key]) el.removeEventListener(type, el.__listeners[key], capture)
     const listener = ((event: Event) => {
-      ;(value as (payload: EventPayload) => void)(normalizeEventPayload(type, event))
+      if (type === "toggle" && !el.isConnected) return
+      const target = event.composedPath().find((node): node is HTMLElement => node instanceof HTMLElement) ?? null
+      withDomEventOrigin({ type, target }, () => {
+        ;(value as RuntimeEventHandler)(normalizeEventPayload(type, event), el, event)
+      })
     }) as EventListener
-    el.addEventListener(type, listener)
+    el.addEventListener(type, listener, capture)
     el.__listeners = { ...el.__listeners, [key]: listener }
-  } else if (key === "value") {
-    ;(el as HTMLInputElement | HTMLTextAreaElement | HTMLOptionElement).value = String(value ?? "")
+  } else if (key === "value" && !usesValueAttribute(el)) {
+    ;(el as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLOptionElement).value = String(value ?? "")
   } else if (key === "checked") {
     ;(el as HTMLInputElement).checked = Boolean(value)
   } else if (key === "selected") {
@@ -44,6 +59,10 @@ export const setProp = (
 }
 
 export const removeProp = (el: Element & { __listeners?: Record<string, EventListener> }, key: string): void => {
+  if (isDomEffectProp(key)) {
+    cancelDomEffect(el, key)
+    return
+  }
   if (key === "className") {
     el.removeAttribute("class")
     return
@@ -55,15 +74,15 @@ export const removeProp = (el: Element & { __listeners?: Record<string, EventLis
   }
 
   if (key.startsWith("on")) {
-    const type = key.slice(2).toLowerCase()
+    const { type, capture } = eventProp(key)
     const listener = el.__listeners?.[key]
     if (listener) {
-      el.removeEventListener(type, listener)
+      el.removeEventListener(type, listener, capture)
       delete el.__listeners?.[key]
     }
   } else {
-    if (key === "value") {
-      ;(el as HTMLInputElement | HTMLTextAreaElement | HTMLOptionElement).value = ""
+    if (key === "value" && !usesValueAttribute(el)) {
+      ;(el as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLOptionElement).value = ""
     } else if (key === "checked") {
       ;(el as HTMLInputElement).checked = false
     } else if (key === "selected") {
@@ -80,7 +99,10 @@ export const instantiate = (vnode: VNode): Node => {
       return document.createTextNode(resolved.value)
     case VNodeType.ELEMENT: {
       const el = document.createElement(resolved.tag)
+      const deferValue = resolved.tag === "select" || (resolved.tag === "input" && resolved.props.type === "range")
       for (const [k, v] of Object.entries(resolved.props || {})) {
+        if (isDomEffectProp(k)) continue
+        if (deferValue && k === "value") continue
         setProp(el, k, v)
       }
       resolved.children
@@ -88,6 +110,12 @@ export const instantiate = (vnode: VNode): Node => {
         .map(asVNode)
         .map(instantiate)
         .forEach((c) => el.appendChild(c))
+      if (deferValue && resolved.props.value != null) {
+        setProp(el, "value", resolved.props.value)
+      }
+      for (const [key, effect] of Object.entries(resolved.props)) {
+        if (isDomEffectProp(key) && isDomEffect(effect)) scheduleDomEffect(el, key, effect)
+      }
       return el
     }
     default:

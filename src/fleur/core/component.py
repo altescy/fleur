@@ -23,7 +23,7 @@ from .view import View
 
 
 @dataclass(slots=True)
-class Init(Generic[ModelT, MsgGroupT]):
+class _Init(Generic[ModelT, MsgGroupT]):
     model: ModelT
     cmd: Cmd[ModelT, MsgGroupT] = field(default_factory=Cmd.none)
 
@@ -31,18 +31,16 @@ class Init(Generic[ModelT, MsgGroupT]):
 class Component(Model, Generic[ModelT, MsgGroupT]):
     def __init__(
         self,
-        init: ModelT | tuple[ModelT, Cmd[ModelT, MsgGroupT]] | Init[ModelT, MsgGroupT],
+        init: ModelT | tuple[ModelT, Cmd[ModelT, MsgGroupT]],
         update: Update[ModelT, MsgGroupT],
         view: View[ModelT, MsgGroupT],
-        subscriptions: Sub[ModelT] | None = None,
+        subscriptions: Sub[ModelT, MsgGroupT] | None = None,
     ) -> None:
-        if not isinstance(init, Init):
-            init = Init(init) if not isinstance(init, tuple) else Init(*init)
-
-        self.init: Init[ModelT, MsgGroupT] = init
+        """Start from a model, or from a model and a command to run first."""
+        self.init: _Init[ModelT, MsgGroupT] = _Init(*init) if isinstance(init, tuple) else _Init(init)
         self.update: Update[ModelT, MsgGroupT] = update
         self.view: View[ModelT, MsgGroupT] = view
-        self.subscriptions: Sub[ModelT] = subscriptions or Sub.none()
+        self.subscriptions: Sub[ModelT, MsgGroupT] = subscriptions or Sub.none()
 
     def __compile__(self) -> ESTreeExpression:
         init_model, init_cmd = self.init.model, self.init.cmd

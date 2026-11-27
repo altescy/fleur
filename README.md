@@ -16,7 +16,7 @@ You define `Model`, `Msg`, `update`, and `view` in Python, and Fleur compiles yo
 - **Elm-inspired architecture** — The Elm Architecture (Model → Msg → update → view) brings predictable state management and side-effect isolation to Python frontend development.
 - **Statically typed DSL** — Model fields, message payloads, and event handlers are all typed. Pyright catches mismatches at authoring time, before the browser ever loads.
 - **Python-native syntax** — Operator overloading and descriptors let you write `CounterModel.count + 1` or `State.set(field, value)` naturally; no string templates or code-gen strings.
-- **Minimal runtime** — The browser runtime is a single ~10 KB JS bundle handling VDOM diffing, patching, and effects. No virtual DOM framework dependency, no React.
+- **Minimal runtime** — The browser runtime is a single ~17 KB (~6 KB gzipped) JS bundle handling VDOM diffing, patching, and effects. No virtual DOM framework dependency, no React.
 - **Compile-time code generation** — Python DSL compiles to ESTree AST, then to plain JavaScript. The generated code is framework-free and debuggable.
 
 ## Installation
@@ -96,6 +96,7 @@ Use `ThemeScope` to change the theme or color mode for a region of the page.
 
 Browse the [documentation index](docs/README.md) for guides on app structure, theming, and HTTP requests.
 The [examples](examples/README.md) are ready to run from this checkout.
+Explore the built-in views and their Python source in the [component gallery](examples/README.md#component-gallery).
 
 ## Development
 
@@ -105,8 +106,9 @@ make lint        # run ruff and pyright
 make build       # build runtime bundle into src/fleur/assets/fleur.js
 ```
 
-The interactive element tests use Node, `playwright-core` and Chromium. Set `FLEUR_TEST_CHROMIUM` to the
-browser executable if it is outside PATH, and `NODE_PATH` if the Node package is installed separately.
+The interactive element tests use Node, `playwright-core`, and Chromium. The overlay focus tests
+also run in Playwright WebKit. Set `FLEUR_TEST_CHROMIUM` to the Chromium executable if it is
+outside PATH, and `NODE_PATH` if the Node package is installed separately.
 Set `FLEUR_REQUIRE_BROWSER_TESTS=1` to fail when browser dependencies are missing, as in CI.
 
 If you need to rebuild the TypeScript runtime directly:

@@ -9,8 +9,8 @@ from fleur.core.view import View, ViewChild, ViewProps
 class Element(View[ModelT_co, MsgGroupT_co], Generic[ModelT_co, MsgGroupT_co]):
     def __init__(
         self,
-        *children: ViewChild,
+        *children: ViewChild[ModelT_co, MsgGroupT_co],
         tag: str,
-        props: ViewProps,
+        props: ViewProps[MsgGroupT_co],
     ) -> None:
         super().__init__(*children, tag=tag, props=props)

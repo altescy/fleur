@@ -26,7 +26,7 @@ def test_default_tabs_compile_state_without_inline_styles() -> None:
     contents: Mapping[str, View[Screen, Actions]] = {"One": Text("Panel One")}
     source = emit(tabs(record(contents), "One").__compile__())
     assert "style:" not in source
-    assert '"aria-pressed":' in source
+    assert '"aria-selected":' in source
     assert "hidden:" in source
 
 
@@ -34,7 +34,7 @@ def test_tabs_cascade_and_activation(playwright_page: Callable[[str, Path], str]
     panels: Mapping[Tab, View[Screen, Actions]] = {"One": Text("Panel One"), "Two": Text("Panel Two")}
     dark = Cond.equal(Screen.mode, "dark")
     root = Box(
-        tabs(panels, Screen.selected, Actions.SELECT, props={"id": "page"}),
+        tabs(panels, Screen.selected, Actions.SELECT, label="Page sections", props={"id": "page"}),
         ThemeScope(
             tabs(panels, Screen.selected, Actions.SELECT, props={"id": "scoped"}),
             tabs(panels, Screen.selected, Actions.SELECT, props={"id": "tinted"}, tab_class="tint"),
@@ -71,7 +71,7 @@ def test_tabs_cascade_and_activation(playwright_page: Callable[[str, Path], str]
         extra_head_html=[
             """<style>
       * { transition: none !important }
-      .tint[aria-pressed="true"] { --fleur-local-bg: var(--fleur-color-primary) }
+      .tint[aria-selected="true"] { --fleur-local-bg: var(--fleur-color-primary) }
       .paint { background: #316931; padding: 7px }
       .paint:hover { color: #feefaa }
       .paint:focus-visible { outline: 3px dashed #ee9933 }
@@ -87,11 +87,16 @@ def test_reordering_tabs_keeps_input_focus_and_values(chromium_title: Callable[[
     first = Input[Screen, Actions](props={"id": "first-input"})
     second = Input[Screen, Actions](props={"id": "second-input"})
     contents = Cond.when(
-        Cond.equal(Screen.mode, "dark"), record({"Two": second, "One": first}), record({"One": first, "Two": second})
+        Cond.equal(Screen.mode, "dark"),
+        record({"Two": second, "One": first, "More options": Text("More")}),
+        record({"One": first, "Two": second}),
     )
     app = Component(
         Screen(selected="Two", mode="light"),
-        Actions.cases(Actions.MODE.then(State.set(Screen.mode, Actions.MODE.context))),
+        Actions.cases(
+            Actions.SELECT.then(State.unchanged()),
+            Actions.MODE.then(State.set(Screen.mode, Actions.MODE.context)),
+        ),
         Box(
             Button("Reverse", props={"id": "reverse"}, onclick=Actions.MODE.bind("dark")),
             tabs(contents, Screen.selected, props={"id": "tabs"}),
@@ -101,6 +106,7 @@ def test_reordering_tabs_keeps_input_focus_and_values(chromium_title: Callable[[
     const byId = id => document.getElementById(id);
     const triggers = () => Array.from(byId("tabs").querySelectorAll("button"));
     const [one, two] = triggers();
+    const originalPanel = two.getAttribute("aria-controls");
     const input = byId("second-input");
     byId("first-input").value = "Draft for One";
     input.value = "Draft for Two";
@@ -110,9 +116,11 @@ def test_reordering_tabs_keeps_input_focus_and_values(chromium_title: Callable[[
     let blurred = false;
     input.addEventListener("blur", () => { blurred = true; });
     byId("reverse").click();
-    const [first, second] = triggers();
+    const [first, second, third] = triggers();
     document.title = JSON.stringify({
       keptTriggers: first === two && second === one,
+      keptAssociation: first.getAttribute("aria-controls") === originalPanel && byId(originalPanel).contains(input),
+      linkedNewTab: byId(third.getAttribute("aria-controls")).getAttribute("aria-labelledby") === third.id,
       keptInput: byId("second-input") === input,
       focusedBefore,
       focusedAfter: document.activeElement === input,
@@ -126,6 +134,8 @@ def test_reordering_tabs_keeps_input_focus_and_values(chromium_title: Callable[[
     html = bloom(app).replace("</body>", probe + "</body>")
     assert json.loads(chromium_title(html)) == {
         "keptTriggers": True,
+        "keptAssociation": True,
+        "linkedNewTab": True,
         "keptInput": True,
         "focusedBefore": True,
         "focusedAfter": True,

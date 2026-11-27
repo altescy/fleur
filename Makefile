@@ -23,6 +23,7 @@ test-ts:
 lint:
 	PYTHONPATH=$(PWD) $(RUFF) check
 	PYTHONPATH=$(PWD) $(PYRIGHT)
+	PYTHONPATH=$(PWD) $(PYRIGHT) --verifytypes fleur --ignoreexternal
 
 .PHONY: format
 format:

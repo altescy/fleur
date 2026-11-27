@@ -1,8 +1,9 @@
 from fleur import Cmd, Msg, MsgGroup, builtins, emit
+from fleur.types import JsonValue
 
 
 class HttpMsg(MsgGroup):
-    OK = Msg()
+    OK: Msg[builtins.HttpResponse[str] | builtins.HttpResponse[JsonValue]] = Msg()
     ERR = Msg[builtins.HttpError]()
 
 

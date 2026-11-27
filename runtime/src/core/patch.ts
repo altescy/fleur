@@ -1,5 +1,6 @@
 import { Patch, PatchType } from "./types"
 import { instantiate, removeProp, setProp } from "./dom"
+import { disposeDomEffects } from "./domEffect"
 
 export const getNode = (root: Node, path: number[]): Node | null => {
   let node: Node | null = root
@@ -62,6 +63,7 @@ export const apply = (root: Node, patch: Patch): Node => {
     case PatchType.REMOVE:
       if (!node) return root
       node.parentNode?.removeChild(node)
+      disposeDomEffects(node)
       return root
     case PatchType.REPLACE: {
       if (!node) {
@@ -72,6 +74,7 @@ export const apply = (root: Node, patch: Patch): Node => {
         const refNode = parent.childNodes[index] ?? null
         if (refNode) {
           parent.replaceChild(replacedNode, refNode)
+          disposeDomEffects(refNode)
         } else {
           parent.appendChild(replacedNode)
         }
@@ -82,6 +85,7 @@ export const apply = (root: Node, patch: Patch): Node => {
       const parent = node.parentNode
       if (!parent) return root
       parent.replaceChild(replacedNode, node)
+      disposeDomEffects(node)
       return patch.path.length === 0 ? replacedNode : root
     }
     case PatchType.TEXT:

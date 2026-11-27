@@ -1,5 +1,21 @@
 import { EventPayload } from "./types"
 
+export type DomEventOrigin = { type: string; target: HTMLElement | null }
+
+let activeOrigin: DomEventOrigin | undefined
+
+export const domEventOrigin = (): DomEventOrigin | undefined => activeOrigin
+
+export function withDomEventOrigin(origin: DomEventOrigin | undefined, action: () => void): void {
+  const previous = activeOrigin
+  activeOrigin = origin
+  try {
+    action()
+  } finally {
+    activeOrigin = previous
+  }
+}
+
 const toBoolean = (value: boolean | undefined): boolean => Boolean(value)
 const toNumber = (value: number | undefined): number => (typeof value === "number" ? value : 0)
 const toString = (value: string | undefined): string => (typeof value === "string" ? value : "")
@@ -63,10 +79,14 @@ const normalizeFallbackEvent = (event: Event): EventPayload => ({
 })
 
 const normalizeEventPayload = (eventType: string, event: Event): EventPayload => {
+  if (eventType === "toggle" && "newState" in event) {
+    return { type: event.type, open: event.newState === "open" }
+  }
   if (eventType.startsWith("pointer") && pointerLike(event)) {
     return normalizePointerEvent(event)
   }
-  if ((eventType === "click" || eventType.startsWith("mouse")) && pointerLike(event)) {
+  if ((eventType === "click" || eventType === "dblclick" || eventType === "contextmenu"
+    || eventType.startsWith("mouse")) && pointerLike(event)) {
     return normalizePointerEvent(event)
   }
   if (eventType.startsWith("key") && keyboardLike(event)) {
