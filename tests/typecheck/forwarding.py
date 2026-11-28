@@ -25,8 +25,20 @@ class ParentMsg(MsgGroup):
     CHILD: Msg[ChildMsg] = Msg()
 
 
-child = Component(Child(n=0), ChildMsg.cases(ChildMsg.INC.then(State.set(Child.n, 1))), Text("c"))
-other = Component(Other(s=""), ChildMsg.cases(ChildMsg.INC.then(State.set(Other.s, "x"))), Text("o"))
+child = Component(
+    Child(n=0),
+    lambda model: ChildMsg.cases(ChildMsg.INC.then(State.set(Child.n, 1))),
+    lambda model: Text("c"),
+)
+other = Component(
+    Other(s=""),
+    lambda model: ChildMsg.cases(ChildMsg.INC.then(State.set(Other.s, "x"))),
+    lambda model: Text("o"),
+)
+
+
+def child_view(model: Child) -> View[Child, ChildMsg]:
+    return Text("c")
 
 
 def examples() -> None:
@@ -42,7 +54,7 @@ class Stray(MsgGroup):
 
 def tagger_groups() -> None:
     ParentMsg.cases(ParentMsg.CHILD.then(Update.forward(Parent.child, child, ParentMsg.CHILD)))
-    ParentMsg.cases(ParentMsg.CHILD.then(Update.forward(Parent.child, child, Stray.TICK)))  # pyright: ignore[reportArgumentType]
+    ParentMsg.cases(ParentMsg.CHILD.then(Update.forward(Parent.child, child, Stray.TICK)))  # pyright: ignore[reportCallIssue,reportArgumentType]
 
 
 class WrongTagger(MsgGroup):
@@ -52,5 +64,5 @@ class WrongTagger(MsgGroup):
 def tagger_events() -> None:
     """A tagger declares the child's message group as its event."""
     View.forward(Parent.child, child, WrongTagger.CHILD)  # pyright: ignore[reportArgumentType]
-    View.map(ParentMsg.CHILD, child.view)
-    View.map(WrongTagger.CHILD, child.view)  # pyright: ignore[reportArgumentType]
+    View.map(ParentMsg.CHILD, child_view(Child(n=0)))
+    View.map(WrongTagger.CHILD, child_view(Child(n=0)))  # pyright: ignore[reportArgumentType]

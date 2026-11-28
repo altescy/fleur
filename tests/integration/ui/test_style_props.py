@@ -8,7 +8,9 @@ import pytest
 
 from fleur import Cond, Model, Msg, MsgGroup, State, View, emit
 from fleur.core import FocusEvent, InputEvent, record
+from fleur.core.model import model_ref
 from fleur.core.view import ViewProp, ViewProps
+from fleur.js.builder import ident
 from fleur.ui import Checkbox, GridItem
 from fleur.ui.views._utils import extend_props
 
@@ -22,11 +24,16 @@ class FormMsg(MsgGroup):
     CHANGE: Msg[InputEvent] = Msg()
 
 
+def _model() -> FormModel:
+    """The model as a component's view receives it, so that `_model().compact` compiles to `model.compact`."""
+    return model_ref(FormModel, ident("model"))
+
+
 def _controls(compact: bool) -> list[str]:
     regular = {"padding-left": "1px", "padding": "2px", "width": "4rem", "opacity": "0"}
     small = {"padding": "5px", "padding-left": "6px", "width": "3rem"}
     selected = small if compact else regular
-    dynamic = Cond.when(FormModel.compact, record(small), record(regular))
+    dynamic = Cond.when(_model().compact, record(small), record(regular))
     attrs = {"id": "accept", "className": "user", "data-field": "terms", "onfocus": FormMsg.FOCUS}
     cases: tuple[ViewProps, ...] = (
         {**attrs, "style": selected},
@@ -43,7 +50,7 @@ def _controls(compact: bool) -> list[str]:
                 p=16,
                 px=8,
                 pl=4,
-                style={"padding": "3px", "padding-left": Cond.when(FormModel.compact, "12px", "9px")},
+                style={"padding": "3px", "padding-left": Cond.when(_model().compact, "12px", "9px")},
             ).__compile__()
         )
         for props in cases
@@ -95,8 +102,8 @@ def test_generated_props_match_after_state_changes() -> None:
 
 
 def test_extend_dynamic_attributes_compiles_nested_props_and_events() -> None:
-    attrs: Mapping[str, ViewProp] = {"values": [FormModel.compact], "onfocus": FormMsg.FOCUS}
-    props = extend_props({"metadata": attrs}, record({"title": Cond.when(FormModel.compact, "small", "large")}))
+    attrs: Mapping[str, ViewProp] = {"values": [_model().compact], "onfocus": FormMsg.FOCUS}
+    props = extend_props({"metadata": attrs}, record({"title": Cond.when(_model().compact, "small", "large")}))
     source = emit(View(tag="div", props=props).__compile__())
     assert "values: [model.compact]" in source
     assert 'type: "FOCUS"' in source

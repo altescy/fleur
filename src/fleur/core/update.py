@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, Union, cast
 
 from typing_extensions import TypeAlias
 
@@ -20,7 +20,7 @@ from fleur.js.builder import call, ident, index_expr, literal, member
 
 from .cmd import Cmd
 from .expr import Expr
-from .model import ModelState, ModelUpdate
+from .model import Field, ModelUpdate, top_level_name
 from .runtime import MESSAGE_EVENT, MESSAGE_IDENT, MESSAGE_TYPE, MODEL_IDENT, RUNTIME_CMD, RUNTIME_NONE, runtime_call
 from .types import ModelT, ModelT_co, MsgGroupT, MsgGroupT_co
 
@@ -50,7 +50,7 @@ class ForwardedUpdate(Generic[ModelT_co, MsgGroupT_co]):
 
     def __compile_update_result__(self) -> ESTreeExpression:
         result_ident = ident("_result")
-        child_update = self.component.update.__compile__()
+        child_update = self.component.compile_update()
 
         result_value = call(child_update, member(MODEL_IDENT, self.field_name), member(MESSAGE_IDENT, MESSAGE_EVENT))
         result_decl = ESTreeVariableDeclaration(
@@ -85,6 +85,14 @@ CaseValue: TypeAlias = Union[
 ]
 
 
+def is_case_value(value: object) -> bool:
+    """Whether a case produced one of the forms an update accepts."""
+    if isinstance(value, tuple):
+        pair = cast(tuple[object, ...], value)
+        return len(pair) == 2 and isinstance(pair[0], ModelUpdate) and isinstance(pair[1], Cmd)
+    return isinstance(value, (ModelUpdate, ForwardedUpdate))
+
+
 def _compile_case_result(value: CaseValue[Any, Any]) -> ESTreeExpression:
     if isinstance(value, tuple):
         operation, cmd = value
@@ -96,7 +104,7 @@ def _compile_case_result(value: CaseValue[Any, Any]) -> ESTreeExpression:
     if isinstance(value, ForwardedUpdate):
         return value.__compile_update_result__()
 
-    raise TypeError("Update case must return ModelState.set(...), (ModelUpdate, Cmd), or Update.forward(...)")
+    raise TypeError("Update case must return State.set(...), (ModelUpdate, Cmd), or Update.forward(...)")
 
 
 class Update(Generic[ModelT, MsgGroupT]):
@@ -110,7 +118,7 @@ class Update(Generic[ModelT, MsgGroupT]):
 
     @staticmethod
     def forward(
-        field: ModelState[_ParentModelT, _ChildModelT],
+        field: Field[_ParentModelT, _ChildModelT],
         component: "Component[_ChildModelT, _ChildMsgGroupT]",
         tagger: "GroupedMsg[_ParentMsgGroupT, _ChildMsgGroupT, None]",
     ) -> ForwardedUpdate[_ParentModelT, _ParentMsgGroupT]:
@@ -119,7 +127,7 @@ class Update(Generic[ModelT, MsgGroupT]):
         The field must hold the child's model type, and the tagger must carry the child's message
         group as its event, as in `CHILD: Msg[ChildMsg] = Msg()`.
         """
-        return ForwardedUpdate(field._field_name, component, tagger)
+        return ForwardedUpdate(top_level_name(field), component, tagger)
 
     def __init__(
         self,

@@ -27,12 +27,12 @@ def app() -> Component[PreviewModel, PreviewMsg]:
     modes: dict[ThemeMode, str] = {"light": "Light", "dark": "Dark"}
     return Component(
         PreviewModel(preset="basic", mode="light", name=""),
-        PreviewMsg.cases(
-            PreviewMsg.SELECT_PRESET.then(State.set(PreviewModel.preset, PreviewMsg.SELECT_PRESET.context)),
-            PreviewMsg.SELECT_MODE.then(State.set(PreviewModel.mode, PreviewMsg.SELECT_MODE.context)),
-            PreviewMsg.ENTER_NAME.then(State.set(PreviewModel.name, PreviewMsg.ENTER_NAME.event.value)),
+        update=lambda _: PreviewMsg.cases(
+            PreviewMsg.SELECT_PRESET.then(lambda _, preset: State.set(PreviewModel.preset, preset)),
+            PreviewMsg.SELECT_MODE.then(lambda _, mode: State.set(PreviewModel.mode, mode)),
+            PreviewMsg.ENTER_NAME.then(lambda event: State.set(PreviewModel.name, event.value)),
         ),
-        VStack(
+        view=lambda model: VStack(
             ThemeScope(
                 VStack(
                     Text("Theme preview", font_size="xl", font_weight=700),
@@ -40,34 +40,34 @@ def app() -> Component[PreviewModel, PreviewMsg]:
                         presets,
                         name="preview-theme",
                         label="Theme",
-                        value=PreviewModel.preset,
+                        value=model.preset,
                         onselect=PreviewMsg.SELECT_PRESET,
                     ),
                     RadioGroup(
                         modes,
                         name="preview-mode",
                         label="Color mode",
-                        value=PreviewModel.mode,
+                        value=model.mode,
                         onselect=PreviewMsg.SELECT_MODE,
                     ),
                     Input(
-                        value=PreviewModel.name,
+                        value=model.name,
                         placeholder="Your name",
                         oninput=PreviewMsg.ENTER_NAME,
                         props={"aria-label": "Your name"},
                     ),
                     Text(
                         Cond.when(
-                            Cond.equal(PreviewModel.name, ""),
+                            Cond.equal(model.name, ""),
                             "Type a name, then switch themes.",
-                            "Hello, " + PreviewModel.name,
+                            "Hello, " + model.name,
                         ),
                         fg="muted-foreground",
                     ),
                     gap="sm",
                 ),
-                theme=Theme.select(PreviewModel.preset, PRESETS),
-                mode=PreviewModel.mode,
+                theme=Theme.select(model.preset, PRESETS),
+                mode=model.mode,
                 p="lg",
                 radius="md",
                 border="1px solid var(--fleur-color-border)",

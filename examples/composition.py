@@ -14,24 +14,28 @@ class EditorMsg(MsgGroup):
     CLEAR: Msg[PointerEvent] = Msg()
 
 
+def _editor_view(model: EditorModel) -> View[EditorModel, EditorMsg]:
+    is_blank = Cond.equal(String.trim(model.name), "")
+    return VStack(
+        Input(
+            value=model.name,
+            oninput=EditorMsg.CHANGE,
+            props={"aria-label": "Display name"},
+        ),
+        Text(Cond.when(is_blank, "Enter a display name.", "Preview: " + model.name)),
+        Button("Clear", onclick=EditorMsg.CLEAR, props={"disabled": is_blank}),
+        gap="sm",
+    )
+
+
 def editor() -> Component[EditorModel, EditorMsg]:
-    is_blank = Cond.equal(String.trim(EditorModel.name), "")
     return Component(
         EditorModel(name=""),
-        EditorMsg.cases(
-            EditorMsg.CHANGE.then(State.set(EditorModel.name, EditorMsg.CHANGE.event.value)),
+        update=lambda _: EditorMsg.cases(
+            EditorMsg.CHANGE.then(lambda event: State.set(EditorModel.name, event.value)),
             EditorMsg.CLEAR.then(State.set(EditorModel.name, "")),
         ),
-        VStack(
-            Input(
-                value=EditorModel.name,
-                oninput=EditorMsg.CHANGE,
-                props={"aria-label": "Display name"},
-            ),
-            Text(Cond.when(is_blank, "Enter a display name.", "Preview: " + EditorModel.name)),
-            Button("Clear", onclick=EditorMsg.CLEAR, props={"disabled": is_blank}),
-            gap="sm",
-        ),
+        view=_editor_view,
     )
 
 
@@ -50,11 +54,11 @@ def app() -> Component[WorkspaceModel, WorkspaceMsg]:
     second = editor()
     return Component(
         WorkspaceModel(first=first.init.model, second=second.init.model),
-        WorkspaceMsg.cases(
+        update=lambda _: WorkspaceMsg.cases(
             WorkspaceMsg.FIRST.then(Update.forward(WorkspaceModel.first, first, WorkspaceMsg.FIRST)),
             WorkspaceMsg.SECOND.then(Update.forward(WorkspaceModel.second, second, WorkspaceMsg.SECOND)),
         ),
-        VStack(
+        view=lambda _: VStack(
             Text("First editor"),
             View.forward(WorkspaceModel.first, first, WorkspaceMsg.FIRST),
             Text("Second editor"),

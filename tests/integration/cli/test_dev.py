@@ -36,7 +36,7 @@ def test_reload_recovers_after_import_error(tmp_path: Path, monkeypatch: pytest.
         "from fleur import Component, Model, MsgGroup\n"
         "from fleur.ui import Text\n"
         "from labels import banner\n"
-        "app = Component(init=Model(), update=MsgGroup.cases(), view=Text(banner))\n"
+        "app = Component(init=Model(), update=lambda model: MsgGroup.cases(), view=lambda model: Text(banner))\n"
     )
     labels = tmp_path / "labels.py"
     labels.write_text("banner = 'first revision'\n")

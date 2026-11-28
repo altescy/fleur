@@ -33,20 +33,22 @@ class Cond:
         alternate: ModelT,
     ) -> ModelT: ...
 
+    # One variable for both branches, so that an expected type such as a `Literal` field solves it
+    # and literal branches keep their type; branches of different types still join into a union.
     @overload
     @staticmethod
     def when(
         condition: bool | Expr[bool],
         consequent: FleurValueT | Expr[FleurValueT],
-        alternate: FleurValueU | Expr[FleurValueU],
-    ) -> "Expr[FleurValueT | FleurValueU]": ...
+        alternate: FleurValueT | Expr[FleurValueT],
+    ) -> "Expr[FleurValueT]": ...
 
     @staticmethod
     def when(
         condition: bool | Expr[bool],
         consequent: FleurValueT | Expr[FleurValueT],
-        alternate: FleurValueU | Expr[FleurValueU],
-    ) -> "Expr[FleurValueT | FleurValueU] | Model":
+        alternate: FleurValueT | Expr[FleurValueT],
+    ) -> "Expr[FleurValueT] | Model":
         return ValueRef(
             ESTreeConditionalExpression(
                 test=ensure_expr(condition),

@@ -21,26 +21,30 @@ class Actions(MsgGroup):
     FAILED: Msg[HttpError] = Msg()
 
 
-def test_request_sends_values_read_from_the_model(playwright_page: Callable[[str, Path], str]) -> None:
-    save = Http.put(
-        Url.path("/todos/{id}", id=Editor.todo_id),
+def _save(model: Editor) -> Cmd[Editor, Actions]:
+    request = Http.put(
+        Url.path("/todos/{id}", id=model.todo_id),
         expect=Http.expectJson(),
-        query={"notify": True, "source": Editor.title},
-        headers={"Authorization": "Bearer " + Editor.token},
-        body={"title": Editor.title, "tags": ["work", Editor.title], "done": False},
+        query={"notify": True, "source": model.title},
+        headers={"Authorization": "Bearer " + model.token},
+        body={"title": model.title, "tags": ["work", model.title], "done": False},
     )
+    return Cmd.task(request, Actions.SAVED, Actions.FAILED)
+
+
+def test_request_sends_values_read_from_the_model(playwright_page: Callable[[str, Path], str]) -> None:
     app = Component(
-        Editor(todo_id=42, title="", token="secret", result=""),
-        Actions.cases(
-            Actions.TITLE.then(State.set(Editor.title, Actions.TITLE.event.value)),
-            Actions.SAVE.then((State.unchanged(), Cmd.task(save, Actions.SAVED, Actions.FAILED))),
-            Actions.SAVED.then(State.set(Editor.result, "saved " + String.from_number(Actions.SAVED.event.status))),
-            Actions.FAILED.then(State.set(Editor.result, Actions.FAILED.event.message)),
+        init=Editor(todo_id=42, title="", token="secret", result=""),
+        update=lambda model: Actions.cases(
+            Actions.TITLE.then(lambda event: State.set(Editor.title, event.value)),
+            Actions.SAVE.then((State.unchanged(), _save(model))),
+            Actions.SAVED.then(lambda event: State.set(Editor.result, "saved " + String.from_number(event.status))),
+            Actions.FAILED.then(lambda event: State.set(Editor.result, event.message)),
         ),
-        VStack(
-            Input(value=Editor.title, oninput=Actions.TITLE, props={"aria-label": "Title"}),
+        view=lambda model: VStack(
+            Input(value=model.title, oninput=Actions.TITLE, props={"aria-label": "Title"}),
             Button("Save", onclick=Actions.SAVE),
-            Text(Editor.result, props={"id": "result"}),
+            Text(model.result, props={"id": "result"}),
         ),
     )
     playwright_page(bloom(app), Path(__file__).with_name("http_requests.cjs"))

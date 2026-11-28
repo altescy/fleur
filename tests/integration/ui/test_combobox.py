@@ -23,9 +23,9 @@ def test_combobox_keeps_editing_when_selection_and_options_change(
     overlay_focus_page: Callable[[str, Path], str],
 ) -> None:
     app = Component(
-        Screen(options={"jane": "Jane Eyre", "emma": "Emma", "persuasion": "Persuasion"}, selected="emma"),
-        Actions.cases(
-            Actions.SELECT.then(State.set(Screen.selected, Actions.SELECT.context)),
+        init=Screen(options={"jane": "Jane Eyre", "emma": "Emma", "persuasion": "Persuasion"}, selected="emma"),
+        update=lambda _: Actions.cases(
+            Actions.SELECT.then(lambda _, context: State.set(Screen.selected, context)),
             Actions.REORDER.then(
                 State.set(Screen.options, {"persuasion": "Persuasion", "emma": "Emma (1815)", "jane": "Jane Eyre"})
             ),
@@ -35,12 +35,12 @@ def test_combobox_keeps_editing_when_selection_and_options_change(
             ),
             Actions.CLEAR.then(State.set(Screen.selected, None)),
         ),
-        VStack(
+        view=lambda model: VStack(
             Combobox(
-                Screen.options,
+                model.options,
                 id="book",
                 label="Book",
-                value=Screen.selected,
+                value=model.selected,
                 onselect=Actions.SELECT,
             ),
             Button("Reorder", onclick=Actions.REORDER),
@@ -48,7 +48,7 @@ def test_combobox_keeps_editing_when_selection_and_options_change(
             Button("Remove Jane Eyre", onclick=Actions.REMOVE),
             Button("Add Jamaica Inn", onclick=Actions.ADD),
             Button("Clear selection", onclick=Actions.CLEAR),
-            Text(String.or_empty(Screen.selected), props={"id": "selection"}),
+            Text(String.or_empty(model.selected), props={"id": "selection"}),
         ),
     )
     overlay_focus_page(bloom(app), Path(__file__).with_name("combobox.cjs"))
@@ -66,20 +66,20 @@ class SearchActions(MsgGroup):
 
 def test_enter_submits_the_form_unless_an_option_is_active(playwright_page: Callable[[str, Path], str]) -> None:
     app = Component(
-        Search(submitted=0, selected=None),
-        SearchActions.cases(
-            SearchActions.SUBMIT.then(State.set(Search.submitted, Search.submitted + 1)),
-            SearchActions.SELECT.then(State.set(Search.selected, SearchActions.SELECT.context)),
+        init=Search(submitted=0, selected=None),
+        update=lambda model: SearchActions.cases(
+            SearchActions.SUBMIT.then(State.set(Search.submitted, model.submitted + 1)),
+            SearchActions.SELECT.then(lambda _, context: State.set(Search.selected, context)),
         ),
-        Form(
+        view=lambda model: Form(
             Combobox(
                 {"emma": "Emma", "persuasion": "Persuasion"},
                 id="book",
                 label="Book",
-                value=Search.selected,
+                value=model.selected,
                 onselect=SearchActions.SELECT,
             ),
-            Text(String.from_number(Search.submitted), props={"id": "submitted"}),
+            Text(String.from_number(model.submitted), props={"id": "submitted"}),
             onsubmit=SearchActions.SUBMIT,
             prevent_default=True,
         ),

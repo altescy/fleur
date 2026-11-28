@@ -6,7 +6,7 @@ from inspect import getsource
 from pathlib import Path
 from typing import Literal
 
-from fleur import Array, Boolean, Component, Cond, Model, Msg, MsgGroup, Number, Object, State, String, View
+from fleur import Array, Boolean, Component, Cond, Expr, Model, Msg, MsgGroup, Number, Object, State, String, View
 from fleur.core import DialogCloseEvent, InputEvent, PointerEvent, SubmitEvent, ToastCloseEvent, ToggleEvent, record
 from fleur.ui import (
     BASIC_THEME,
@@ -162,11 +162,12 @@ class Actions(MsgGroup):
     CLOSE_BOOK_TOAST: Msg[ToastCloseEvent] = Msg()
 
 
-Preview = View[Gallery, Actions]
+Panel = View[Gallery, Actions]
+Preview = Callable[[Gallery], Panel]
 
 
-def buttons() -> Preview:
-    empty = Cond.equal(Gallery.count, 0)
+def buttons(model: Gallery) -> Panel:
+    empty = Cond.equal(model.count, 0)
     return VStack(
         HStack(
             Button("Add one", onclick=Actions.ADD),
@@ -175,12 +176,12 @@ def buttons() -> Preview:
             gap="sm",
             flex_wrap="wrap",
         ),
-        Text(f"Count: {Gallery.count}", props={"role": "status"}),
+        Text("Count: " + model.count, props={"role": "status"}),
         gap="md",
     )
 
 
-def layout() -> Preview:
+def layout(model: Gallery) -> Panel:
     return Card(
         Heading("Reading list", level=3),
         Text("A card with a heading, a divider and a two-column grid."),
@@ -195,13 +196,13 @@ def layout() -> Preview:
     )
 
 
-def forms() -> Preview:
-    blank = Cond.equal(String.trim(Gallery.title), "")
+def forms(model: Gallery) -> Panel:
+    blank = Cond.equal(String.trim(model.title), "")
     return Form(
         VStack(
             Switch(
                 "Lock book details",
-                checked=Gallery.book_details_locked,
+                checked=model.book_details_locked,
                 onchange=Actions.LOCK_BOOK_DETAILS,
                 align_self="flex-start",
             ),
@@ -211,7 +212,7 @@ def forms() -> Preview:
                     label="Book title",
                     error=Cond.when(blank, "Enter a book title.", None),
                     control=lambda attrs: Input(
-                        value=Gallery.title, oninput=Actions.TITLE, props={**attrs, "required": True}
+                        value=model.title, oninput=Actions.TITLE, props={**attrs, "required": True}
                     ),
                 ),
                 field(
@@ -221,7 +222,7 @@ def forms() -> Preview:
                         Option("To read"),
                         Option("Reading"),
                         Option("Finished"),
-                        value=Gallery.shelf,
+                        value=model.shelf,
                         onchange=Actions.SHELF,
                         props=attrs,
                     ),
@@ -229,14 +230,14 @@ def forms() -> Preview:
                 field(
                     id="book-notes",
                     label="Notes",
-                    control=lambda attrs: Textarea(rows=2, value=Gallery.notes, oninput=Actions.NOTES, props=attrs),
+                    control=lambda attrs: Textarea(rows=2, value=model.notes, oninput=Actions.NOTES, props=attrs),
                 ),
-                CheckboxField("Mark as a favorite", checked=Gallery.favorite, onchange=Actions.FAVORITE),
+                CheckboxField("Mark as a favorite", checked=model.favorite, onchange=Actions.FAVORITE),
                 Button("Save book", props={"type": "submit", "disabled": blank}, align_self="flex-start"),
                 label="Book details",
-                disabled=Gallery.book_details_locked,
+                disabled=model.book_details_locked,
             ),
-            Notice(Gallery.saved, variant="success", props={"hidden": Cond.equal(Gallery.saved, "")}),
+            Notice(model.saved, variant="success", props={"hidden": Cond.equal(model.saved, "")}),
             gap="sm",
         ),
         onsubmit=Actions.SAVE,
@@ -244,31 +245,31 @@ def forms() -> Preview:
     )
 
 
-def radio_groups() -> Preview:
+def radio_groups(model: Gallery) -> Panel:
     sizes: dict[TitleSize, str] = {"sm": "Small", "lg": "Large"}
     return VStack(
         RadioGroup(
             sizes,
             name="book-title-size",
             label="Title size",
-            value=Gallery.title_size,
+            value=model.title_size,
             onselect=Actions.TITLE_SIZE,
         ),
         RadioGroup(
             {"left": "Left", "center": "Center", "right": "Right"},
             name="book-title-alignment",
             label="Title alignment",
-            value=Gallery.title_align,
+            value=model.title_align,
             onselect=Actions.TITLE_ALIGN,
         ),
-        Text(Gallery.title, font_size=Gallery.title_size, text_align=Gallery.title_align),
+        Text(model.title, font_size=model.title_size, text_align=model.title_align),
         gap="md",
     )
 
 
-def tables() -> Preview:
+def tables(model: Gallery) -> Panel:
     counts = record({"To read": 5, "Reading": 3, "Finished": 4})
-    shelves = Array.sort_by(Object.keys(counts), lambda shelf: counts[shelf], descending=Gallery.books_descending)
+    shelves = Array.sort_by(Object.keys(counts), lambda shelf: counts[shelf], descending=model.books_descending)
     return Table(
         TableCaption("Books by shelf"),
         TableHeader(
@@ -277,7 +278,7 @@ def tables() -> Preview:
                 SortableTableHead(
                     "Books",
                     active=True,
-                    descending=Gallery.books_descending,
+                    descending=model.books_descending,
                     onsort=Actions.SORT_BOOKS,
                     align="right",
                 ),
@@ -297,14 +298,14 @@ def tables() -> Preview:
     )
 
 
-def links() -> Preview:
+def links(model: Gallery) -> Panel:
     return VStack(
-        CheckboxField("Include a sample expense", checked=Gallery.include_expense, onchange=Actions.INCLUDE_EXPENSE),
+        CheckboxField("Include a sample expense", checked=model.include_expense, onchange=Actions.INCLUDE_EXPENSE),
         Link(
             "Download sample CSV",
             href="data:text/csv;charset=utf-8,Description%2CJPY%0ATrain%20fare%2C420%0A",
             download="sample-expenses.csv",
-            disabled=Cond.equal(Gallery.include_expense, False),
+            disabled=Cond.equal(model.include_expense, False),
             variant="button",
             align_self="flex-start",
         ),
@@ -312,35 +313,35 @@ def links() -> Preview:
     )
 
 
-def notices() -> Preview:
-    failed = Cond.equal(Gallery.notice, "error")
+def notices(model: Gallery) -> Panel:
+    failed = Cond.equal(model.notice, "error")
     return VStack(
         CheckboxField(
-            "Simulate a failure on the next save", checked=Gallery.fail_next_save, onchange=Actions.FAIL_NEXT_SAVE
+            "Simulate a failure on the next save", checked=model.fail_next_save, onchange=Actions.FAIL_NEXT_SAVE
         ),
         Notice(
             Cond.when(
                 failed,
                 "Save failed. Your changes are still here.",
-                Cond.when(Cond.equal(Gallery.notice, "success"), "Changes saved.", "Ready to save."),
+                Cond.when(Cond.equal(model.notice, "success"), "Changes saved.", "Ready to save."),
             ),
             Button(Cond.when(failed, "Retry", "Save example"), onclick=Actions.TRY_SAVE, variant="secondary"),
-            variant=Gallery.notice,
+            variant=model.notice,
             announce="polite",
         ),
         gap="sm",
     )
 
 
-def progress() -> Preview:
+def progress(model: Gallery) -> Panel:
     total = 4
     return VStack(
-        CheckboxField("Total known", checked=Gallery.total_known, onchange=Actions.TOTAL_KNOWN),
-        Progress(label="Book review", value=Cond.when(Gallery.total_known, Gallery.reviewed, None), max=total),
+        CheckboxField("Total known", checked=model.total_known, onchange=Actions.TOTAL_KNOWN),
+        Progress(label="Book review", value=Cond.when(model.total_known, model.reviewed, None), max=total),
         Text(
             Cond.when(
-                Gallery.total_known,
-                String.from_number(Gallery.reviewed) + f" of {total} books reviewed",
+                model.total_known,
+                String.from_number(model.reviewed) + f" of {total} books reviewed",
                 "Counting books…",
             )
         ),
@@ -348,13 +349,13 @@ def progress() -> Preview:
             Button(
                 "Review one book",
                 onclick=Actions.REVIEW_ONE,
-                props={"disabled": Cond.some(Boolean.negate(Gallery.total_known), Gallery.reviewed >= total)},
+                props={"disabled": Cond.some(Boolean.negate(model.total_known), model.reviewed >= total)},
             ),
             Button(
                 "Reset count",
                 onclick=Actions.RESET_REVIEW,
                 variant="secondary",
-                props={"disabled": Cond.equal(Gallery.reviewed, 0)},
+                props={"disabled": Cond.equal(model.reviewed, 0)},
             ),
             gap="sm",
         ),
@@ -362,9 +363,9 @@ def progress() -> Preview:
     )
 
 
-def meters() -> Preview:
+def meters(model: Gallery) -> Panel:
     capacity, low, high, step = 100, 60, 85, 10
-    used = Gallery.storage_used
+    used = model.storage_used
     amount = String.from_number(used)
     return VStack(
         HStack(
@@ -414,14 +415,14 @@ def meters() -> Preview:
     )
 
 
-def empty_states() -> Preview:
+def empty_states(model: Gallery) -> Panel:
     return VStack(
-        CheckboxField("Include a sample book", checked=Gallery.include_book, onchange=Actions.INCLUDE_BOOK),
-        CheckboxField("Finished books only", checked=Gallery.finished_only, onchange=Actions.FINISHED_ONLY),
+        CheckboxField("Include a sample book", checked=model.include_book, onchange=Actions.INCLUDE_BOOK),
+        CheckboxField("Finished books only", checked=model.finished_only, onchange=Actions.FINISHED_ONLY),
         Cond.when(
-            Gallery.include_book,
+            model.include_book,
             Cond.when(
-                Gallery.finished_only,
+                model.finished_only,
                 EmptyState(
                     "No finished books",
                     "Your sample book is on the reading shelf.",
@@ -435,15 +436,15 @@ def empty_states() -> Preview:
     )
 
 
-def tab_list() -> Preview:
-    panels: dict[str, Preview] = {
+def tab_list(model: Gallery) -> Panel:
+    panels: dict[str, Panel] = {
         "Overview": Text("Use the arrow keys to move focus, then press Enter or Space to select."),
         "Keyboard": Text("Home and End jump to the first and last tabs. Tab moves into the selected panel."),
     }
-    return tabs(panels, Gallery.tab, Actions.TAB, label="Tab example", gap="md")
+    return tabs(panels, model.tab, Actions.TAB, label="Tab example", gap="md")
 
 
-def dialogs() -> Preview:
+def dialogs(model: Gallery) -> Panel:
     return Box(
         Button("Open dialog", onclick=Actions.OPEN),
         Dialog(
@@ -453,23 +454,23 @@ def dialogs() -> Preview:
                 Form(Button("Done", props={"type": "submit", "autofocus": True}), props={"method": "dialog"}),
                 gap="md",
             ),
-            open=Gallery.dialog_open,
+            open=model.dialog_open,
             onclose=Actions.CLOSED,
             labelledby="dialog-title",
         ),
     )
 
 
-def popovers() -> Preview:
+def popovers(model: Gallery) -> Panel:
     return VStack(
-        Text(Cond.when(Cond.equal(Gallery.notes, ""), "No reading notes yet.", Gallery.notes)),
+        Text(Cond.when(Cond.equal(model.notes, ""), "No reading notes yet.", model.notes)),
         Popover(
             VStack(
                 field(
                     id="popover-notes",
                     label="Reading notes",
                     control=lambda attrs: Textarea(
-                        value=Gallery.notes, oninput=Actions.NOTES, props={**attrs, "autofocus": True}
+                        value=model.notes, oninput=Actions.NOTES, props={**attrs, "autofocus": True}
                     ),
                 ),
                 Button("Done", onclick=Actions.DONE_EDITING, align_self="flex-end"),
@@ -477,20 +478,20 @@ def popovers() -> Preview:
             ),
             id="reading-notes-editor",
             trigger=lambda attrs: Button("Edit notes", variant="secondary", props=attrs),
-            open=Gallery.notes_open,
+            open=model.notes_open,
             ontoggle=Actions.TOGGLE_NOTES,
         ),
         gap="sm",
     )
 
 
-def menus() -> Preview:
-    no_notes = Cond.equal(Gallery.notes, "")
+def menus(model: Gallery) -> Panel:
+    no_notes = Cond.equal(model.notes, "")
     actions = (
         MenuItem("Edit notes…", onclick=Actions.EDIT_NOTES),
         MenuItem(
-            Cond.when(Gallery.favorite, "Remove from favorites", "Add to favorites"),
-            onclick=Actions.TOGGLE_FAVORITE.bind(Boolean.negate(Gallery.favorite)),
+            Cond.when(model.favorite, "Remove from favorites", "Add to favorites"),
+            onclick=Actions.TOGGLE_FAVORITE.bind(Boolean.negate(model.favorite)),
         ),
         MenuItem("Clear notes…", onclick=Actions.REQUEST_CLEAR_NOTES, disabled=no_notes),
     )
@@ -511,7 +512,7 @@ def menus() -> Preview:
             *actions,
             id="reading-notes-context",
             trigger=lambda attrs: Box(
-                Text(Cond.when(no_notes, "No reading notes yet.", Gallery.notes), props={"role": "status"}),
+                Text(Cond.when(no_notes, "No reading notes yet.", model.notes), props={"role": "status"}),
                 bg="muted",
                 p="md",
                 radius="sm",
@@ -529,7 +530,7 @@ def menus() -> Preview:
             fg="muted-foreground",
             props={"id": "reading-note-shortcut"},
         ),
-        Text(Cond.when(Gallery.favorite, "In favorites", "Outside favorites"), fg="muted-foreground"),
+        Text(Cond.when(model.favorite, "In favorites", "Outside favorites"), fg="muted-foreground"),
         Dialog(
             VStack(
                 Heading("Edit reading notes", level=3, props={"id": "menu-editor-title"}),
@@ -537,7 +538,7 @@ def menus() -> Preview:
                     id="menu-editor-notes",
                     label="Reading notes",
                     control=lambda attrs: Textarea(
-                        value=Gallery.notes, oninput=Actions.NOTES, props={**attrs, "autofocus": True}
+                        value=model.notes, oninput=Actions.NOTES, props={**attrs, "autofocus": True}
                     ),
                 ),
                 Form(
@@ -547,7 +548,7 @@ def menus() -> Preview:
                 ),
                 gap="sm",
             ),
-            open=Gallery.menu_editor_open,
+            open=model.menu_editor_open,
             onclose=Actions.CLOSE_EDITOR,
             labelledby="menu-editor-title",
         ),
@@ -556,7 +557,7 @@ def menus() -> Preview:
             title="Clear reading notes?",
             description="This will permanently remove the current reading notes.",
             confirm_label="Clear notes",
-            open=Gallery.clear_notes_open,
+            open=model.clear_notes_open,
             onclose=Actions.CLOSE_CLEAR_NOTES,
             onconfirm=Actions.CLEAR_NOTES,
         ),
@@ -564,14 +565,14 @@ def menus() -> Preview:
     )
 
 
-def menubars() -> Preview:
+def menubars(model: Gallery) -> Panel:
     return VStack(
         Menubar(
             Menu(
                 MenuItem("Edit notes…", onclick=Actions.EDIT_NOTES),
                 MenuItem(
-                    Cond.when(Gallery.favorite, "Remove from favorites", "Add to favorites"),
-                    onclick=Actions.TOGGLE_FAVORITE.bind(Boolean.negate(Gallery.favorite)),
+                    Cond.when(model.favorite, "Remove from favorites", "Add to favorites"),
+                    onclick=Actions.TOGGLE_FAVORITE.bind(Boolean.negate(model.favorite)),
                 ),
                 id="menubar-note-actions",
                 trigger=lambda attrs: Button("Note", variant="ghost", props=attrs),
@@ -588,7 +589,7 @@ def menubars() -> Preview:
             HStack(
                 Heading("Reading notes", level=3, font_size="sm"),
                 Text(
-                    Cond.when(Gallery.favorite, "In favorites", "Outside favorites"),
+                    Cond.when(model.favorite, "In favorites", "Outside favorites"),
                     fg="muted-foreground",
                     font_size="sm",
                     props={"role": "status"},
@@ -599,8 +600,8 @@ def menubars() -> Preview:
                 gap="sm",
             ),
             Text(
-                Cond.when(Cond.equal(Gallery.notes, ""), "No reading notes yet.", Gallery.notes),
-                font_size=Gallery.reading_size,
+                Cond.when(Cond.equal(model.notes, ""), "No reading notes yet.", model.notes),
+                font_size=model.reading_size,
                 white_space="pre-wrap",
                 style={"overflow-wrap": "anywhere"},
                 props={"id": "menubar-note-preview"},
@@ -614,15 +615,15 @@ def menubars() -> Preview:
     )
 
 
-def tooltips() -> Preview:
+def tooltips(model: Gallery) -> Panel:
     return HStack(
         Tooltip(
             "Favorites appear in your saved reading list.",
             id="reading-favorites-hint",
             trigger=lambda attrs: Toggle(
-                Text(Cond.when(Gallery.favorite, "★", "☆"), props={"aria-hidden": "true"}, w=css("1em")),
+                Text(Cond.when(model.favorite, "★", "☆"), props={"aria-hidden": "true"}, w=css("1em")),
                 "Favorite",
-                pressed=Gallery.favorite,
+                pressed=model.favorite,
                 onchange=Actions.TOGGLE_FAVORITE,
                 props=attrs,
             ),
@@ -632,11 +633,11 @@ def tooltips() -> Preview:
     )
 
 
-def preview_cards() -> Preview:
+def preview_cards(model: Gallery) -> Panel:
     return PreviewCard(
         Text("Reading notes", font_weight=600),
         Text(
-            Cond.when(Cond.equal(Gallery.notes, ""), "No reading notes yet.", Gallery.notes),
+            Cond.when(Cond.equal(model.notes, ""), "No reading notes yet.", model.notes),
             fg="muted-foreground",
             white_space="pre-wrap",
             style={
@@ -650,7 +651,7 @@ def preview_cards() -> Preview:
     )
 
 
-def comboboxes() -> Preview:
+def comboboxes(model: Gallery) -> Panel:
     books = {
         "little-princess": "A Little Princess",
         "little-women": "Little Women",
@@ -662,18 +663,18 @@ def comboboxes() -> Preview:
             books,
             id="catalog-title",
             label="Book title in catalog",
-            value=Gallery.catalog_book,
+            value=model.catalog_book,
             onselect=Actions.SELECT_BOOK,
             placeholder="Type part of a title",
             empty_text="No books match that title.",
         ),
-        Text("Selected book: " + record(books)[Gallery.catalog_book], props={"role": "status"}),
+        Text("Selected book: " + record(books)[model.catalog_book], props={"role": "status"}),
         gap="sm",
     )
 
 
-def sliders() -> Preview:
-    size = String.from_number(Gallery.reading_size)
+def sliders(model: Gallery) -> Panel:
+    size = String.from_number(model.reading_size)
     return VStack(
         field(
             id="reading-size",
@@ -683,7 +684,7 @@ def sliders() -> Preview:
                     min=14,
                     max=30,
                     step=2,
-                    value=Gallery.reading_size,
+                    value=model.reading_size,
                     oninput=Actions.READING_SIZE,
                     props={**attrs, "aria-valuetext": size + " pixels"},
                 ),
@@ -695,7 +696,7 @@ def sliders() -> Preview:
         Box(
             Text(
                 "An open book rested beside the window. Outside, the rain softened the sound of the street.",
-                font_size=Gallery.reading_size,
+                font_size=model.reading_size,
                 props={"id": "reading-preview"},
             ),
             bg="muted",
@@ -706,17 +707,17 @@ def sliders() -> Preview:
     )
 
 
-def toasts() -> Preview:
+def toasts(model: Gallery) -> Panel:
     return HStack(
         Text("The Secret Garden", font_weight=600),
         Button(
-            Cond.when(Gallery.sample_in_reading_list, "Remove from reading list", "Add to reading list"),
+            Cond.when(model.sample_in_reading_list, "Remove from reading list", "Add to reading list"),
             onclick=Actions.TOGGLE_READING_LIST,
             variant="secondary",
         ),
         Toast(
             "Added The Secret Garden to your reading list.",
-            open=Gallery.book_added_toast,
+            open=model.book_added_toast,
             onclose=Actions.CLOSE_BOOK_TOAST,
             duration_ms=4000,
         ),
@@ -727,7 +728,7 @@ def toasts() -> Preview:
     )
 
 
-def accordions() -> Preview:
+def accordions(model: Gallery) -> Panel:
     return Accordion(
         AccordionItem(
             "Add a book to the reading list",
@@ -748,7 +749,7 @@ def accordions() -> Preview:
     )
 
 
-def toolbars() -> Preview:
+def toolbars(model: Gallery) -> Panel:
     return VStack(
         Toolbar(
             *(
@@ -758,7 +759,7 @@ def toolbars() -> Preview:
                     onclick=Actions.ALIGN_TITLE.bind(alignment),
                     props={
                         "type": "button",
-                        "aria-pressed": Cond.when(Cond.equal(Gallery.title_align, alignment), "true", "false"),
+                        "aria-pressed": Cond.when(Cond.equal(model.title_align, alignment), "true", "false"),
                     },
                 )
                 for alignment in ("left", "center", "right")
@@ -766,8 +767,8 @@ def toolbars() -> Preview:
             label="Reading title alignment",
         ),
         Text(
-            Gallery.title,
-            text_align=Gallery.title_align,
+            model.title,
+            text_align=model.title_align,
             font_size="lg",
             font_weight=600,
             bg="muted",
@@ -779,18 +780,18 @@ def toolbars() -> Preview:
     )
 
 
-def toggle_groups() -> Preview:
-    bold = Array.includes(Gallery.title_emphasis, "bold")
-    italic = Array.includes(Gallery.title_emphasis, "italic")
+def toggle_groups(model: Gallery) -> Panel:
+    bold = Array.includes(model.title_emphasis, "bold")
+    italic = Array.includes(model.title_emphasis, "italic")
     return VStack(
         ToggleGroup(
             {"bold": "Bold", "italic": "Italic"},
             label="Reading title emphasis",
-            value=Gallery.title_emphasis,
+            value=model.title_emphasis,
             onchange=Actions.TITLE_EMPHASIS,
         ),
         Text(
-            Gallery.title,
+            model.title,
             font_size="lg",
             font_weight=Cond.when(bold, 700, 400),
             bg="muted",
@@ -803,7 +804,7 @@ def toggle_groups() -> Preview:
     )
 
 
-def avatars() -> Preview:
+def avatars(model: Gallery) -> Panel:
     image = (Path(__file__).with_name("assets") / "gallery-reviewer.jpg").read_bytes()
     illustration = "data:image/jpeg;base64," + b64encode(image).decode("ascii")
     reviewers = (
@@ -827,7 +828,7 @@ def avatars() -> Preview:
     )
 
 
-def checkbox_groups() -> Preview:
+def checkbox_groups(model: Gallery) -> Panel:
     shelves = ("To read", "Reading", "Finished")
     books = (
         ("Pride and Prejudice", "To read"),
@@ -838,16 +839,16 @@ def checkbox_groups() -> Preview:
         CheckboxGroup(
             {shelf: shelf for shelf in shelves},
             label="Shelves to show",
-            value=Gallery.visible_shelves,
+            value=model.visible_shelves,
             onchange=Actions.FILTER_SHELVES,
         ),
         Cond.when(
-            Cond.equal(Array.length(Gallery.visible_shelves), 0),
+            Cond.equal(Array.length(model.visible_shelves), 0),
             EmptyState("No shelves selected", "Select a shelf to see its books."),
             View(
                 *(
                     Cond.when(
-                        Array.includes(Gallery.visible_shelves, shelf),
+                        Array.includes(model.visible_shelves, shelf),
                         View(title, " · ", shelf, tag="li", props={}),
                         None,
                     )
@@ -861,12 +862,12 @@ def checkbox_groups() -> Preview:
     )
 
 
-def number_fields() -> Preview:
+def number_fields(model: Gallery) -> Panel:
     return field(
         id="reading-goal",
         label="Reading goal (hours per week)",
         control=lambda attrs: NumberField(
-            value=Gallery.reading_goal,
+            value=model.reading_goal,
             min=0,
             max=20,
             step=0.5,
@@ -879,7 +880,7 @@ def number_fields() -> Preview:
 
 
 # Each group supplies the same labels and order for the index and the previews.
-EXAMPLES: tuple[tuple[str, str, tuple[tuple[str, Callable[[], Preview]], ...]], ...] = (
+EXAMPLES: tuple[tuple[str, str, tuple[tuple[str, Preview], ...]], ...] = (
     (
         "foundations",
         "Foundations",
@@ -913,10 +914,10 @@ EXAMPLES: tuple[tuple[str, str, tuple[tuple[str, Callable[[], Preview]], ...]], 
 )
 
 
-def _section(title: str, render: Callable[[], Preview]) -> Preview:
+def _section(title: str, render: Preview, model: Gallery) -> Panel:
     return View(
         Heading(title, level=2),
-        Box(render(), props={"className": "preview"}),
+        Box(render(model), props={"className": "preview"}),
         Disclosure(
             "Python source",
             ScrollArea(
@@ -957,20 +958,30 @@ GALLERY_CSS = """
 """
 
 
-def app() -> Component[Gallery, Actions]:
-    presets = {"Basic": BASIC_THEME, "Zen": ZEN_THEME}
-    controls = HStack(
+PRESETS: dict[str, Theme] = {"Basic": BASIC_THEME, "Zen": ZEN_THEME}
+
+
+def _controls(model: Gallery) -> View[Gallery, Actions]:
+    return HStack(
         View(
             "Theme ",
-            Select(*(Option(name) for name in presets), value=Gallery.preset, onchange=Actions.PRESET),
+            Select(*(Option(name) for name in PRESETS), value=model.preset, onchange=Actions.PRESET),
             tag="label",
             props={},
         ),
-        Switch("Dark mode", checked=Gallery.dark, onchange=Actions.MODE),
+        Switch("Dark mode", checked=model.dark, onchange=Actions.MODE),
         align="center",
         gap="md",
         flex_wrap="wrap",
     )
+
+
+def _save_notice(model: Gallery) -> Expr[NoticeVariant]:
+    # The return type gives Cond.when the literal variants that the notice field expects.
+    return Cond.when(model.fail_next_save, "error", "success")
+
+
+def app() -> Component[Gallery, Actions]:
     nav = NavigationMenu(
         *(
             NavigationMenuGroup(
@@ -1020,79 +1031,72 @@ def app() -> Component[Gallery, Actions]:
             sample_in_reading_list=False,
             book_added_toast=False,
         ),
-        Actions.cases(
-            Actions.PRESET.then(State.set(Gallery.preset, Actions.PRESET.event.value)),
-            Actions.MODE.then(State.set(Gallery.dark, Actions.MODE.event.checked)),
-            Actions.ADD.then(State.set(Gallery.count, Gallery.count + 1)),
-            Actions.SUBTRACT.then(State.set(Gallery.count, Gallery.count - 1)),
+        update=lambda model: Actions.cases(
+            Actions.PRESET.then(lambda event: State.set(Gallery.preset, event.value)),
+            Actions.MODE.then(lambda event: State.set(Gallery.dark, event.checked)),
+            Actions.ADD.then(State.set(Gallery.count, model.count + 1)),
+            Actions.SUBTRACT.then(State.set(Gallery.count, model.count - 1)),
             Actions.RESET.then(State.set(Gallery.count, 0)),
-            Actions.TITLE.then(State.set(Gallery.title, Actions.TITLE.event.value)),
-            Actions.SHELF.then(State.set(Gallery.shelf, Actions.SHELF.event.value)),
-            Actions.NOTES.then(State.set(Gallery.notes, Actions.NOTES.event.value)),
-            Actions.FAVORITE.then(State.set(Gallery.favorite, Actions.FAVORITE.event.checked)),
-            Actions.LOCK_BOOK_DETAILS.then(
-                State.set(Gallery.book_details_locked, Actions.LOCK_BOOK_DETAILS.event.checked)
-            ),
-            Actions.TITLE_SIZE.then(State.set(Gallery.title_size, Actions.TITLE_SIZE.context)),
-            Actions.TITLE_ALIGN.then(State.set(Gallery.title_align, Actions.TITLE_ALIGN.context)),
-            Actions.ALIGN_TITLE.then(State.set(Gallery.title_align, Actions.ALIGN_TITLE.context)),
-            Actions.TITLE_EMPHASIS.then(State.set(Gallery.title_emphasis, Actions.TITLE_EMPHASIS.context)),
-            Actions.FILTER_SHELVES.then(State.set(Gallery.visible_shelves, Actions.FILTER_SHELVES.context)),
-            Actions.SORT_BOOKS.then(State.set(Gallery.books_descending, Boolean.negate(Gallery.books_descending))),
-            Actions.TOTAL_KNOWN.then(State.set(Gallery.total_known, Actions.TOTAL_KNOWN.event.checked)),
-            Actions.REVIEW_ONE.then(State.set(Gallery.reviewed, Gallery.reviewed + 1)),
+            Actions.TITLE.then(lambda event: State.set(Gallery.title, event.value)),
+            Actions.SHELF.then(lambda event: State.set(Gallery.shelf, event.value)),
+            Actions.NOTES.then(lambda event: State.set(Gallery.notes, event.value)),
+            Actions.FAVORITE.then(lambda event: State.set(Gallery.favorite, event.checked)),
+            Actions.LOCK_BOOK_DETAILS.then(lambda event: State.set(Gallery.book_details_locked, event.checked)),
+            Actions.TITLE_SIZE.then(lambda _, size: State.set(Gallery.title_size, size)),
+            Actions.TITLE_ALIGN.then(lambda _, align: State.set(Gallery.title_align, align)),
+            Actions.ALIGN_TITLE.then(lambda _, align: State.set(Gallery.title_align, align)),
+            Actions.TITLE_EMPHASIS.then(lambda _, emphasis: State.set(Gallery.title_emphasis, emphasis)),
+            Actions.FILTER_SHELVES.then(lambda _, shelves: State.set(Gallery.visible_shelves, shelves)),
+            Actions.SORT_BOOKS.then(State.set(Gallery.books_descending, Boolean.negate(model.books_descending))),
+            Actions.TOTAL_KNOWN.then(lambda event: State.set(Gallery.total_known, event.checked)),
+            Actions.REVIEW_ONE.then(State.set(Gallery.reviewed, model.reviewed + 1)),
             Actions.RESET_REVIEW.then(State.set(Gallery.reviewed, 0)),
-            Actions.CHANGE_STORAGE.then(
-                State.set(Gallery.storage_used, Gallery.storage_used + Actions.CHANGE_STORAGE.context)
-            ),
-            Actions.INCLUDE_EXPENSE.then(State.set(Gallery.include_expense, Actions.INCLUDE_EXPENSE.event.checked)),
-            Actions.FAIL_NEXT_SAVE.then(State.set(Gallery.fail_next_save, Actions.FAIL_NEXT_SAVE.event.checked)),
-            Actions.INCLUDE_BOOK.then(State.set(Gallery.include_book, Actions.INCLUDE_BOOK.event.checked)),
-            Actions.FINISHED_ONLY.then(State.set(Gallery.finished_only, Actions.FINISHED_ONLY.event.checked)),
+            Actions.CHANGE_STORAGE.then(lambda _, change: State.set(Gallery.storage_used, model.storage_used + change)),
+            Actions.INCLUDE_EXPENSE.then(lambda event: State.set(Gallery.include_expense, event.checked)),
+            Actions.FAIL_NEXT_SAVE.then(lambda event: State.set(Gallery.fail_next_save, event.checked)),
+            Actions.INCLUDE_BOOK.then(lambda event: State.set(Gallery.include_book, event.checked)),
+            Actions.FINISHED_ONLY.then(lambda event: State.set(Gallery.finished_only, event.checked)),
             Actions.SHOW_ALL_BOOKS.then(State.set(Gallery.finished_only, False)),
             Actions.TRY_SAVE.then(
-                State.set(Gallery.notice, Cond.when(Gallery.fail_next_save, "error", "success"))
-                & State.set(Gallery.fail_next_save, False)
+                State.set(Gallery.notice, _save_notice(model)) & State.set(Gallery.fail_next_save, False)
             ),
             Actions.SAVE.then(
                 State.set(
                     Gallery.saved,
                     "Saved "
-                    + String.trim(Gallery.title)
+                    + String.trim(model.title)
                     + " to "
-                    + Gallery.shelf
-                    + Cond.when(Gallery.favorite, " · Favorite", ""),
+                    + model.shelf
+                    + Cond.when(model.favorite, " · Favorite", ""),
                 )
             ),
-            Actions.TAB.then(State.set(Gallery.tab, Actions.TAB.context)),
+            Actions.TAB.then(lambda _, tab: State.set(Gallery.tab, tab)),
             Actions.OPEN.then(State.set(Gallery.dialog_open, True)),
             Actions.CLOSED.then(State.set(Gallery.dialog_open, False)),
-            Actions.TOGGLE_NOTES.then(State.set(Gallery.notes_open, Actions.TOGGLE_NOTES.event.open)),
+            Actions.TOGGLE_NOTES.then(lambda event: State.set(Gallery.notes_open, event.open)),
             Actions.DONE_EDITING.then(State.set(Gallery.notes_open, False)),
             Actions.EDIT_NOTES.then(State.set(Gallery.menu_editor_open, True)),
             Actions.CLOSE_EDITOR.then(State.set(Gallery.menu_editor_open, False)),
-            Actions.TOGGLE_FAVORITE.then(State.set(Gallery.favorite, Actions.TOGGLE_FAVORITE.context)),
+            Actions.TOGGLE_FAVORITE.then(lambda _, favorite: State.set(Gallery.favorite, favorite)),
             Actions.REQUEST_CLEAR_NOTES.then(State.set(Gallery.clear_notes_open, True)),
             Actions.CLOSE_CLEAR_NOTES.then(State.set(Gallery.clear_notes_open, False)),
             Actions.CLEAR_NOTES.then(State.set(Gallery.notes, "")),
-            Actions.SELECT_BOOK.then(State.set(Gallery.catalog_book, Actions.SELECT_BOOK.context)),
-            Actions.READING_SIZE.then(
-                State.set(Gallery.reading_size, Number.from_string(Actions.READING_SIZE.event.value))
-            ),
-            Actions.SET_READING_SIZE.then(State.set(Gallery.reading_size, Actions.SET_READING_SIZE.context)),
-            Actions.READING_GOAL.then(State.set(Gallery.reading_goal, Actions.READING_GOAL.event.value)),
+            Actions.SELECT_BOOK.then(lambda _, book: State.set(Gallery.catalog_book, book)),
+            Actions.READING_SIZE.then(lambda event: State.set(Gallery.reading_size, Number.from_string(event.value))),
+            Actions.SET_READING_SIZE.then(lambda _, size: State.set(Gallery.reading_size, size)),
+            Actions.READING_GOAL.then(lambda event: State.set(Gallery.reading_goal, event.value)),
             Actions.TOGGLE_READING_LIST.then(
-                State.set(Gallery.sample_in_reading_list, Boolean.negate(Gallery.sample_in_reading_list))
-                & State.set(Gallery.book_added_toast, Boolean.negate(Gallery.sample_in_reading_list))
+                State.set(Gallery.sample_in_reading_list, Boolean.negate(model.sample_in_reading_list))
+                & State.set(Gallery.book_added_toast, Boolean.negate(model.sample_in_reading_list))
             ),
             Actions.CLOSE_BOOK_TOAST.then(State.set(Gallery.book_added_toast, False)),
         ),
-        ThemeScope(
+        view=lambda model: ThemeScope(
             View(GALLERY_CSS, tag="style", props={}),
             View(
                 HStack(
                     Heading("Component gallery", level=1),
-                    controls,
+                    _controls(model),
                     gap="md",
                     flex_wrap="wrap",
                     align="center",
@@ -1101,15 +1105,18 @@ def app() -> Component[Gallery, Actions]:
                 ),
                 View(
                     nav,
-                    Box(*(_section(title, render) for _, _, entries in EXAMPLES for title, render in entries), min_w=0),
+                    Box(
+                        *(_section(title, render, model) for _, _, entries in EXAMPLES for title, render in entries),
+                        min_w=0,
+                    ),
                     tag="div",
                     props={"className": "gallery-body"},
                 ),
                 tag="main",
                 props={"className": "gallery"},
             ),
-            theme=Theme.select(Gallery.preset, presets),
-            mode=Cond.when(Gallery.dark, "dark", "light"),
+            theme=Theme.select(model.preset, PRESETS),
+            mode=Cond.when(model.dark, "dark", "light"),
             min_h="full",
         ),
     )

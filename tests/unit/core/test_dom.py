@@ -4,13 +4,18 @@ import pytest
 
 from fleur import Array, Cond, Model, State
 from fleur.core import DomAction, DomEffect, DomElement, DomLifecycle, DomScope, Expr
+from fleur.core.model import model_ref
 from fleur.js import emit
 from fleur.js.ast import ESTreeGeneratedIdentifier
+from fleur.js.builder import ident
 
 
 class Settings(Model):
     caption: State[str]
     captions: State[list[str]]
+
+
+settings = model_ref(Settings, ident("model"))
 
 
 def _compile(setup: Callable[[DomElement, DomScope], DomLifecycle]) -> str:
@@ -19,8 +24,8 @@ def _compile(setup: Callable[[DomElement, DomScope], DomLifecycle]) -> str:
 
 def test_scoped_input_accepts_render_time_expressions() -> None:
     def setup(root: DomElement, scope: DomScope) -> DomLifecycle:
-        caption = scope.input(Settings.caption + "!")
-        upper = scope.input(Array.map(Settings.captions, lambda item: item + "?"))
+        caption = scope.input(settings.caption + "!")
+        upper = scope.input(Array.map(settings.captions, lambda item: item + "?"))
         return DomLifecycle(mount=DomAction.batch(root.set_text(caption), root.set_text(upper[0])))
 
     assert "caption" in _compile(setup)
@@ -28,7 +33,7 @@ def test_scoped_input_accepts_render_time_expressions() -> None:
 
 def test_scoped_input_rejects_another_input() -> None:
     def setup(root: DomElement, scope: DomScope) -> DomLifecycle:
-        caption = scope.input(Settings.caption)
+        caption = scope.input(settings.caption)
         decorated = scope.input(caption + "!")
         return DomLifecycle(mount=root.set_text(decorated))
 
@@ -51,10 +56,10 @@ def test_scoped_input_rejects_scope_values_and_root() -> None:
 
 def test_scoped_setup_rejects_direct_model_reads() -> None:
     def in_update(root: DomElement, scope: DomScope) -> DomLifecycle:
-        return DomLifecycle(update=root.set_text(Settings.caption))
+        return DomLifecycle(update=root.set_text(settings.caption))
 
     def in_listener(root: DomElement, scope: DomScope) -> DomLifecycle:
-        return DomLifecycle(mount=scope.listen(root, "refresh", lambda _: root.set_text(Settings.caption)))
+        return DomLifecycle(mount=scope.listen(root, "refresh", lambda _: root.set_text(settings.caption)))
 
     for setup in (in_update, in_listener):
         with pytest.raises(ValueError, match="reads a render-time value"):
@@ -73,7 +78,7 @@ def test_scoped_setup_rejects_bindings_from_the_enclosing_view() -> None:
 
 def test_scoped_setup_allows_its_own_bindings() -> None:
     def setup(root: DomElement, scope: DomScope) -> DomLifecycle:
-        caption = scope.input(Settings.caption)
+        caption = scope.input(settings.caption)
         last = scope.value("")
         return DomLifecycle(
             mount=DomAction.with_value(root.id, lambda current: last.set(current)),
@@ -87,5 +92,5 @@ def test_scoped_setup_allows_its_own_bindings() -> None:
 
 
 def test_unscoped_effect_may_read_the_model_because_it_reruns_with_fresh_closures() -> None:
-    effect = DomEffect("caption", lambda root: root.set_text(Settings.caption), dependencies=[Settings.caption])
+    effect = DomEffect("caption", lambda root: root.set_text(settings.caption), dependencies=[settings.caption])
     assert "model.caption" in emit(effect.__compile__())

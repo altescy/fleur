@@ -105,16 +105,17 @@ exposes the native dialog methods through the DOM bridge.
 
 ### 3.1 `Expr[T]` — the DSL value wrapper
 
-`Expr` (`src/fleur/core/expr.py`) is the central type that wraps any ESTree expression node. All DSL values (model fields, literals, computed results) are `Expr` instances. Python operators are overloaded to produce new `Expr` nodes:
+`Expr` (`src/fleur/core/expr.py`) is the central type that wraps any ESTree expression node. All DSL values (model fields read from `model`, literals, computed results) are `Expr` instances. Python operators are overloaded to produce new `Expr` nodes:
 
 ```text
-# Python                                  →   ESTree node produced
-CounterModel.count + 1                    →   ESTreeBinaryExpression("+", model.count, 1)
-Cond.equal(CounterModel.count, 0)         →   ESTreeBinaryExpression("===", model.count, 0)
-Boolean.negate(CounterModel.enabled)      →   ESTreeUnaryExpression("!", model.enabled)
+# Python                           →   ESTree node produced
+model.count + 1                    →   ESTreeBinaryExpression("+", model.count, 1)
+Cond.equal(model.count, 0)         →   ESTreeBinaryExpression("===", model.count, 0)
+Boolean.negate(model.enabled)      →   ESTreeUnaryExpression("!", model.enabled)
+"Count: " + model.count            →   ESTreeBinaryExpression("+", "Count: ", model.count)
 ```
 
-Calling `__bool__()` raises `TypeError` to prevent accidental use in Python conditionals.
+Calling `__bool__()` raises `TypeError` to prevent accidental use in Python conditionals, and `__format__()` raises `TypeError` because an f-string is built in Python before the page runs; text is joined with `+`.
 
 ### 3.2 `Model` and `State`
 
@@ -128,8 +129,10 @@ class CounterModel(Model):
 `ModelMeta` (the metaclass) scans annotations at class creation time, auto-installs `State` descriptors, and builds a `__state_fields__` tuple that includes inherited fields.
 
 `State` is a descriptor with two behaviors depending on how it is accessed:
-- **On the class** (`CounterModel.count`) — returns a `ModelState`, a specialization of `Expr` that represents `model.count` in generated JS. Supports chained attribute access (`model.nested.field`) and f-string interpolation.
-- **On an instance** (`model_instance.count`) — returns the `Expr` stored at that field (the current value).
+- **On the class** (`CounterModel.count`) — returns a `Field[CounterModel, int]`, a reference naming the field for `State.set`, `Update.forward` and `View.forward`. It is not an `Expr` and cannot be read as a value. `Board.todo[Todo.title]` refers to a field of a nested model.
+- **On an instance** (`model.count`) — returns the value: an `Expr`, or for a model-typed field an instance of that model.
+
+`update`, `view` and `subscriptions` are functions of the model, as in Elm's `view : Model -> Html Msg`. `Component` calls each once at compile time with `model_ref(ModelType, ident("model"))`, a `ValueRef` typed as an instance of the model, whose attribute reads become JS member accesses (`model.count`). Values can only be read from the model a function receives, so a view cannot read another component's model.
 
 `State.set(field, value)` produces a `ModelUpdate` that compiles to an immutable update:
 
@@ -153,7 +156,7 @@ class CounterMsg(MsgGroup):
 (event) => ({ type: "INC", event: event, context: null })
 ```
 
-Inside update definitions, `GroupedMsg.event` and `GroupedMsg.context` return proxy objects (`MessageEventRef`, `MessageContextRef`) that accumulate property chains like `message.event.client_x` in generated JS.
+Each case receives its own message's payload through `then`: `then(value)`, `then(lambda event: ...)`, or `then(lambda event, context: ...)` for a context supplied by `bind`. `then` calls the function at compile time with `ValueRef`s for `message.event` and `message.context`, whose attribute reads accumulate chains like `message.event.client_x`. The number of required positional parameters decides what is passed, matching the overload the type checker picks.
 
 `MsgGroup.cases(*cases)` collects `(GroupedMsg, case_value)` pairs into an `Update`.
 
@@ -184,11 +187,7 @@ Each case value can be:
 __fleur.h("button", { onclick: (event) => ({type:"INC", …}) }, "Increment")
 ```
 
-Text strings containing `${model.field}` interpolation are parsed by `_compile_text_expr` and compiled to JS string concatenation:
-
-```js
-"" + "Count: " + model.count
-```
+A Python string child compiles to a string literal; dynamic text is an `Expr`, such as `"Count: " + model.count`.
 
 `View.map(tagger, view)` lifts a child view into a parent message space via `__fleur.Html.map`.
 
@@ -253,7 +252,7 @@ See `tests/typecheck/` for the cases the type checker rejects.
 
 ### 3.10 Event Protocols
 
-`src/fleur/core/events.py` defines Python `Protocol` classes (`PointerEvent`, `KeyboardEvent`, `InputEvent`, etc.) that mirror the normalized event objects produced by the runtime. These are used as type arguments in `Msg[EventType]` declarations to get typed access to `msg.event`.
+`src/fleur/core/events.py` defines Python `Protocol` classes (`PointerEvent`, `KeyboardEvent`, `InputEvent`, etc.) that mirror the normalized event objects produced by the runtime. These are used as type arguments in `Msg[EventType]` declarations to type the `event` a case receives in `then(lambda event: ...)`.
 
 ---
 
@@ -558,12 +557,12 @@ class CounterMsg(MsgGroup):
 
 app = Component(
     init=CounterModel(count=0),
-    update=CounterMsg.cases(
-        CounterMsg.INC.then(State.set(CounterModel.count, CounterModel.count + 1)),
-        CounterMsg.DEC.then(State.set(CounterModel.count, CounterModel.count - 1)),
+    update=lambda model: CounterMsg.cases(
+        CounterMsg.INC.then(State.set(CounterModel.count, model.count + 1)),
+        CounterMsg.DEC.then(State.set(CounterModel.count, model.count - 1)),
     ),
-    view=VStack(
-        Text(f"Count: {CounterModel.count}"),
+    view=lambda model: VStack(
+        Text("Count: " + model.count),
         Button("+", onclick=CounterMsg.INC),
         Button("-", onclick=CounterMsg.DEC),
     ),
@@ -585,7 +584,7 @@ app = Component(
   },
   view: function(model) {
     return __fleur.h("div", { style: { display: "flex", flexDirection: "column" } },
-      __fleur.h("span", {}, "" + "Count: " + model.count),
+      __fleur.h("span", {}, "Count: " + model.count),
       __fleur.h("button", { onclick: (event) => ({ type: "INC", event: event, context: null }) }, "+"),
       __fleur.h("button", { onclick: (event) => ({ type: "DEC", event: event, context: null }) }, "-")
     );
@@ -734,8 +733,8 @@ fleur/
 │   │   ├── runtime.py           # JS identifier constants (__fleur, model, message, …)
 │   │   ├── types.py             # TypeVars: ModelT, MsgGroupT, FleurValue, …
 │   │   ├── expr.py              # Expr[T] — DSL value wrapper, operator overloads
-│   │   ├── model.py             # Model, ModelMeta, State, ModelState, ModelUpdate
-│   │   ├── msg.py               # MsgGroup, Msg, GroupedMsg, MessageEventRef
+│   │   ├── model.py             # Model, ModelMeta, State, Field, ModelUpdate
+│   │   ├── msg.py               # MsgGroup, Msg, GroupedMsg
 │   │   ├── update.py            # Update, CaseValue, ForwardedUpdate
 │   │   ├── view.py              # View, MappedView, ForwardedView
 │   │   ├── cmd.py               # Cmd

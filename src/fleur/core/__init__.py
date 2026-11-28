@@ -42,8 +42,8 @@ from .events import (
 )
 from .expr import Expr, array, boolean, number, record, string
 from .model import (
+    Field,
     Model,
-    ModelState,
     ModelUpdate,
     State,
 )
@@ -95,8 +95,8 @@ __all__ = [
     "GroupedMsg",
     "InputEvent",
     "KeyboardEvent",
+    "Field",
     "Model",
-    "ModelState",
     "ModelUpdate",
     "Msg",
     "MsgGroup",

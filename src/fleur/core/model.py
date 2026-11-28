@@ -1,20 +1,19 @@
 from __future__ import annotations
 
 import sys
-from collections.abc import Mapping, Sequence
-from typing import Any, Generic, Type, TypeVar, cast, get_args, get_origin, overload
+from collections.abc import Sequence
+from typing import Any, Generic, Type, TypeVar, cast, get_origin, overload
 
-from typing_extensions import Format, dataclass_transform, get_annotations
+from typing_extensions import Format, dataclass_transform
 
-from fleur.js.ast import ESTreeExpression, ESTreeMemberExpression
+from fleur.js.ast import ESTreeExpression
 from fleur.js.builder import call, ident, json_expr, member, member_expr, object_expr
 
 from .expr import Expr, ValueRef, ensure_expr
 from .runtime import MODEL_IDENT
-from .types import FleurValue, FleurValueT, FleurValueT_co, FleurValueU, KeyT, ModelT, ModelT_co
+from .types import FleurValue, FleurValueT, FleurValueU, ModelT, ModelT_co
 
 ModelU = TypeVar("ModelU", bound="Model")
-NestedModelT = TypeVar("NestedModelT", bound="Model")
 
 
 def _model_annotations(namespace: dict[str, Any]) -> dict[str, object]:
@@ -79,20 +78,21 @@ class Model(metaclass=ModelMeta):
 
 
 class State(Generic[FleurValueT]):
+    """Declare a field of a model.
+
+    Read through the class, `Board.count` is a `Field`: a reference saying which field, for
+    `State.set` and `forward`. It is not a value; a view or an update reads values from the model
+    it receives, as `model.count`.
+    """
+
     def __init__(self) -> None:
         self._name: str | None = None
-        self._is_collection = False
 
     def __set_name__(self, owner: type[Model], name: str) -> None:
         self._name = name
-        annotation = get_annotations(owner, format=Format.FORWARDREF).get(name)
-        args = get_args(annotation)
-        if args:
-            value_type = get_origin(args[0]) or args[0]
-            self._is_collection = isinstance(value_type, type) and issubclass(value_type, (Sequence, Mapping))
 
     @overload
-    def __get__(self, instance: None, owner: Type[ModelT]) -> "ModelState[ModelT, FleurValueT]": ...
+    def __get__(self, instance: None, owner: Type[ModelT]) -> "Field[ModelT, FleurValueT]": ...
 
     @overload
     def __get__(self: "State[ModelU]", instance: ModelT, owner: Type[ModelT]) -> ModelU: ...
@@ -102,11 +102,11 @@ class State(Generic[FleurValueT]):
 
     def __get__(
         self, instance: ModelT | None, owner: Type[ModelT]
-    ) -> "ModelState[ModelT, FleurValueT] | Expr[FleurValueT] | Model":
+    ) -> "Field[ModelT, FleurValueT] | Expr[FleurValueT] | Model":
         if self._name is None:
             raise AttributeError("State descriptor is not initialized")
         if instance is None:
-            return ModelState[ModelT, FleurValueT](owner, self._name, is_collection=self._is_collection)
+            return Field[ModelT, FleurValueT](owner, (self._name,))
 
         values = cast(dict[str, Expr[FleurValueT]], instance.__dict__)
         try:
@@ -126,17 +126,14 @@ class State(Generic[FleurValueT]):
         return ModelUpdate()
 
     @staticmethod
-    def set(
-        state: "ModelState[ModelT, FleurValueU]",
-        value: FleurValueU | Expr[FleurValueU],
-    ) -> ModelUpdate[ModelT]:
-        nested_path = state._path[1:]
+    def set(field: "Field[ModelT, FleurValueU]", value: FleurValueU | Expr[FleurValueU]) -> "ModelUpdate[ModelT]":
+        """Set a field, or a field of a nested model such as `Board.todo[Todo.title]`."""
+        name, *nested_path = field.path
         if not nested_path:
-            return ModelUpdate((state._field_name, value))
+            return ModelUpdate((name, value))
 
-        model_field_expr = member(MODEL_IDENT, state._field_name)
-        next_value = _assign_path(model_field_expr, nested_path, ensure_expr(value))
-        return ModelUpdate((state._field_name, Expr(next_value)))
+        next_value = _assign_path(member(MODEL_IDENT, name), nested_path, ensure_expr(value))
+        return ModelUpdate((name, Expr(next_value)))
 
 
 class ModelUpdate(Generic[ModelT_co]):
@@ -155,74 +152,47 @@ class ModelUpdate(Generic[ModelT_co]):
         )
 
 
-class ModelState(Expr[FleurValueT_co], Generic[ModelT_co, FleurValueT_co]):
-    def __init__(
-        self,
-        model_type: type[ModelT_co],
-        field_name: str,
-        *,
-        path: tuple[str, ...] | None = None,
-        is_collection: bool = False,
-    ) -> None:
+class Field(Generic[ModelT_co, FleurValueT]):
+    """A reference to a field of a model, such as `Board.count`, naming what to set or forward.
+
+    It is not an expression, so it cannot be read as a value. Invariant in the value type, as a
+    write target: a field of `int` does not accept the `str` that a wider type would allow.
+    """
+
+    def __init__(self, model_type: type[ModelT_co], path: tuple[str, ...]) -> None:
         self._model_type = model_type
-        self._field_name = field_name
-        self._path = path or (field_name,)
-        self._is_collection = is_collection
+        self._path = path
 
-        expr: ESTreeExpression = ident(MODEL_IDENT)
-        for part in self._path:
-            expr = member_expr(expr, part)
-        super().__init__(expr)
+    @property
+    def path(self) -> tuple[str, ...]:
+        """The field names from the model to the referenced field."""
+        return self._path
 
-    def __str__(self) -> str:
-        return f"{MODEL_IDENT}.{'.'.join(self._path)}"
-
-    def __format__(self, format_spec: str) -> str:
-        if format_spec:
-            raise ValueError("ModelState does not support format specifications")
-        return "${" + str(self) + "}"
-
-    # A model item is returned as an instance of its model, whose fields read as attributes.
-    # Models are also FleurValues, so these overlap the general overloads below; they come first
-    # so that the checker picks them for model items, which is the intent.
-    @overload
-    def __getitem__(  # pyright: ignore[reportOverlappingOverload]
-        self: "ModelState[ModelT_co, Sequence[ModelU]]",
-        key: "int | Expr[int]",
-    ) -> "ModelU": ...
-    @overload
-    def __getitem__(  # pyright: ignore[reportOverlappingOverload]
-        self: "ModelState[ModelT_co, Mapping[KeyT, ModelU]]",
-        key: "KeyT | Expr[KeyT]",
-    ) -> "ModelU": ...
-    @overload
     def __getitem__(
-        self: "ModelState[ModelT_co, Sequence[FleurValueT]]",
-        key: "int | Expr[int]",
-    ) -> "Expr[FleurValueT]": ...
-    @overload
-    def __getitem__(
-        self: "ModelState[ModelT_co, Mapping[KeyT, FleurValueT]]",
-        key: "KeyT | Expr[KeyT]",
-    ) -> "Expr[FleurValueT]": ...
-    @overload
-    def __getitem__(
-        self: "ModelState[ModelT_co, ModelU]",
-        key: "str | Expr[str] | ModelState[ModelU, FleurValueU]",
-    ) -> "ModelState[ModelU, FleurValueU]": ...
-    def __getitem__(
-        self: "ModelState[ModelT_co, Sequence[FleurValueT] | Mapping[str, FleurValueT] | ModelU]",
-        key: "int | str | Expr[int | str] | ModelState[ModelU, FleurValueU]",
-    ) -> "Expr[FleurValueT]" | "ModelState[ModelU, FleurValueU]" | "Model":
-        if isinstance(key, ModelState) and not self._is_collection:
-            return ModelState(
-                self._model_type,
-                self._field_name,
-                path=self._path + (key._field_name,),
-                is_collection=key._is_collection,
-            )
+        self: "Field[ModelT_co, ModelU]", key: "Field[ModelU, FleurValueU]"
+    ) -> "Field[ModelT_co, FleurValueU]":
+        """Refer to a field of the nested model held here, as in `Board.todo[Todo.title]`."""
+        return Field(self._model_type, self._path + key.path)
 
-        return ValueRef(ESTreeMemberExpression(object=self.__compile__(), property=ensure_expr(key), computed=True))
+    def __repr__(self) -> str:
+        return f"Field({self._model_type.__name__}.{'.'.join(self._path)})"
+
+
+def top_level_name(field: Field[Any, Any]) -> str:
+    """The name of a field of the model itself, where a forwarded child's model is stored."""
+    if len(field.path) != 1:
+        raise ValueError(f"forward() takes a field of the model itself, not the nested {field!r}")
+    return field.path[0]
+
+
+def model_ref(model_type: type[ModelT], expr: ESTreeExpression) -> ModelT:
+    """The value of a `model_type` model at `expr`, whose fields read as attributes, as in `model.count`.
+
+    Seen by the checker as an instance of the model, and at runtime a `ValueRef`; the model type
+    is taken so that the reference can later check field names.
+    """
+    del model_type
+    return cast(ModelT, ValueRef(expr))
 
 
 def _assign_path(base: ESTreeExpression, path: Sequence[str], value: ESTreeExpression) -> ESTreeExpression:

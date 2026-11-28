@@ -18,10 +18,12 @@ class Actions(MsgGroup):
 
 def test_form_submit_cancellation_is_opt_in_and_reactive(chromium_title: Callable[[str], str]) -> None:
     app = Component(
-        Settings(prevent=False),
-        Actions.cases(Actions.SUBMIT.then(State.set(Settings.prevent, Boolean.negate(Settings.prevent)))),
-        VStack(
-            Form(onsubmit=Actions.SUBMIT, prevent_default=Settings.prevent, props={"id": "reactive"}),
+        init=Settings(prevent=False),
+        update=lambda model: Actions.cases(
+            Actions.SUBMIT.then(State.set(Settings.prevent, Boolean.negate(model.prevent)))
+        ),
+        view=lambda model: VStack(
+            Form(onsubmit=Actions.SUBMIT, prevent_default=model.prevent, props={"id": "reactive"}),
             Form(onsubmit=Actions.SUBMIT, props={"id": "native"}),
         ),
     )

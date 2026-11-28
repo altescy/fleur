@@ -2,7 +2,7 @@ import json
 from collections.abc import Callable
 from typing import Literal
 
-from fleur import Boolean, Component, Cond, Expr, Model, Msg, MsgGroup, Page, State, bloom, emit
+from fleur import Boolean, Component, Cond, Expr, Model, Msg, MsgGroup, Page, State, View, bloom, emit
 from fleur.core import PointerEvent
 from fleur.ui import Box, Button, Grid, GridItem, ThemeScope, css
 from fleur.ui.views.types import Length, StyleMap, ViewStyleArgs
@@ -26,11 +26,11 @@ class DimensionActions(MsgGroup):
 
 def test_dimension_margin_and_overflow_shorthands(chromium_title: Callable[[str], str]) -> None:
     app = Component(
-        Dimensions(width="full"),
-        DimensionActions.cases(
-            DimensionActions.SET_WIDTH.then(State.set(Dimensions.width, DimensionActions.SET_WIDTH.context)),
+        init=Dimensions(width="full"),
+        update=lambda _: DimensionActions.cases(
+            DimensionActions.SET_WIDTH.then(lambda _, context: State.set(Dimensions.width, context)),
         ),
-        ThemeScope(
+        view=lambda model: ThemeScope(
             Button("Token", onclick=DimensionActions.SET_WIDTH.bind("lg"), props={"id": "token"}),
             Button("Pixels", onclick=DimensionActions.SET_WIDTH.bind(80), props={"id": "pixels"}),
             Button("Fit", onclick=DimensionActions.SET_WIDTH.bind("fit"), props={"id": "fit"}),
@@ -41,7 +41,7 @@ def test_dimension_margin_and_overflow_shorthands(chromium_title: Callable[[str]
                 Box(w=80, min_w="full", props={"id": "minimum"}),
                 Box(w=640, max_w="full", props={"id": "maximum"}),
                 Box(w=css("min(100%, 120px)"), props={"id": "expression"}),
-                Box(Box(w=56), w=Dimensions.width, props={"id": "dynamic"}),
+                Box(Box(w=56), w=model.width, props={"id": "dynamic"}),
                 Box(Box(w=88), w="fit", props={"id": "intrinsic"}),
                 Box(w=100, mx="auto", min_h=css("30px"), props={"id": "centered"}),
                 Box(Box(w=600, h=1), w=160, overflow_x="auto", props={"id": "scroll"}),
@@ -100,9 +100,9 @@ def test_dimension_margin_and_overflow_shorthands(chromium_title: Callable[[str]
 
 def test_wrapping_shorthands(chromium_title: Callable[[str], str]) -> None:
     app = Component(
-        Model(),
-        MsgGroup.cases(),
-        Box(
+        init=Model(),
+        update=lambda _: MsgGroup.cases(),
+        view=lambda _: Box(
             Box("Keep these words together", white_space="nowrap", props={"id": "nowrap"}),
             Box("VeryLongUninterruptedDescription", overflow_wrap="anywhere", props={"id": "wrap"}),
             w=64,
@@ -137,10 +137,6 @@ def test_grid_defaults_do_not_emit_inline_styles() -> None:
 
 
 def test_grid_cascade_geometry_and_padding(chromium_title: Callable[[str], str]) -> None:
-    columns = Cond.when(Layout.compact, 4, 3)
-    minimum = Cond.when(Layout.compact, 160, 120)
-    span = Cond.when(Layout.compact, 3, 2)
-
     def example(
         label: str,
         *,
@@ -175,31 +171,39 @@ def test_grid_cascade_geometry_and_padding(chromium_title: Callable[[str], str])
     ]
     six_columns = {"grid-template-columns": "repeat(6, 1fr)"}
     single_column = {"grid-column": "span 1"}
-    view = Box(
-        Button("Resize", props={"id": "resize"}, onclick=Actions.RESIZE),
-        Grid(GridItem("A"), GridItem("B"), props={"id": "default"}),
-        Grid(props={"id": "block", "className": "block"}),
-        example("class-only"),
-        example("fixed", columns=columns, col_span=span),
-        example("auto", min_col=minimum, col_span=1),
-        example("responsive", min_col=120, col_span=1),
-        example("both", columns=columns, min_col=css("300px"), col_span=span),
-        example("fixed-style", columns=columns, col_span=span, grid_style=six_columns),
-        example("item-style", columns=columns, col_span=span, item_style=single_column),
-        example("auto-style", min_col=minimum, col_span=span, grid_style=six_columns, item_style=single_column),
-        ThemeScope(
-            *(
-                Grid(GridItem("A", props={"className": "padded"}, **args), props={"className": "padded"}, **args)
-                for args, _ in paddings
+
+    def view(model: Layout) -> View[Layout, Actions]:
+        columns = Cond.when(model.compact, 4, 3)
+        minimum = Cond.when(model.compact, 160, 120)
+        span = Cond.when(model.compact, 3, 2)
+        return Box(
+            Button("Resize", props={"id": "resize"}, onclick=Actions.RESIZE),
+            Grid(GridItem("A"), GridItem("B"), props={"id": "default"}),
+            Grid(props={"id": "block", "className": "block"}),
+            example("class-only"),
+            example("fixed", columns=columns, col_span=span),
+            example("auto", min_col=minimum, col_span=1),
+            example("responsive", min_col=120, col_span=1),
+            example("both", columns=columns, min_col=css("300px"), col_span=span),
+            example("fixed-style", columns=columns, col_span=span, grid_style=six_columns),
+            example("item-style", columns=columns, col_span=span, item_style=single_column),
+            example("auto-style", min_col=minimum, col_span=span, grid_style=six_columns, item_style=single_column),
+            ThemeScope(
+                *(
+                    Grid(GridItem("A", props={"className": "padded"}, **args), props={"className": "padded"}, **args)
+                    for args, _ in paddings
+                ),
+                space={"lg": 16, "md": 8, "sm": 4},
             ),
-            space={"lg": 16, "md": 8, "sm": 4},
-        ),
-        style={"width": Cond.when(Layout.compact, "360px", "480px")},
-    )
+            style={"width": Cond.when(model.compact, "360px", "480px")},
+        )
+
     app = Component(
-        Layout(compact=False),
-        Actions.cases(Actions.RESIZE.then(State.set(Layout.compact, Boolean.negate(Layout.compact)))),
-        view,
+        init=Layout(compact=False),
+        update=lambda model: Actions.cases(
+            Actions.RESIZE.then(State.set(Layout.compact, Boolean.negate(model.compact)))
+        ),
+        view=view,
     )
     page = Page(
         extra_head_html=[

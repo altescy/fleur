@@ -20,12 +20,12 @@ class Actions(MsgGroup):
     SELECT: Msg[PointerEvent, str] = Msg()
 
 
-def _controls(region: str) -> View[Screen, Actions]:
+def _controls(model: Screen, region: str) -> View[Screen, Actions]:
     panels: Mapping[str, View[Screen, Actions]] = {"One": Text("Panel One"), "Two": Text("Panel Two")}
     return Box(
         Button("Action"),
         Input(props={"aria-label": "Name"}),
-        tabs(panels, Screen.tab, Actions.SELECT),
+        tabs(panels, model.tab, Actions.SELECT),
         props={"id": region},
     )
 
@@ -43,19 +43,21 @@ def test_preset_mode_and_scoped_colors(preset: str, playwright_page: Callable[[s
         expected = {"light": theme.light, "dark": BASIC_THEME.dark}
 
     app = Component(
-        Screen(mode="light", tab="One"),
-        Actions.cases(
-            Actions.MODE.then(State.set(Screen.mode, Actions.MODE.context)),
-            Actions.SELECT.then(State.set(Screen.tab, Actions.SELECT.context)),
+        init=Screen(mode="light", tab="One"),
+        update=lambda _: Actions.cases(
+            Actions.MODE.then(lambda _, context: State.set(Screen.mode, context)),
+            Actions.SELECT.then(lambda _, context: State.set(Screen.tab, context)),
         ),
-        Box(
+        view=lambda model: Box(
             Button("Light", onclick=Actions.MODE.bind("light")),
             Button("Dark", onclick=Actions.MODE.bind("dark")),
-            _controls("outside"),
+            _controls(model, "outside"),
             ThemeScope(
-                _controls("parent"),
-                ThemeScope(_controls("child"), colors={"primary": "#704092", "card": "#efdead", "ring": "#157768"}),
-                mode=Screen.mode,
+                _controls(model, "parent"),
+                ThemeScope(
+                    _controls(model, "child"), colors={"primary": "#704092", "card": "#efdead", "ring": "#157768"}
+                ),
+                mode=model.mode,
             ),
         ),
     )

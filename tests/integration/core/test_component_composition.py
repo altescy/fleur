@@ -15,12 +15,12 @@ class CounterMsg(MsgGroup):
 def counter():
     return Component(
         CounterModel(count=0),
-        CounterMsg.cases(
-            CounterMsg.INC.then(State.set(CounterModel.count, CounterModel.count + 1)),
-            CounterMsg.DEC.then(State.set(CounterModel.count, CounterModel.count - 1)),
+        lambda model: CounterMsg.cases(
+            CounterMsg.INC.then(State.set(CounterModel.count, model.count + 1)),
+            CounterMsg.DEC.then(State.set(CounterModel.count, model.count - 1)),
         ),
-        VStack(
-            Text(f"Count: {CounterModel.count}"),
+        lambda model: VStack(
+            Text("Count: " + model.count),
             Button("+", onclick=CounterMsg.INC),
             Button("-", onclick=CounterMsg.DEC),
         ),
@@ -39,10 +39,10 @@ def app():
     nested_counter = counter()
     return Component(
         AppModel(counter=nested_counter.init.model),
-        AppMsg.cases(
+        lambda model: AppMsg.cases(
             AppMsg.COUNTER.then(Update.forward(AppModel.counter, nested_counter, AppMsg.COUNTER)),
         ),
-        VStack(
+        lambda model: VStack(
             Text("Nested"),
             View.forward(AppModel.counter, nested_counter, AppMsg.COUNTER),
         ),

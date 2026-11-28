@@ -53,7 +53,7 @@ Use `css(...)` for literal or reactive CSS and `style={...}` for CSS declaration
 ## Override a region
 
 Use `ThemeScope` to switch modes or override tokens for a subtree. This view binds the region's mode to
-Fleur state. Changing `Appearance.mode` updates the region, while elements outside keep the page theme.
+Fleur state. Changing the model's `mode` field updates the region, while elements outside keep the page theme.
 
 ```python
 from fleur import Model, State
@@ -62,7 +62,7 @@ from fleur.ui import Button, ThemeMode, ThemeScope, css
 class Appearance(Model):
     mode: State[ThemeMode]
 
-view = ThemeScope(
+view = lambda model: ThemeScope(
     Button("Parent"),
     ThemeScope(
         Button("Child"),
@@ -70,7 +70,7 @@ view = ThemeScope(
         components={"button": {"bg": "primary"}},
     ),
     components={"button": {"bg": css("#824399")}},
-    mode=Appearance.mode,
+    mode=model.mode,
 )
 ```
 
@@ -96,14 +96,14 @@ class Settings(Model):
     preset: State[Preset]
     mode: State[ThemeMode]
 
-preview = ThemeScope(
+preview = lambda model: ThemeScope(
     Button("Save"),
-    theme=Theme.select(Settings.preset, presets),
-    mode=Settings.mode,
+    theme=Theme.select(model.preset, presets),
+    mode=model.mode,
 )
 ```
 
-Pass a `Theme` directly for a fixed region. Use `State.set` in message handlers to update the
+Pass a `Theme` directly for a fixed region. Use `State.set` in `then` cases to update the
 preset or mode at runtime. See [Building interactive apps](building-apps.md) for examples of state
 updates.
 
@@ -170,7 +170,7 @@ outline and use `font_size` to change the visual size independently.
 ```python
 from fleur.ui import Card, Heading, Option, Select, field
 
-category = Card(
+category = lambda model: Card(
     Heading("Expenses", level=2),
     field(
         id="expense-category",
@@ -179,7 +179,7 @@ category = Card(
         control=lambda attrs: Select(
             Option("Travel", value="travel"),
             Option("Meals", value="meals"),
-            value=Report.category,
+            value=model.category,
             onchange=Msgs.CATEGORY,
             props=attrs,
         ),
@@ -200,7 +200,7 @@ control shows no selection until a match returns. Omit the select's `value` to u
 
 ## Sortable table headers
 
-`SortableTableHead("Amount", active=by_amount, descending=Report.descending, onsort=Msgs.SORT.bind("amount"))`
+`SortableTableHead("Amount", active=by_amount, descending=model.descending, onsort=Msgs.SORT.bind("amount"))`
 places a button in a column header. The active header displays its direction and exposes
 `aria-sort`. Each inactive sortable header shows a bidirectional arrow. On activation, handle the
 message to choose the column and direction, then pass the ordered rows to `TableBody`.
@@ -229,9 +229,10 @@ the expanded content. Each disclosure starts closed and opens independently. Set
 
 ## Checkbox fields
 
-`CheckboxField("Dark mode", checked=Gallery.dark, onchange=Actions.MODE)` places a
+`CheckboxField("Dark mode", checked=model.dark, onchange=Actions.MODE)` places a
 native checkbox inside its visible label. Clicking the label or pressing Space on the
-focused checkbox toggles it. Read `Actions.MODE.event.checked` to update the model.
+focused checkbox toggles it. Update the model in the message's case with
+`Actions.MODE.then(lambda event: State.set(Gallery.dark, event.checked))`.
 Use `name`, `value`, `required`, and `disabled` for native form behavior. View style
 arguments and `props` apply to the label, and `input_props` applies to the checkbox.
 
@@ -246,19 +247,20 @@ RadioGroup(
     {"left": "Left", "center": "Center", "right": "Right"},
     name="title-alignment",
     label="Title alignment",
-    value=Gallery.title_align,
+    value=model.title_align,
     onselect=Actions.TITLE_ALIGN,
 )
 ```
 
 Declare the selection message as `Msg[InputEvent, str]` or use a narrower string literal
-type for the option keys. Set the model field from the message's `.context` on change.
+type for the option keys. Set the model field in the message's case on change, with
+`Actions.TITLE_ALIGN.then(lambda _, key: State.set(Gallery.title_align, key))`.
 Tab enters the group at the checked radio. Arrow keys select another option in the same group.
 
 ## Progress
 
 Use `Progress(label="Checking service status")` while an operation's total is unknown.
-For a known total, use `Progress(label="Book review", value=Library.reviewed, max=4)`.
+For a known total, use `Progress(label="Book review", value=model.reviewed, max=4)`.
 Supply a positive `max` (the browser default is 1). Both numbers can follow the model.
 A value of zero shows the start of measurable progress, and `None` switches the same bar
 to indeterminate. Use `label` or associate a visible HTML label to name the bar.
@@ -274,8 +276,8 @@ normal Tab order. Use `variant="button"` to apply the theme's button styling.
 from fleur.ui import Button, Link, Notice
 
 guide = Link("Read the guide", href="#guide")
-export = Link("Download CSV", href=Report.csv_url, download="expenses.csv",
-              disabled=Report.empty, variant="button")
+export = Link("Download CSV", href=model.csv_url, download="expenses.csv",
+              disabled=model.empty, variant="button")
 feedback = Notice("Could not save your changes.", Button("Retry", onclick=Actions.RETRY),
                   variant="error")
 ```

@@ -31,24 +31,24 @@ def _load(url: str) -> Cmd[Board, Actions]:
 
 def test_typed_responses_are_validated(playwright_page: Callable[[str, Path], str]) -> None:
     app = Component(
-        Board(todos=[], error=""),
-        Actions.cases(
+        init=Board(todos=[], error=""),
+        update=lambda _: Actions.cases(
             Actions.LOAD.then((State.unchanged(), _load("/todos"))),
             Actions.LOAD_BROKEN.then((State.unchanged(), _load("/broken"))),
             Actions.LOAD_MISSING.then((State.unchanged(), _load("/missing"))),
-            Actions.LOADED.then(State.set(Board.todos, Actions.LOADED.event.body) & State.set(Board.error, "")),
+            Actions.LOADED.then(lambda event: State.set(Board.todos, event.body) & State.set(Board.error, "")),
             Actions.FAILED.then(
                 # Event fields are expressions, so `+` builds the message in the browser.
-                State.set(Board.error, Actions.FAILED.event.kind + ": " + Actions.FAILED.event.message)
+                lambda event: State.set(Board.error, event.kind + ": " + event.message)
             ),
         ),
-        VStack(
+        view=lambda model: VStack(
             Button("Load", onclick=Actions.LOAD),
             Button("Load broken", onclick=Actions.LOAD_BROKEN),
             Button("Load missing", onclick=Actions.LOAD_MISSING),
             VStack(
                 Array.map(
-                    Board.todos,
+                    model.todos,
                     lambda todo: Text(
                         todo.title + " / " + String.or_empty(todo.note),
                         props={"key": todo.id},
@@ -56,7 +56,7 @@ def test_typed_responses_are_validated(playwright_page: Callable[[str, Path], st
                 ),
                 props={"id": "todos"},
             ),
-            Text(Board.error, props={"id": "error"}),
+            Text(model.error, props={"id": "error"}),
         ),
     )
     playwright_page(bloom(app), Path(__file__).with_name("http_responses.cjs"))

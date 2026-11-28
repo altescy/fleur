@@ -90,6 +90,6 @@ def test_element_cascade_with_pointer_and_keyboard(playwright_page: Callable[[st
         ]
     )
     playwright_page(
-        bloom(Component(Model(), MsgGroup.cases(), view), theme=theme, page=page),
+        bloom(Component(init=Model(), update=lambda _: MsgGroup.cases(), view=lambda _: view), theme=theme, page=page),
         Path(__file__).with_name("element_styles.cjs"),
     )

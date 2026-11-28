@@ -20,7 +20,7 @@ class StatusMsg(MsgGroup):
 def app() -> Component[StatusModel, StatusMsg]:
     return Component(
         StatusModel(pending=False, text="Refresh to check the service.", variant="info"),
-        StatusMsg.cases(
+        update=lambda _: StatusMsg.cases(
             StatusMsg.REFRESH.then(
                 (
                     State.set(StatusModel.pending, True),
@@ -32,37 +32,37 @@ def app() -> Component[StatusModel, StatusMsg]:
                 )
             ),
             StatusMsg.RECEIVED.then(
-                State.set(StatusModel.pending, False)
-                & State.set(StatusModel.variant, Cond.when(StatusMsg.RECEIVED.event.ok, "success", "error"))
-                & State.set(
-                    StatusModel.text,
-                    Cond.when(
-                        StatusMsg.RECEIVED.event.ok,
-                        StatusMsg.RECEIVED.event.body,
-                        "Could not load the service status.",
-                    ),
+                lambda response: (
+                    State.set(StatusModel.pending, False)
+                    & State.set(StatusModel.variant, Cond.when(response.ok, "success", "error"))
+                    & State.set(
+                        StatusModel.text,
+                        Cond.when(response.ok, response.body, "Could not load the service status."),
+                    )
                 )
             ),
             StatusMsg.FAILED.then(
-                State.set(StatusModel.pending, False)
-                & State.set(StatusModel.text, StatusMsg.FAILED.event.message)
-                & State.set(StatusModel.variant, "error")
+                lambda error: (
+                    State.set(StatusModel.pending, False)
+                    & State.set(StatusModel.text, error.message)
+                    & State.set(StatusModel.variant, "error")
+                )
             ),
         ),
-        VStack(
+        view=lambda model: VStack(
             Cond.when(
-                StatusModel.pending,
+                model.pending,
                 Progress(label="Checking service status"),
-                Notice(StatusModel.text, variant=StatusModel.variant),
+                Notice(model.text, variant=model.variant),
             ),
             Button(
                 Cond.when(
-                    StatusModel.pending,
+                    model.pending,
                     "Checking…",
-                    Cond.when(Cond.equal(StatusModel.variant, "error"), "Retry", "Refresh"),
+                    Cond.when(Cond.equal(model.variant, "error"), "Retry", "Refresh"),
                 ),
                 onclick=StatusMsg.REFRESH,
-                props={"disabled": StatusModel.pending},
+                props={"disabled": model.pending},
                 align_self="flex-start",
             ),
             gap="sm",

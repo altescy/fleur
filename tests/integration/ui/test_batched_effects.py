@@ -28,23 +28,25 @@ def test_batched_commands_and_subscriptions_all_run(playwright_page: Callable[[s
         Cmd.task(Dom.focus("missing"), Actions.FOCUSED, Actions.FAILED),
     )
     app = Component(
-        Counts(fast=0, slow=0, focused=0, failed=0),
-        Actions.cases(
-            Actions.FAST.then(State.set(Counts.fast, Counts.fast + 1)),
-            Actions.SLOW.then(State.set(Counts.slow, Counts.slow + 1)),
+        init=Counts(fast=0, slow=0, focused=0, failed=0),
+        update=lambda model: Actions.cases(
+            Actions.FAST.then(State.set(Counts.fast, model.fast + 1)),
+            Actions.SLOW.then(State.set(Counts.slow, model.slow + 1)),
             Actions.START.then((State.unchanged(), both_tasks)),
-            Actions.FOCUSED.then(State.set(Counts.focused, Counts.focused + 1)),
-            Actions.FAILED.then(State.set(Counts.failed, Counts.failed + 1)),
+            Actions.FOCUSED.then(State.set(Counts.focused, model.focused + 1)),
+            Actions.FAILED.then(State.set(Counts.failed, model.failed + 1)),
         ),
-        VStack(
+        view=lambda model: VStack(
             Input(props={"id": "editor", "aria-label": "Editor"}),
             Button("Start", onclick=Actions.START, props={"id": "start"}),
-            Text(String.from_number(Counts.fast), props={"id": "fast"}),
-            Text(String.from_number(Counts.slow), props={"id": "slow"}),
-            Text(String.from_number(Counts.focused), props={"id": "focused"}),
-            Text(String.from_number(Counts.failed), props={"id": "failed"}),
+            Text(String.from_number(model.fast), props={"id": "fast"}),
+            Text(String.from_number(model.slow), props={"id": "slow"}),
+            Text(String.from_number(model.focused), props={"id": "focused"}),
+            Text(String.from_number(model.failed), props={"id": "failed"}),
         ),
-        Sub.batch(Sub.interval("fast", 10, Actions.FAST), Sub.interval("slow", 15, Actions.SLOW)),
+        subscriptions=lambda _: Sub.batch(
+            Sub.interval("fast", 10, Actions.FAST), Sub.interval("slow", 15, Actions.SLOW)
+        ),
     )
     probe = """<script>
     setTimeout(() => {

@@ -1,10 +1,15 @@
 from fleur import Cond, Model, Msg, MsgGroup, State, emit
 from fleur.core.events import InputEvent
+from fleur.core.model import model_ref
+from fleur.js.builder import ident
 from fleur.ui import Checkbox
 
 
 class TableModel(Model):
     enabled: State[bool]
+
+
+table = model_ref(TableModel, ident("model"))
 
 
 class TableMsg(MsgGroup):
@@ -15,7 +20,7 @@ class TestCheckbox:
     def test_checkbox_view_compiles_checked_state_and_change_event(self) -> None:
         source = emit(
             Checkbox(
-                checked=Cond.when(TableModel.enabled, True, False),
+                checked=Cond.when(table.enabled, True, False),
                 name="accept",
                 onchange=TableMsg.TOGGLE,
             ).__compile__()

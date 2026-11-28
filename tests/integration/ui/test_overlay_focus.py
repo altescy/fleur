@@ -20,20 +20,20 @@ class Actions(MsgGroup):
 
 def test_escape_returns_focus_to_the_overlay_opener(overlay_focus_page: Callable[[str, Path], str]) -> None:
     app = Component(
-        Screen(dialog_open=False, popover_open=False),
-        Actions.cases(
+        init=Screen(dialog_open=False, popover_open=False),
+        update=lambda _: Actions.cases(
             Actions.OPEN_DIALOG.then(State.set(Screen.dialog_open, True)),
             Actions.CLOSE_DIALOG.then(State.set(Screen.dialog_open, False)),
             Actions.OPEN_POPOVER.then(State.set(Screen.popover_open, True)),
-            Actions.TOGGLE_POPOVER.then(State.set(Screen.popover_open, Actions.TOGGLE_POPOVER.event.open)),
+            Actions.TOGGLE_POPOVER.then(lambda event: State.set(Screen.popover_open, event.open)),
         ),
-        VStack(
+        view=lambda model: VStack(
             Input(props={"aria-label": "Outside"}),
             Button("Open dialog", onclick=Actions.OPEN_DIALOG),
             Button("Open dialog again", onclick=Actions.OPEN_DIALOG),
             Dialog(
                 Input(props={"autofocus": True, "aria-label": "Name"}),
-                open=Screen.dialog_open,
+                open=model.dialog_open,
                 onclose=Actions.CLOSE_DIALOG,
                 label="Profile",
             ),
@@ -41,12 +41,12 @@ def test_escape_returns_focus_to_the_overlay_opener(overlay_focus_page: Callable
                 Input(props={"autofocus": True, "aria-label": "Title"}),
                 id="editor",
                 trigger=lambda attrs: Button(Text("Edit"), props=attrs),
-                open=Screen.popover_open,
+                open=model.popover_open,
                 ontoggle=Actions.TOGGLE_POPOVER,
             ),
             Button("Open editor from model", onclick=Actions.OPEN_POPOVER),
-            Text(Cond.when(Screen.dialog_open, "Open", "Closed"), props={"id": "dialog-state"}),
-            Text(Cond.when(Screen.popover_open, "Open", "Closed"), props={"id": "popover-state"}),
+            Text(Cond.when(model.dialog_open, "Open", "Closed"), props={"id": "dialog-state"}),
+            Text(Cond.when(model.popover_open, "Open", "Closed"), props={"id": "popover-state"}),
         ),
     )
     overlay_focus_page(bloom(app), Path(__file__).with_name("overlay_focus.cjs"))

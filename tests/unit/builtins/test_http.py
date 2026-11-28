@@ -1,6 +1,8 @@
 import pytest
 
 from fleur import Cmd, Model, Msg, MsgGroup, State, Url, builtins, emit
+from fleur.core.model import model_ref
+from fleur.js.builder import ident
 from fleur.types import JsonValue
 
 
@@ -96,13 +98,16 @@ class Screen(Model):
     draft: State[str]
 
 
+screen = model_ref(Screen, ident("model"))
+
+
 def test_request_reads_url_query_headers_and_body_from_the_model() -> None:
     task = builtins.Http.post(
-        Url.path("/todos/{id}", id=Screen.todo_id),
+        Url.path("/todos/{id}", id=screen.todo_id),
         expect=builtins.Http.expectJson(),
-        query={"q": Screen.search, "page": 2},
-        headers={"Authorization": "Bearer " + Screen.token},
-        body={"title": Screen.draft, "tags": ["a", Screen.search], "done": False},
+        query={"q": screen.search, "page": 2},
+        headers={"Authorization": "Bearer " + screen.token},
+        body={"title": screen.draft, "tags": ["a", screen.search], "done": False},
     )
     source = emit(task.__compile__())
 
