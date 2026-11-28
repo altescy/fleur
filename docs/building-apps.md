@@ -9,13 +9,40 @@ Omit `from __future__ import annotations` in modules that declare a `Model` with
 Fleur registers these fields from runtime annotations. The future import stores the annotations as
 strings, so passing those fields to the model constructor raises `TypeError: Unknown model fields`.
 
+## Read values from the model
+
+Like Elm's `view : Model -> Html Msg`, the `update`, `view` and `subscriptions` of a component are
+functions of the model. Write them as lambdas or as functions that take the model, and read values
+from that parameter: `model.count`, `model.todo.title`, `model.items[0]`. A view or an update can
+only read the model it receives, so it cannot read another component's model or another case's
+event.
+
+- A class attribute such as `EditorModel.name` names a field and is not a value. Use it for
+  `State.set(EditorModel.name, value)`, for nested updates such as `State.set(Board.todo[Todo.title], value)`,
+  and for `Update.forward` and `View.forward`.
+- A field is a write target, so `State.set` takes a value of exactly the field's type. Declare a
+  collection that updates compute, for example with `Array.update_at` or `Array.filter`, as
+  `State[Sequence[T]]` or `State[Mapping[K, T]]`: the model is immutable, and these operations
+  return read-only sequences, which keep literal item types such as `Literal["open", "closed"]`.
+- Build text from values with `+`: `"Count: " + model.count`. Formatting an expression in an
+  f-string raises `TypeError`.
+- A message's event reaches its case through `then`. Use `Msgs.X.then(value)` when the case needs no
+  event, `Msgs.X.then(lambda event: ...)` for the event, and `Msgs.X.then(lambda event, context: ...)`
+  for the context the message carries, such as the one `bind` supplies. Name an unused argument `_`.
+  The number of required parameters decides what the case receives, so write the function with
+  exactly one or two parameters; a second parameter with a default receives nothing. `then` takes
+  one case, so combine several updates with `&`.
+
+The snippets below show views and cases. Put a snippet that reads `model` inside a function that
+receives the model.
+
 ## Keep input and preview in sync
 
 Save this example as `editor.py`. The input reads its value from the model and dispatches
 `CHANGE` on each edit. The update reads `event.value` and writes it back to the model.
 
 ```python
-from fleur import Component, Cond, Model, Msg, MsgGroup, State, String
+from fleur import Component, Cond, Model, Msg, MsgGroup, State, String, View
 from fleur.core import InputEvent, PointerEvent
 from fleur.ui import Button, Input, Text, VStack
 
@@ -29,24 +56,28 @@ class EditorMsg(MsgGroup):
     CLEAR: Msg[PointerEvent] = Msg()
 
 
+def render(model: EditorModel) -> View[EditorModel, EditorMsg]:
+    is_blank = Cond.equal(String.trim(model.name), "")
+    return VStack(
+        Input(
+            value=model.name,
+            oninput=EditorMsg.CHANGE,
+            props={"aria-label": "Display name"},
+        ),
+        Text(Cond.when(is_blank, "Enter a display name.", "Preview: " + model.name)),
+        Button("Clear", onclick=EditorMsg.CLEAR, props={"disabled": is_blank}),
+        gap="sm",
+    )
+
+
 def app() -> Component[EditorModel, EditorMsg]:
-    is_blank = Cond.equal(String.trim(EditorModel.name), "")
     return Component(
         EditorModel(name=""),
-        EditorMsg.cases(
-            EditorMsg.CHANGE.then(State.set(EditorModel.name, EditorMsg.CHANGE.event.value)),
+        lambda _: EditorMsg.cases(
+            EditorMsg.CHANGE.then(lambda event: State.set(EditorModel.name, event.value)),
             EditorMsg.CLEAR.then(State.set(EditorModel.name, "")),
         ),
-        VStack(
-            Input(
-                value=EditorModel.name,
-                oninput=EditorMsg.CHANGE,
-                props={"aria-label": "Display name"},
-            ),
-            Text(Cond.when(is_blank, "Enter a display name.", "Preview: " + EditorModel.name)),
-            Button("Clear", onclick=EditorMsg.CLEAR, props={"disabled": is_blank}),
-            gap="sm",
-        ),
+        render,
     )
 ```
 
@@ -55,10 +86,11 @@ uv run fleur dev editor:app
 ```
 
 Open `http://127.0.0.1:8000`. Typing updates the preview and the Clear button empties the
-input. A class-level field such as `EditorModel.name` represents the current browser value.
+input. `model.name` in the view is the current browser value.
 Use `Cond.when` to branch on that value at runtime. For a list or table of controls,
 declare a message such as `SELECT: Msg[PointerEvent, int]` and bind an item index with
-`EditorMsg.SELECT.bind(index)`. The handler reads the index through `EditorMsg.SELECT.context`.
+`EditorMsg.SELECT.bind(index)`. The case receives the index as its context. With a `selected: State[int]`
+field, it would read `EditorMsg.SELECT.then(lambda _, index: State.set(EditorModel.selected, index))`.
 An event handler dispatches the message as is, so the type checker rejects an unbound
 `onclick=EditorMsg.SELECT` that would leave the context empty.
 
@@ -97,7 +129,7 @@ Fieldset(
     field(id="book-title", label="Book title", control=lambda attrs: Input(props=attrs)),
     CheckboxField("Mark as a favorite"),
     label="Book details",
-    disabled=Screen.book_details_locked,
+    disabled=model.book_details_locked,
 )
 ```
 
@@ -129,16 +161,16 @@ class Actions(MsgGroup):
 def app() -> Component[Settings, Actions]:
     return Component(
         Settings(editing=False),
-        Actions.cases(
+        lambda _: Actions.cases(
             Actions.EDIT.then(State.set(Settings.editing, True)),
             Actions.CLOSED.then(State.set(Settings.editing, False)),
         ),
-        VStack(
+        lambda model: VStack(
             Button("Edit settings", onclick=Actions.EDIT),
             Dialog(
                 Heading("Settings", level=2, props={"id": "settings-title"}),
                 Form(Button("Done", props={"type": "submit", "autofocus": True}), props={"method": "dialog"}),
-                open=Settings.editing,
+                open=model.editing,
                 onclose=Actions.CLOSED,
                 labelledby="settings-title",
             ),
@@ -164,7 +196,7 @@ AlertDialog(
     title="Clear reading notes?",
     description="This will permanently remove the current reading notes.",
     confirm_label="Clear notes",
-    open=Screen.confirming,
+    open=model.confirming,
     onclose=Actions.CLOSE_CONFIRMATION,
     onconfirm=Actions.CLEAR_NOTES,
 )
@@ -191,10 +223,10 @@ Popover(
 ```
 
 The browser manages this example's visibility. To control it from the model, pass
-`open=Screen.editing` and `ontoggle=Actions.TOGGLE`. Declare `TOGGLE` as
-`Msg[ToggleEvent]` from `fleur.core` and set `Screen.editing` to
-`Actions.TOGGLE.event.open` in the update. See the reading notes editor in the
-[component gallery](../examples/component_gallery.py).
+`open=model.editing` and `ontoggle=Actions.TOGGLE`. Declare `TOGGLE` as
+`Msg[ToggleEvent]` from `fleur.core` and set `Screen.editing` from the event in its case:
+`Actions.TOGGLE.then(lambda event: State.set(Screen.editing, event.open))`. See the reading notes
+editor in the [component gallery](../examples/component_gallery.py).
 
 ## Offer actions in a menu
 
@@ -204,7 +236,7 @@ native button. Each item dispatches its own `Msg[PointerEvent]`.
 ```python
 Menu(
     MenuItem("Edit notes…", onclick=Actions.EDIT),
-    MenuItem("Clear notes", onclick=Actions.CLEAR, disabled=Screen.notes_empty),
+    MenuItem("Clear notes", onclick=Actions.CLEAR, disabled=model.notes_empty),
     id="note-actions",
     trigger=lambda attrs: Button("Note actions", variant="secondary", props=attrs),
 )
@@ -252,7 +284,7 @@ ContextMenu(
     MenuItem("Edit notes…", onclick=Actions.EDIT_NOTES),
     id="notes-context",
     trigger=lambda attrs: Box(
-        Text(Screen.notes),
+        Text(model.notes),
         props={**attrs, "role": "group", "aria-label": "Reading note"},
     ),
 )
@@ -273,7 +305,7 @@ description with that control through `aria-describedby`.
 Tooltip(
     "Favorites appear in your saved reading list.",
     id="favorites-hint",
-    trigger=lambda attrs: Toggle("Favorite", pressed=Screen.favorite, onchange=Actions.FAVORITE, props=attrs),
+    trigger=lambda attrs: Toggle("Favorite", pressed=model.favorite, onchange=Actions.FAVORITE, props=attrs),
 )
 ```
 
@@ -290,7 +322,7 @@ Enter follows the link.
 ```python
 PreviewCard(
     Text("Reading notes", font_weight=600),
-    Text(Screen.notes),
+    Text(model.notes),
     trigger=Link("Reading notes", href="#reading-notes"),
 )
 ```
@@ -305,11 +337,11 @@ Use `Switch` for an on/off setting that applies immediately. Keep its label stea
 as the setting changes. The label is clickable, and Space toggles the focused switch.
 
 ```python
-Switch("Dark mode", checked=Settings.dark, onchange=Actions.MODE)
+Switch("Dark mode", checked=model.dark, onchange=Actions.MODE)
 ```
 
-Declare `MODE` as `Msg[InputEvent]` and update the setting with
-`State.set(Settings.dark, Actions.MODE.event.checked)`.
+Declare `MODE` as `Msg[InputEvent]` and update the setting in its case with
+`Actions.MODE.then(lambda event: State.set(Settings.dark, event.checked))`.
 
 ## Filter and select a choice
 
@@ -322,14 +354,15 @@ Combobox(
     {"garden": "The Secret Garden", "willows": "The Wind in the Willows"},
     id="catalog-title",
     label="Book title in catalog",
-    value=Screen.book,
+    value=model.book,
     onselect=Actions.SELECT_BOOK,
     placeholder="Type part of a title",
 )
 ```
 
 Declare `SELECT_BOOK` as `Msg[PointerEvent, str]`. A click or Enter on a highlighted
-option sends its key in `Actions.SELECT_BOOK.context`. Typing narrows the list, and
+option sends its key as the context, so the case can store it with
+`Actions.SELECT_BOOK.then(lambda _, key: State.set(Screen.book, key))`. Typing narrows the list, and
 Escape or leaving the field restores the last confirmed label. The arrow keys move
 the highlight while focus stays in the input.
 
@@ -340,23 +373,24 @@ define the range. Give the input a visible label using `field()` or use
 the `label` argument for an accessible name.
 
 ```python
-Slider(label="Reading text size", min=14, max=30, step=2, value=Screen.font_size, oninput=Actions.RESIZE)
+Slider(label="Reading text size", min=14, max=30, step=2, value=model.font_size, oninput=Actions.RESIZE)
 ```
 
 Declare `RESIZE` as `Msg[InputEvent]`. For a live preview, pass the message to
-`oninput` and update the model using `Number.from_string(Actions.RESIZE.event.value)`.
+`oninput` and update the model in its case with
+`Actions.RESIZE.then(lambda event: State.set(Screen.font_size, Number.from_string(event.value)))`.
 Use `onchange` for updates when the user commits a value.
 
 ## Show a temporary notification
 
 Keep `Toast` in the view and show it with an `open` flag. Declare `CLOSE_TOAST`
-as `Msg[ToastCloseEvent]` and set the flag to false in its update. The message
-can read `event.reason` to distinguish a timeout from dismissal.
+as `Msg[ToastCloseEvent]` and set the flag to false in its update. The case
+can read `event.reason`, given `then(lambda event: ...)`, to distinguish a timeout from dismissal.
 
 ```python
 Toast(
     "Added to your reading list.",
-    open=Screen.toast_open,
+    open=model.toast_open,
     onclose=Actions.CLOSE_TOAST,
 )
 ```
@@ -411,11 +445,11 @@ Pass the current state as `pressed` and keep the button's accessible name stable
 Click, Enter, and Space all activate the native button.
 
 ```python
-Toggle("Favorite", pressed=Screen.favorite, onchange=Actions.FAVORITE)
+Toggle("Favorite", pressed=model.favorite, onchange=Actions.FAVORITE)
 ```
 
 Declare `FAVORITE` as `Msg[PointerEvent, bool]`. Its context is the next pressed
-state. Apply it with `State.set(Screen.favorite, Actions.FAVORITE.context)`.
+state. Apply it in its case with `Actions.FAVORITE.then(lambda _, pressed: State.set(Screen.favorite, pressed))`.
 The button exposes the model's state through `aria-pressed`.
 
 ## Toggle multiple choices
@@ -428,13 +462,14 @@ keys.
 ToggleGroup(
     {"bold": "Bold", "italic": "Italic"},
     label="Title emphasis",
-    value=Screen.emphasis,
+    value=model.emphasis,
     onchange=Actions.EMPHASIS,
 )
 ```
 
-Declare `EMPHASIS` as `Msg[PointerEvent, Sequence[str]]` and update the model
-with `State.set(Screen.emphasis, Actions.EMPHASIS.context)`. The message context
+Declare `EMPHASIS` as `Msg[PointerEvent, Sequence[str]]` and update the model in its case
+with `Actions.EMPHASIS.then(lambda _, selected: State.set(Screen.emphasis, selected))`.
+The message context
 contains the complete new selection. Arrow keys move focus, and Enter or Space
 toggles the focused choice. Inside a `Toolbar`, the group shares the toolbar’s
 tab stop and arrow-key navigation.
@@ -446,7 +481,7 @@ appear while the image loads, when it fails, or when the source is absent. The
 avatar keeps the same accessible name and occupies the same space in each state.
 
 ```python
-Avatar(name="Lead reviewer", src=Screen.reviewer_image, fallback="LR")
+Avatar(name="Lead reviewer", src=model.reviewer_image, fallback="LR")
 ```
 
 Use `name=None` for a decorative avatar when adjacent text already provides
@@ -475,14 +510,14 @@ its place in the Tab order.
 CheckboxGroup(
     {"to-read": "To read", "reading": "Reading", "finished": "Finished"},
     label="Shelves to show",
-    value=Screen.visible_shelves,
+    value=model.visible_shelves,
     onchange=Actions.FILTER_SHELVES,
 )
 ```
 
-Declare `FILTER_SHELVES` as `Msg[InputEvent, Sequence[str]]` and update the model
-with `State.set(Screen.visible_shelves, Actions.FILTER_SHELVES.context)`. The
-context contains all selected keys. For native form submission, pass a shared
+Declare `FILTER_SHELVES` as `Msg[InputEvent, Sequence[str]]` and update the model in its case
+with `Actions.FILTER_SHELVES.then(lambda _, keys: State.set(Screen.visible_shelves, keys))`.
+The context contains all selected keys. For native form submission, pass a shared
 `name` to submit each checked key under that name.
 
 ## Enter a number with step controls
@@ -496,7 +531,7 @@ field(
     id="amount",
     label="Amount (JPY)",
     control=lambda attrs: NumberField(
-        value=Screen.amount,
+        value=model.amount,
         min=1,
         step=1,
         required=True,
@@ -517,7 +552,7 @@ for the range. The optional `low`, `high`, and `optimum` values let the browser
 distinguish between more and less desirable measurements.
 
 ```python
-Meter(value=Screen.storage_used, min=0, max=100, low=60, high=85, optimum=0, label="Storage usage")
+Meter(value=model.storage_used, min=0, max=100, low=60, high=85, optimum=0, label="Storage usage")
 ```
 
 Give the meter an accessible name with `label` or reference a visible label
@@ -605,10 +640,10 @@ to distinguish a missing element.
 
 Use `DomEffect.scoped(key, setup)` when an effect owns listeners, timers, or
 browser-local state. Its setup callback receives the element and a `DomScope`
-and returns a `DomLifecycle`. Use `scope.input(Screen.caption)` in setup to
+and returns a `DomLifecycle`. Use `scope.input(model.caption)` in setup to
 read the latest value of a render-time expression. It retains the expression's
 type as a read-only input. Inputs are evaluated during rendering, so pass model
-expressions such as `Screen.caption + "!"`, not values created inside the effect;
+expressions such as `model.caption + "!"`, not values created inside the effect;
 `scope.input(caption + "!")` with another input raises a `ValueError` when the
 view compiles. Conversely, the setup must not read model fields or items of a
 mapped view directly: a scoped effect is installed once, so such a value would
@@ -716,8 +751,8 @@ view effect for behavior tied to the lifetime of a particular element.
 
 To run several commands from one case, combine them with `Cmd.batch`, for example
 `(State.set(...), Cmd.batch(load_profile, Cmd.task(Dom.focus("editor"), ...)))`. Likewise,
-pass `Sub.batch(Sub.interval("clock", 1000, Actions.TICK), ...)` as the component's
-subscriptions to run several at once. Every batched command or subscription must use the
+pass `subscriptions=lambda model: Sub.batch(Sub.interval("clock", 1000, Actions.TICK), ...)` to
+`Component` to run several at once. Every batched command or subscription must use the
 component's message group, and `Sub.batch` raises `ValueError` when two subscriptions share
 a key, because the runtime tells active subscriptions apart by key.
 
@@ -748,8 +783,8 @@ missing, use `Array.get(items, index)` or `Object.get(scores, key)`. They return
 accepts negative indices counted from the end.
 
 An item of a list of models is seen as an instance of its model: in
-`Array.map(Board.todos, lambda todo: Text(todo.title))`, `Array.filter` and `Array.sort_by`
-callbacks, and in `Board.todos[0]`. Read its fields as attributes; a nested model field reads
+`Array.map(model.todos, lambda todo: Text(todo.title))`, `Array.filter` and `Array.sort_by`
+callbacks, and in `model.todos[0]`. Read its fields as attributes; a nested model field reads
 the same way (`todo.owner.name`), and a misspelled field is a type error. At runtime the item is
 an expression, so compare it with `Cond.equal` rather than `==`. `Cond.when` with a model in
 both branches also gives a model.
@@ -759,8 +794,8 @@ it applies `then` to the present value, as a model when it is one, and gives `ot
 the value is missing. The value is evaluated once:
 
 ```python
-Cond.maybe(Board.current, then=lambda todo: Text(todo.title), otherwise=Text("Nothing selected"))
-Cond.maybe(Array.get(Board.todos, 0), then=lambda todo: todo.title, otherwise="")
+Cond.maybe(model.current, then=lambda todo: Text(todo.title), otherwise=Text("Nothing selected"))
+Cond.maybe(Array.get(model.todos, 0), then=lambda todo: todo.title, otherwise="")
 ```
 
 Without `otherwise`, like Rust's `map`, a missing value gives `None`, which renders nothing in
@@ -784,7 +819,7 @@ then matches it, and the field's model type, against the child component.
 from fleur import Component, Model, Msg, MsgGroup, State, Update, View
 from fleur.ui import Text, VStack
 
-from editor import EditorModel, app as editor
+from editor import EditorModel, EditorMsg, app as editor
 
 
 class WorkspaceModel(Model):
@@ -802,11 +837,11 @@ def app() -> Component[WorkspaceModel, WorkspaceMsg]:
     second = editor()
     return Component(
         WorkspaceModel(first=first.init.model, second=second.init.model),
-        WorkspaceMsg.cases(
+        lambda _: WorkspaceMsg.cases(
             WorkspaceMsg.FIRST.then(Update.forward(WorkspaceModel.first, first, WorkspaceMsg.FIRST)),
             WorkspaceMsg.SECOND.then(Update.forward(WorkspaceModel.second, second, WorkspaceMsg.SECOND)),
         ),
-        VStack(
+        lambda _: VStack(
             Text("First editor"),
             View.forward(WorkspaceModel.first, first, WorkspaceMsg.FIRST),
             Text("Second editor"),

@@ -23,21 +23,21 @@ class Actions(MsgGroup):
 
 def test_slider_applies_controlled_value_after_range_changes(playwright_page: Callable[[str, Path], str]) -> None:
     app = Component(
-        Screen(low=120, high=140, step=2, value=132),
-        Actions.cases(
+        init=Screen(low=120, high=140, step=2, value=132),
+        update=lambda _: Actions.cases(
             Actions.LIMIT.then(State.set(Screen.low, 136)),
             Actions.RESTORE.then(State.set(Screen.low, 120)),
             Actions.SHIFT.then(State.set(Screen.low, 200) & State.set(Screen.high, 240) & State.set(Screen.value, 228)),
             Actions.COARSE.then(State.set(Screen.step, 5)),
             Actions.FINE.then(State.set(Screen.step, 2)),
         ),
-        VStack(
+        view=lambda model: VStack(
             Slider(
                 label="Level",
-                value=Screen.value,
-                min=Screen.low,
-                max=Screen.high,
-                step=Screen.step,
+                value=model.value,
+                min=model.low,
+                max=model.high,
+                step=model.step,
                 props={"value": 0},
             ),
             Button("Limit", onclick=Actions.LIMIT),

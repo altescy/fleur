@@ -50,6 +50,12 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
             "Fleur Expr cannot be used as a Python boolean; use Cond.when(condition, consequent, alternate)"
         )
 
+    def __format__(self, format_spec: str) -> str:
+        raise TypeError(
+            "Fleur Expr cannot be formatted into a Python string, which is built before the page runs; "
+            'join text with `+`, as in "Count: " + model.count'
+        )
+
     #
     # Binary operators
     #
@@ -69,6 +75,8 @@ class Expr(Generic[FleurValueT_co], ICompilable[ESTreeExpression]):
     def __radd__(self: "Expr[int | float]", other: "int | Expr[int | float]") -> "Expr[int | float]": ...
     @overload
     def __radd__(self: "Expr[str]", other: "int | float | str | Expr[int | float | str]") -> "Expr[str]": ...
+    @overload
+    def __radd__(self: "Expr[int | float]", other: str) -> "Expr[str]": ...
     def __radd__(self, other: "FleurValue | Expr[FleurValue]") -> "Expr[FleurValue]":
         return Expr(ESTreeBinaryExpression(operator="+", left=ensure_expr(other), right=self.__compile__()))
 

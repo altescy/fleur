@@ -5,6 +5,8 @@ import subprocess
 import pytest
 
 from fleur import Model, State, Url, emit
+from fleur.core.model import model_ref
+from fleur.js.builder import ident
 
 
 class Route(Model):
@@ -12,11 +14,14 @@ class Route(Model):
     number: State[int]
 
 
+route = model_ref(Route, ident("model"))
+
+
 def test_path_encodes_each_parameter_in_javascript() -> None:
     runner = shutil.which("node") or shutil.which("bun")
     if runner is None:
         pytest.skip("JavaScript execution requires Node or Bun")
-    path = Url.path("/users/{owner}/items/{number}/{owner}.json", owner=Route.owner, number=Route.number)
+    path = Url.path("/users/{owner}/items/{number}/{owner}.json", owner=route.owner, number=route.number)
     script = f"const model = {{owner: 'a/b c?', number: 7}}; console.log(JSON.stringify({emit(path.__compile__())}))"
     result = subprocess.run([runner, "-e", script], text=True, capture_output=True, check=True)
 

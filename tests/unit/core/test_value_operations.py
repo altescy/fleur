@@ -7,6 +7,7 @@ import pytest
 
 from fleur import Array, Cond, Expr, Model, Number, Object, State, String, Url, emit
 from fleur.core import array, record
+from fleur.core.model import model_ref
 from fleur.js.builder import ident
 
 
@@ -15,6 +16,9 @@ class Values(Model):
     parts: State[list[str]]
     separator: State[str]
     text: State[str]
+
+
+values = model_ref(Values, ident("model"))
 
 
 def _increment(amount: Expr[int]) -> Expr[int]:
@@ -27,19 +31,19 @@ def test_value_operations_evaluate_in_javascript() -> None:
         pytest.skip("JavaScript execution requires Node or Bun")
 
     operations = {
-        "length": Array.length(Values.amounts),
-        "sum": Array.sum(Values.amounts),
+        "length": Array.length(values.amounts),
+        "sum": Array.sum(values.amounts),
         "empty_sum": Array.sum(array([])),
         "decimal_sum": Array.sum(array([1.25, 2])),
-        "mapped": Array.map(Values.amounts, _increment),
-        "mapped_again": Array.map(Values.amounts, _increment),
-        "joined": Array.join(Values.parts, Values.separator),
-        "number": Number.from_string(Values.text),
+        "mapped": Array.map(values.amounts, _increment),
+        "mapped_again": Array.map(values.amounts, _increment),
+        "joined": Array.join(values.parts, values.separator),
+        "number": Number.from_string(values.text),
         "empty_number": Number.from_string(""),
         "invalid_number": Number.is_finite(Number.from_string("12xyz")),
         "formatted": Number.format(1234.5, locale="ja-JP"),
         "plain": String.from_number(1234.5),
-        "escaped": String.replace_all(Array.join(Values.parts), '"', '""'),
+        "escaped": String.replace_all(Array.join(values.parts), '"', '""'),
         "encoded": Url.encode_component("€ & ="),
     }
     program = {name: emit(value.__compile__()) for name, value in operations.items()}
@@ -86,20 +90,23 @@ class Lookups(Model):
     names: State[list[str]]
 
 
+lookups = model_ref(Lookups, ident("model"))
+
+
 def test_optional_lookups_return_none_for_missing_values() -> None:
     runner = shutil.which("node") or shutil.which("bun")
     if runner is None:
         pytest.skip("JavaScript execution requires Node or Bun")
 
     operations = {
-        "present": Object.get(Lookups.scores, "zero"),
-        "null": Object.get(Lookups.scores, "empty"),
-        "missing": Object.get(Lookups.scores, "missing"),
-        "inherited": Object.get(Lookups.scores, "constructor"),
-        "missing_is_none": Cond.equal(Object.get(Lookups.scores, "missing"), None),
-        "first": Array.get(Lookups.names, 0),
-        "last": Array.get(Lookups.names, -1),
-        "outside": Array.get(Lookups.names, 5),
+        "present": Object.get(lookups.scores, "zero"),
+        "null": Object.get(lookups.scores, "empty"),
+        "missing": Object.get(lookups.scores, "missing"),
+        "inherited": Object.get(lookups.scores, "constructor"),
+        "missing_is_none": Cond.equal(Object.get(lookups.scores, "missing"), None),
+        "first": Array.get(lookups.names, 0),
+        "last": Array.get(lookups.names, -1),
+        "outside": Array.get(lookups.names, 5),
     }
     program = {name: emit(value.__compile__()) for name, value in operations.items()}
     script = """
@@ -139,14 +146,17 @@ class Shelf(Model):
     selected: State[str]
 
 
+shelf = model_ref(Shelf, ident("model"))
+
+
 def test_model_items_read_fields_as_attributes_and_brackets_stay_a_key_lookup() -> None:
-    first = Shelf.books[0]
+    first = shelf.books[0]
     assert emit(first.title.__compile__()) == "model.books[0].title"
     assert emit(first.owner.name.__compile__()) == "model.books[0].owner.name"
-    titles = Array.map(Shelf.books, lambda book: book.title + "!")
+    titles = Array.map(shelf.books, lambda book: book.title + "!")
     assert emit(titles.__compile__()) == 'model.books.map(function($fleur0) {return ($fleur0.title+"!");})'
     # A model state used as a key reads the entry for its current value.
-    assert emit(record({"a": "A"})[Shelf.selected].__compile__()) == '{a: "A"}[model.selected]'
+    assert emit(record({"a": "A"})[shelf.selected].__compile__()) == '{a: "A"}[model.selected]'
 
 
 class Picker(Model):
@@ -156,16 +166,19 @@ class Picker(Model):
     flag: State[bool]
 
 
+picker = model_ref(Picker, ident("model"))
+
+
 def test_maybe_uses_present_values_once_in_javascript() -> None:
     runner = shutil.which("node") or shutil.which("bun")
     if runner is None:
         pytest.skip("JavaScript execution requires Node or Bun")
 
     operations = {
-        "present": Cond.maybe(Picker.current, lambda book: book.owner.name, otherwise="nobody"),
-        "missing_item": Cond.maybe(Array.get(Picker.books, 5), lambda book: book.title, otherwise="none"),
-        "zero": Cond.maybe(Picker.count, lambda count: count + 1, otherwise=-1),
-        "chosen": Cond.when(Picker.flag, Picker.books[0], Picker.books[1]).title,
+        "present": Cond.maybe(picker.current, lambda book: book.owner.name, otherwise="nobody"),
+        "missing_item": Cond.maybe(Array.get(picker.books, 5), lambda book: book.title, otherwise="none"),
+        "zero": Cond.maybe(picker.count, lambda count: count + 1, otherwise=-1),
+        "chosen": Cond.when(picker.flag, picker.books[0], picker.books[1]).title,
     }
     program = {name: emit(value.__compile__()) for name, value in operations.items()}
     script = """

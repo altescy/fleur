@@ -21,22 +21,22 @@ class Actions(MsgGroup):
 
 def test_modal_state_and_keyboard_focus(playwright_page: Callable[[str, Path], str]) -> None:
     app = Component(
-        Screen(editing=True),
-        Actions.cases(
+        init=Screen(editing=True),
+        update=lambda _: Actions.cases(
             Actions.EDIT.then(State.set(Screen.editing, True)),
             Actions.DONE.then(State.set(Screen.editing, False)),
             Actions.CLOSED.then(State.set(Screen.editing, False)),
         ),
-        VStack(
+        view=lambda model: VStack(
             Button("Edit profile", onclick=Actions.EDIT),
             Button("Edit again", onclick=Actions.EDIT),
-            Text(Cond.when(Screen.editing, "Open", "Closed"), props={"id": "model-state"}),
+            Text(Cond.when(model.editing, "Open", "Closed"), props={"id": "model-state"}),
             Dialog(
                 Heading("Profile", level=2, props={"id": "profile-title"}),
                 Button("Done", onclick=Actions.DONE),
                 Input(props={"aria-label": "Name", "autofocus": True}),
                 Form(Button("Cancel", props={"type": "submit"}), props={"method": "dialog"}),
-                open=Screen.editing,
+                open=model.editing,
                 onclose=Actions.CLOSED,
                 labelledby="profile-title",
                 display="grid",
@@ -64,15 +64,15 @@ def test_reusing_a_dialog_element_releases_its_modal_state(
     overlay_focus_page: Callable[[str, Path], str], replacement_props: dict[str, ViewProp], expected_open: bool
 ) -> None:
     app = Component(
-        Replacement(swapped=False),
-        ReplacementActions.cases(
+        init=Replacement(swapped=False),
+        update=lambda _: ReplacementActions.cases(
             ReplacementActions.SWAP.then(State.set(Replacement.swapped, True)),
             ReplacementActions.CLOSE.then(State.unchanged()),
         ),
-        VStack(
+        view=lambda model: VStack(
             Button("Outside"),
             Cond.when(
-                Replacement.swapped,
+                model.swapped,
                 View("Replacement", tag="dialog", props={**replacement_props, "id": "panel"}),
                 Dialog(
                     Button("Swap", onclick=ReplacementActions.SWAP),

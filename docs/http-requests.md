@@ -28,7 +28,7 @@ class StatusMsg(MsgGroup):
 def app() -> Component[StatusModel, StatusMsg]:
     return Component(
         StatusModel(pending=False, text="Refresh to check the service."),
-        StatusMsg.cases(
+        lambda _: StatusMsg.cases(
             StatusMsg.REFRESH.then(
                 (
                     State.set(StatusModel.pending, True) & State.set(StatusModel.text, "Loading…"),
@@ -40,24 +40,19 @@ def app() -> Component[StatusModel, StatusMsg]:
                 )
             ),
             StatusMsg.RECEIVED.then(
-                State.set(StatusModel.pending, False)
+                lambda event: State.set(StatusModel.pending, False)
                 & State.set(
                     StatusModel.text,
-                    Cond.when(
-                        StatusMsg.RECEIVED.event.ok,
-                        StatusMsg.RECEIVED.event.body,
-                        "Could not load the service status.",
-                    ),
+                    Cond.when(event.ok, event.body, "Could not load the service status."),
                 )
             ),
             StatusMsg.FAILED.then(
-                State.set(StatusModel.pending, False)
-                & State.set(StatusModel.text, StatusMsg.FAILED.event.message)
+                lambda event: State.set(StatusModel.pending, False) & State.set(StatusModel.text, event.message)
             ),
         ),
-        VStack(
-            Button("Refresh", onclick=StatusMsg.REFRESH, props={"disabled": StatusModel.pending}),
-            Text(StatusModel.text, props={"role": "status"}),
+        lambda model: VStack(
+            Button("Refresh", onclick=StatusMsg.REFRESH, props={"disabled": model.pending}),
+            Text(model.text, props={"role": "status"}),
             gap="sm",
         ),
     )
@@ -83,12 +78,13 @@ a placeholder, raises `ValueError` when the update is built.
 ```python
 from fleur import Http, Url
 
+# Inside an update function, where `model` is the model it receives.
 save = Http.put(
-    Url.path("/todos/{id}", id=Editor.todo_id),
+    Url.path("/todos/{id}", id=model.todo_id),
     expect=Http.expectJson(),
     query={"notify": True},
-    headers={"Authorization": "Bearer " + Editor.token},
-    body={"title": Editor.title, "done": False},
+    headers={"Authorization": "Bearer " + model.token},
+    body={"title": model.title, "done": False},
 )
 ```
 
@@ -120,8 +116,8 @@ successful response, so a status other than 2xx fails with `HttpError(kind="stat
 of reaching the response handler.
 
 A decoded body and the items of a model list are seen as instances of their model, so read
-their fields as attributes: `Actions.LOADED.event.body.title`, or
-`Array.map(Board.todos, lambda todo: Text(todo.title))`. A misspelled field is a type error.
+their fields as attributes: `event.body.title` in a `then(lambda event: ...)` case, or
+`Array.map(model.todos, lambda todo: Text(todo.title))` in a view. A misspelled field is a type error.
 
 Supported types are `str`, `int`, `float`, `bool`, `None`, `Literal[...]`, unions, `list[T]`,
 `Mapping[str, T]` and models. Another type raises `TypeError` when the request is built.
@@ -141,9 +137,12 @@ class ValidationError(Model):
     detail: State[list[Issue]]
 
 
-create = Http.post("/todos", body={"title": Editor.title}, expect=Http.expectJson(Todo, error=ValidationError))
+create = Http.post("/todos", body={"title": model.title}, expect=Http.expectJson(Todo, error=ValidationError))
 # Declare REJECTED as Msg[HttpError[ValidationError]] and pass it as the error message.
-issues = Cond.maybe(Actions.REJECTED.event.body, then=lambda error: error.detail, otherwise=[])
+# Its case stores the detail list in a `State[list[Issue]]` field named `issues`.
+Actions.REJECTED.then(
+    lambda event: State.set(Editor.issues, Cond.maybe(event.body, then=lambda error: error.detail, otherwise=[]))
+)
 ```
 
 The runtime checks the error body against the type, like a successful body. An error response of

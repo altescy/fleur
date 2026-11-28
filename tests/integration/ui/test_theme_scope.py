@@ -19,9 +19,9 @@ class Actions(MsgGroup):
 
 def scoped_app() -> Component[Appearance, Actions]:
     return Component(
-        Appearance(mode="light"),
-        Actions.cases(Actions.SELECT.then(State.set(Appearance.mode, Actions.SELECT.context))),
-        Box(
+        init=Appearance(mode="light"),
+        update=lambda _: Actions.cases(Actions.SELECT.then(lambda _, context: State.set(Appearance.mode, context))),
+        view=lambda model: Box(
             Button("Outside", props={"id": "outside"}),
             ThemeScope(
                 Button("Light", props={"id": "light"}, onclick=Actions.SELECT.bind("light")),
@@ -41,7 +41,7 @@ def scoped_app() -> Component[Appearance, Actions]:
                     ),
                     components={"button": {"bg": css("#824399")}},
                 ),
-                mode=Appearance.mode,
+                mode=model.mode,
             ),
         ),
     )
@@ -63,13 +63,11 @@ def test_bloom_preserves_page_head_and_emits_both_modes() -> None:
 def test_scoped_css_preserves_literal_model_placeholders(chromium_title: Callable[[str], str]) -> None:
     theme = Theme(extra_css=[':scope::before { content: "${model.mode}"; }'])
     app = Component(
-        Appearance(mode="light"),
-        MsgGroup.cases(),
-        Box(
+        init=Appearance(mode="light"),
+        update=lambda _: MsgGroup.cases(),
+        view=lambda model: Box(
             ThemeScope(Text("Fixed"), theme=theme, props={"id": "fixed"}),
-            ThemeScope(
-                Text("Selected"), theme=Theme.select(Appearance.mode, {"light": theme}), props={"id": "selected"}
-            ),
+            ThemeScope(Text("Selected"), theme=Theme.select(model.mode, {"light": theme}), props={"id": "selected"}),
         ),
     )
     probe = """<script>
@@ -135,12 +133,12 @@ def test_reactive_theme_inherits_mode_and_isolates_nested_themes(chromium_title:
     }
     fixed = Theme(light={"primary": "pink"}, dark={"primary": "purple"}, components={"input": {"bg": css("teal")}})
     app = Component(
-        Picker(preset="warm", mode="dark"),
-        Pick.cases(
-            Pick.THEME.then(State.set(Picker.preset, Pick.THEME.context)),
-            Pick.MODE.then(State.set(Picker.mode, Pick.MODE.context)),
+        init=Picker(preset="warm", mode="dark"),
+        update=lambda _: Pick.cases(
+            Pick.THEME.then(lambda _, context: State.set(Picker.preset, context)),
+            Pick.MODE.then(lambda _, context: State.set(Picker.mode, context)),
         ),
-        Box(
+        view=lambda model: Box(
             Button("Outside", props={"id": "outside"}),
             ThemeScope(
                 ThemeScope(
@@ -151,7 +149,7 @@ def test_reactive_theme_inherits_mode_and_isolates_nested_themes(chromium_title:
                         Input(props={"id": "local-input"}),
                         components={"button": {"bg": "primary"}, "input": {"radius": 9}},
                     ),
-                    theme=Theme.select(Picker.preset, themes),
+                    theme=Theme.select(model.preset, themes),
                 ),
                 components={"button": {"bg": css("brown")}, "input": {"bg": "primary", "radius": 17}},
             ),
@@ -167,10 +165,10 @@ def test_reactive_theme_inherits_mode_and_isolates_nested_themes(chromium_title:
                         ThemeScope(Input(props={"id": "fixed-input"})),
                         theme=fixed,
                     ),
-                    theme=Theme.select(Picker.preset, themes),
+                    theme=Theme.select(model.preset, themes),
                     components={"input": {"radius": 8}},
                 ),
-                mode=Picker.mode,
+                mode=model.mode,
             ),
         ),
     )

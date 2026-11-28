@@ -17,12 +17,12 @@ class CounterMsg(MsgGroup):
 def app() -> Component[CounterModel, CounterMsg]:
     return Component(
         init=CounterModel(count=0),
-        update=CounterMsg.cases(
-            CounterMsg.INC.then(State.set(CounterModel.count, CounterModel.count + 1)),
-            CounterMsg.DEC.then(State.set(CounterModel.count, CounterModel.count - 1)),
+        update=lambda model: CounterMsg.cases(
+            CounterMsg.INC.then(State.set(CounterModel.count, model.count + 1)),
+            CounterMsg.DEC.then(State.set(CounterModel.count, model.count - 1)),
         ),
-        view=VStack(
-            Text(f"Count: {CounterModel.count}"),
+        view=lambda model: VStack(
+            Text("Count: " + model.count),
             Button("+", onclick=CounterMsg.INC),
             Button("-", onclick=CounterMsg.DEC),
             gap="sm",

@@ -18,14 +18,14 @@ def test_toolbar_skips_inactive_controls_and_preserves_composite_focus(
     playwright_page: Callable[[str, Path], str],
 ) -> None:
     app = Component(
-        Screen(extra=False),
-        Actions.cases(Actions.ADD.then(State.set(Screen.extra, True))),
-        VStack(
+        init=Screen(extra=False),
+        update=lambda _: Actions.cases(Actions.ADD.then(State.set(Screen.extra, True))),
+        view=lambda model: VStack(
             Button("Before"),
             Toolbar(
                 Button("Start"),
                 Button("Disabled", props={"disabled": True}),
-                Cond.when(Screen.extra, Button("Inserted"), None),
+                Cond.when(model.extra, Button("Inserted"), None),
                 Link("Help", href="#help"),
                 Menu(
                     MenuItem("Apply", onclick=Actions.ADD),

@@ -12,9 +12,9 @@ class Settings(Model):
     duration: State[int | None]
 
 
-def valid_examples(scope: DomScope) -> None:
-    opened = assert_type(scope.input(Settings.opened), Expr[bool])
-    duration = assert_type(scope.input(Settings.duration), Expr[int | None])
+def valid_examples(scope: DomScope, settings: Settings) -> None:
+    opened = assert_type(scope.input(settings.opened), Expr[bool])
+    duration = assert_type(scope.input(settings.duration), Expr[int | None])
 
     def schedule(milliseconds: Expr[int]) -> DomAction:
         assert_type(milliseconds, Expr[int])
@@ -23,8 +23,8 @@ def valid_examples(scope: DomScope) -> None:
     DomAction.when(opened, DomAction.maybe(duration, schedule))
 
 
-def invalid_examples(scope: DomScope) -> None:
-    duration = scope.input(Settings.duration)
+def invalid_examples(scope: DomScope, settings: Settings) -> None:
+    duration = scope.input(settings.duration)
 
     def update_text(text: Expr[str]) -> DomAction:
         return DomAction.with_value(text, lambda _: DomAction.batch())

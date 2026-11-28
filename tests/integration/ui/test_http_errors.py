@@ -40,30 +40,31 @@ def _save(url: str) -> Cmd[Editor, Actions]:
 
 
 def test_error_bodies_reach_the_app(playwright_page: Callable[[str, Path], str]) -> None:
-    rejected = Actions.REJECTED.event
     untyped = Http.post("/untyped", expect=Http.expectJson(Todo))
     app = Component(
-        Editor(issues=[], status="", raw=""),
-        Actions.cases(
+        init=Editor(issues=[], status="", raw=""),
+        update=lambda _: Actions.cases(
             Actions.SAVE.then((State.unchanged(), _save("/todos"))),
             Actions.SAVE_MISSING.then((State.unchanged(), _save("/missing"))),
             Actions.SAVE_UNTYPED.then((State.unchanged(), Cmd.task(untyped, Actions.SAVED, Actions.FAILED))),
             Actions.SAVED.then(State.set(Editor.status, "saved")),
             Actions.REJECTED.then(
-                State.set(Editor.issues, Cond.maybe(rejected.body, then=lambda error: error.detail, otherwise=[]))
-                & State.set(Editor.status, Cond.maybe(rejected.body, then=lambda _: "invalid", otherwise="no body"))
+                lambda rejected: (
+                    State.set(Editor.issues, Cond.maybe(rejected.body, then=lambda error: error.detail, otherwise=[]))
+                    & State.set(Editor.status, Cond.maybe(rejected.body, then=lambda _: "invalid", otherwise="no body"))
+                )
             ),
             Actions.FAILED.then(
-                State.set(Editor.raw, Cond.when(Cond.equal(Actions.FAILED.event.body, None), "none", "json"))
+                lambda event: State.set(Editor.raw, Cond.when(Cond.equal(event.body, None), "none", "json"))
             ),
         ),
-        VStack(
+        view=lambda model: VStack(
             Button("Save", onclick=Actions.SAVE),
             Button("Save missing", onclick=Actions.SAVE_MISSING),
             Button("Save untyped", onclick=Actions.SAVE_UNTYPED),
-            VStack(Array.map(Editor.issues, lambda issue: Text(issue.msg)), props={"id": "issues"}),
-            Text(Editor.status, props={"id": "status"}),
-            Text(Editor.raw, props={"id": "raw"}),
+            VStack(Array.map(model.issues, lambda issue: Text(issue.msg)), props={"id": "issues"}),
+            Text(model.status, props={"id": "status"}),
+            Text(model.raw, props={"id": "raw"}),
         ),
     )
     playwright_page(bloom(app), Path(__file__).with_name("http_errors.cjs"))

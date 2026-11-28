@@ -109,21 +109,58 @@ def _csv_url(expenses: Expr[Sequence[Expense]]) -> Expr[str]:
     return "data:text/csv;charset=utf-8," + Url.encode_component(data)
 
 
-def _entry_panel(valid: Expr[bool], amount_error: Expr[str | None]) -> View[Report, Msgs]:
+def _valid_amount(model: Report) -> Expr[bool]:
+    amount = Number.from_string(model.amount)
+    return Cond.every(
+        Number.is_finite(amount),
+        amount > 0,
+        amount <= MAX_AMOUNT,
+        Cond.equal(Number.floor(amount), amount),
+    )
+
+
+def _entry_valid(model: Report) -> Expr[bool]:
+    description = String.trim(model.description)
+    return Cond.every(Cond.not_equal(model.date, ""), Cond.not_equal(description, ""), _valid_amount(model))
+
+
+def _amount_error(model: Report) -> Expr[str | None]:
+    return Cond.when(
+        Cond.some(Cond.equal(model.amount, ""), _valid_amount(model)),
+        None,
+        f"Enter a whole number from 1 to {MAX_AMOUNT:,}.",
+    )
+
+
+def _new_expense(model: Report) -> Expr[Expense]:
+    return record(
+        {
+            "id": model.next_id,
+            "date": model.date,
+            "description": String.trim(model.description),
+            "category": model.category,
+            "amount": Number.floor(Number.from_string(model.amount)),
+        }
+    )
+
+
+def _entry_panel(model: Report) -> View[Report, Msgs]:
+    valid = _entry_valid(model)
+    amount_error = _amount_error(model)
     entry = Card(
         Heading("Add an expense", level=2, font_size="lg", props={"id": "entry-heading"}),
         field(
             id="expense-date",
             label="Date",
             control=lambda attrs: Input(
-                type="date", value=Report.date, oninput=Msgs.DATE, props={**attrs, "required": True}
+                type="date", value=model.date, oninput=Msgs.DATE, props={**attrs, "required": True}
             ),
         ),
         field(
             id="expense-description",
             label="Description",
             control=lambda attrs: Input(
-                value=Report.description,
+                value=model.description,
                 placeholder="e.g. Train to the client site",
                 oninput=Msgs.DESCRIPTION,
                 props={**attrs, "required": True, "pattern": r".*\S.*"},
@@ -135,7 +172,7 @@ def _entry_panel(valid: Expr[bool], amount_error: Expr[str | None]) -> View[Repo
                 label="Category",
                 control=lambda attrs: Select(
                     *(Option(name) for name in CATEGORIES),
-                    value=Report.category,
+                    value=model.category,
                     onchange=Msgs.CATEGORY,
                     props=attrs,
                 ),
@@ -145,7 +182,7 @@ def _entry_panel(valid: Expr[bool], amount_error: Expr[str | None]) -> View[Repo
                 label="Amount (JPY)",
                 error=amount_error,
                 control=lambda attrs: NumberField(
-                    value=Report.amount,
+                    value=model.amount,
                     oninput=Msgs.AMOUNT,
                     min=1,
                     max=MAX_AMOUNT,
@@ -185,23 +222,23 @@ def _row(expense: Expr[Expense]) -> View[Report, Msgs]:
     )
 
 
-def _expenses_panel() -> View[Report, Msgs]:
+def _expenses_panel(model: Report) -> View[Report, Msgs]:
     visible = Array.filter(
-        Report.expenses,
+        model.expenses,
         lambda expense: Cond.some(
-            Cond.equal(Report.category_filter, ALL),
-            Cond.equal(Report.category_filter, _text(expense, "category")),
+            Cond.equal(model.category_filter, ALL),
+            Cond.equal(model.category_filter, _text(expense, "category")),
         ),
     )
     empty = Cond.equal(Array.length(visible), 0)
-    by_amount = Cond.equal(Report.sort_column, "amount")
-    by_date = Cond.equal(Report.sort_column, "date")
+    by_amount = Cond.equal(model.sort_column, "amount")
+    by_date = Cond.equal(model.sort_column, "date")
     ordered = Cond.when(
         by_amount,
-        Array.sort_by(visible, lambda expense: _number(expense, "amount"), descending=Report.descending),
+        Array.sort_by(visible, lambda expense: _number(expense, "amount"), descending=model.descending),
         Cond.when(
             by_date,
-            Array.sort_by(visible, lambda expense: _text(expense, "date"), descending=Report.descending),
+            Array.sort_by(visible, lambda expense: _text(expense, "date"), descending=model.descending),
             visible,
         ),
     )
@@ -214,13 +251,13 @@ def _expenses_panel() -> View[Report, Msgs]:
                     label="Filter by category",
                     control=lambda attrs: Select(
                         *(Option(name) for name in (ALL, *CATEGORIES)),
-                        value=Report.category_filter,
+                        value=model.category_filter,
                         onchange=Msgs.FILTER,
                         props={**attrs, "autofocus": True},
                     ),
                 ),
                 id="expense-filters",
-                trigger=lambda attrs: Button("Filter: " + Report.category_filter, variant="secondary", props=attrs),
+                trigger=lambda attrs: Button("Filter: " + model.category_filter, variant="secondary", props=attrs),
             ),
             align="end",
             justify="space-between",
@@ -235,12 +272,12 @@ def _expenses_panel() -> View[Report, Msgs]:
                         SortableTableHead(
                             "Amount",
                             active=by_amount,
-                            descending=Report.descending,
+                            descending=model.descending,
                             onsort=Msgs.SORT.bind("amount"),
                             align="right",
                         ),
                         SortableTableHead(
-                            "Date", active=by_date, descending=Report.descending, onsort=Msgs.SORT.bind("date")
+                            "Date", active=by_date, descending=model.descending, onsort=Msgs.SORT.bind("date")
                         ),
                         TableHead("Category"),
                         TableHead("Actions", align="right"),
@@ -261,7 +298,7 @@ def _expenses_panel() -> View[Report, Msgs]:
         Cond.when(
             empty,
             Cond.when(
-                Cond.equal(Array.length(Report.expenses), 0),
+                Cond.equal(Array.length(model.expenses), 0),
                 EmptyState("No expenses yet", "Add your first expense using the form."),
                 EmptyState(
                     "No expenses in this category",
@@ -283,29 +320,6 @@ def _expenses_panel() -> View[Report, Msgs]:
 
 
 def app() -> Component[Report, Msgs]:
-    amount = Number.from_string(Report.amount)
-    whole_yen = Number.floor(amount)
-    description = String.trim(Report.description)
-    valid_amount = Cond.every(
-        Number.is_finite(amount),
-        amount > 0,
-        amount <= MAX_AMOUNT,
-        Cond.equal(whole_yen, amount),
-    )
-    valid = Cond.every(Cond.not_equal(Report.date, ""), Cond.not_equal(description, ""), valid_amount)
-    amount_error = Cond.when(
-        Cond.some(Cond.equal(Report.amount, ""), valid_amount), None, f"Enter a whole number from 1 to {MAX_AMOUNT:,}."
-    )
-    entry: Expr[Expense] = record(
-        {
-            "id": Report.next_id,
-            "date": Report.date,
-            "description": description,
-            "category": Report.category,
-            "amount": whole_yen,
-        }
-    )
-
     return Component(
         Report(
             expenses=[],
@@ -318,36 +332,36 @@ def app() -> Component[Report, Msgs]:
             sort_column=None,
             descending=False,
         ),
-        Msgs.cases(
-            Msgs.DATE.then(State.set(Report.date, Msgs.DATE.event.value)),
-            Msgs.DESCRIPTION.then(State.set(Report.description, Msgs.DESCRIPTION.event.value)),
-            Msgs.CATEGORY.then(State.set(Report.category, Msgs.CATEGORY.event.value)),
-            Msgs.AMOUNT.then(State.set(Report.amount, Msgs.AMOUNT.event.value)),
-            Msgs.FILTER.then(State.set(Report.category_filter, Msgs.FILTER.event.value)),
+        update=lambda model: Msgs.cases(
+            Msgs.DATE.then(lambda event: State.set(Report.date, event.value)),
+            Msgs.DESCRIPTION.then(lambda event: State.set(Report.description, event.value)),
+            Msgs.CATEGORY.then(lambda event: State.set(Report.category, event.value)),
+            Msgs.AMOUNT.then(lambda event: State.set(Report.amount, event.value)),
+            Msgs.FILTER.then(lambda event: State.set(Report.category_filter, event.value)),
             Msgs.SORT.then(
-                State.set(
-                    Report.descending,
-                    Cond.every(Cond.equal(Report.sort_column, Msgs.SORT.context), Boolean.negate(Report.descending)),
+                lambda _, column: (
+                    State.set(
+                        Report.descending,
+                        Cond.every(Cond.equal(model.sort_column, column), Boolean.negate(model.descending)),
+                    )
+                    & State.set(Report.sort_column, column)
                 )
-                & State.set(Report.sort_column, Msgs.SORT.context)
             ),
             Msgs.CLEAR_FILTER.then(State.set(Report.category_filter, ALL)),
             Msgs.ADD.then(
-                State.set(Report.expenses, Array.concat(Report.expenses, [entry]))
-                & State.set(Report.next_id, Report.next_id + 1)
+                State.set(Report.expenses, Array.concat(model.expenses, [_new_expense(model)]))
+                & State.set(Report.next_id, model.next_id + 1)
                 & State.set(Report.description, "")
                 & State.set(Report.amount, "")
             ),
             Msgs.REMOVE.then(
-                State.set(
+                lambda _, expense_id: State.set(
                     Report.expenses,
-                    Array.filter(
-                        Report.expenses, lambda expense: Cond.not_equal(_number(expense, "id"), Msgs.REMOVE.context)
-                    ),
+                    Array.filter(model.expenses, lambda expense: Cond.not_equal(_number(expense, "id"), expense_id)),
                 )
             ),
         ),
-        ThemeScope(
+        view=lambda model: ThemeScope(
             View(
                 VStack(
                     VStack(
@@ -365,13 +379,13 @@ def app() -> Component[Report, Msgs]:
                     Card(
                         VStack(
                             Text("Total expenses"),
-                            Text(_yen(_total(Report.expenses)), font_size="2xl", font_weight=700),
+                            Text(_yen(_total(model.expenses)), font_size="2xl", font_weight=700),
                         ),
                         Link(
                             "Download all expenses",
-                            href=_csv_url(Report.expenses),
+                            href=_csv_url(model.expenses),
                             download="expenses.csv",
-                            disabled=Cond.equal(Array.length(Report.expenses), 0),
+                            disabled=Cond.equal(Array.length(model.expenses), 0),
                             variant="button",
                             bg="secondary",
                             fg="secondary-foreground",
@@ -383,8 +397,8 @@ def app() -> Component[Report, Msgs]:
                         props={"className": "expense-total"},
                     ),
                     Grid(
-                        _entry_panel(valid, amount_error),
-                        _expenses_panel(),
+                        _entry_panel(model),
+                        _expenses_panel(model),
                         align="start",
                         gap="md",
                         props={"className": "expense-layout"},

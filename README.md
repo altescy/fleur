@@ -15,7 +15,7 @@ You define `Model`, `Msg`, `update`, and `view` in Python, and Fleur compiles yo
 - **Backend-free frontend** — Unlike Reflex or NiceGUI, Fleur generates a self-contained HTML file with a minimal JS runtime. No WebSocket server, no Python backend required at runtime; the app runs entirely in the browser.
 - **Elm-inspired architecture** — The Elm Architecture (Model → Msg → update → view) brings predictable state management and side-effect isolation to Python frontend development.
 - **Statically typed DSL** — Model fields, message payloads, and event handlers are all typed. Pyright catches mismatches at authoring time, before the browser ever loads.
-- **Python-native syntax** — Operator overloading and descriptors let you write `CounterModel.count + 1` or `State.set(field, value)` naturally; no string templates or code-gen strings.
+- **Python-native syntax** — Operator overloading lets you write `model.count + 1` or `"Count: " + model.count` naturally, and `State.set(field, value)` names the field to change; no string templates or code-gen strings.
 - **Minimal runtime** — The browser runtime is a single ~17 KB (~6 KB gzipped) JS bundle handling VDOM diffing, patching, and effects. No virtual DOM framework dependency, no React.
 - **Compile-time code generation** — Python DSL compiles to ESTree AST, then to plain JavaScript. The generated code is framework-free and debuggable.
 
@@ -47,18 +47,21 @@ class CounterMsg(MsgGroup):
 def app() -> Component[CounterModel, CounterMsg]:
     return Component(
         init=CounterModel(count=0),
-        update=CounterMsg.cases(
-            CounterMsg.INC.then(State.set(CounterModel.count, CounterModel.count + 1)),
-            CounterMsg.DEC.then(State.set(CounterModel.count, CounterModel.count - 1)),
+        update=lambda model: CounterMsg.cases(
+            CounterMsg.INC.then(State.set(CounterModel.count, model.count + 1)),
+            CounterMsg.DEC.then(State.set(CounterModel.count, model.count - 1)),
         ),
-        view=VStack(
-            Text(f"Count: {CounterModel.count}"),
+        view=lambda model: VStack(
+            Text("Count: " + model.count),
             Button("+", onclick=CounterMsg.INC),
             Button("-", onclick=CounterMsg.DEC),
             gap="sm",
         ),
     )
 ```
+
+`update` and `view` are functions of the model. Read values from the `model` they receive, as
+`model.count`; a class attribute such as `CounterModel.count` names the field to set.
 
 2. Start the dev server with hot reload:
 

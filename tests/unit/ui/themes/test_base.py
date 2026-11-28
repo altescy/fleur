@@ -19,7 +19,7 @@ class TestBaseTheme:
         assert "body{font-size:var(--fleur-text-base);" in "".join(css.split())
 
     def test_bloom_applies_default_theme_when_omitted(self) -> None:
-        html = bloom(Component(_DemoModel(), _DemoMsg.cases(), Text("demo")))
+        html = bloom(Component(_DemoModel(), lambda model: _DemoMsg.cases(), lambda model: Text("demo")))
 
         assert "--fleur-text-base: 1rem;" in html
 
@@ -58,7 +58,12 @@ def test_partial_dark_palette_uses_only_same_mode_layers() -> None:
 def test_bloom_connects_typed_scales_and_button_shorthands() -> None:
     theme = Theme(colors={"primary": "#2457a6"}, space={"lg": 20}, radii={"sm": 3})
     html = bloom(
-        Component(_DemoModel(), _DemoMsg.cases(), Button("Save", bg="primary", p="lg", radius="sm")), theme=theme
+        Component(
+            _DemoModel(),
+            lambda model: _DemoMsg.cases(),
+            lambda model: Button("Save", bg="primary", p="lg", radius="sm"),
+        ),
+        theme=theme,
     )
 
     assert "--fleur-color-primary: #2457a6;" in html

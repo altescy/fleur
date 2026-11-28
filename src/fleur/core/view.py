@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import re
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Generic, TypeAlias, TypeVar, Union
 
-from fleur.core.model import Model, ModelState
+from fleur.core.model import Field, Model, model_ref, top_level_name
 from fleur.js.ast import (
     ESTreeArrayExpression,
     ESTreeExpression,
@@ -12,7 +11,7 @@ from fleur.js.ast import (
     ESTreeFunctionExpression,
     ESTreeReturnStatement,
 )
-from fleur.js.builder import call, concat, ident, json_expr, literal, member, member_expr, object_expr
+from fleur.js.builder import call, ident, json_expr, literal, member, member_expr, object_expr
 from fleur.types import ICompilable, JsonValue
 
 from .dom import DomEffect, EventBinding
@@ -50,29 +49,6 @@ ViewProp: TypeAlias = Union[
 ViewProps: TypeAlias = Union[Mapping[str, ViewProp[MsgGroupT]], Expr[_ViewProps[MsgGroupT]]]
 
 
-def _compile_text_expr(text: str) -> ESTreeExpression:
-    pattern = re.compile(rf"\$\{{{MODEL_IDENT}\.([a-zA-Z_][a-zA-Z0-9_]*)\}}")
-    parts: list[ESTreeExpression] = []
-    cursor = 0
-
-    for match in pattern.finditer(text):
-        if cursor < match.start():
-            parts.append(literal(text[cursor : match.start()]))
-        parts.append(member(MODEL_IDENT, match.group(1)))
-        cursor = match.end()
-
-    if cursor < len(text):
-        parts.append(literal(text[cursor:]))
-
-    if not parts:
-        return literal("")
-
-    expr = parts[0]
-    for next_expr in parts[1:]:
-        expr = concat(expr, next_expr)
-    return expr
-
-
 def _compile_prop_value(value: ViewProp[Any]) -> ESTreeExpression:
     if isinstance(value, (Expr, GroupedMsg, DomEffect, EventBinding)):
         return value.__compile__()
@@ -87,7 +63,7 @@ def _compile_child(child: ViewChild[Any, Any]) -> ESTreeExpression:
     if isinstance(child, ICompilable):
         return child.__compile__()
     if isinstance(child, str):
-        return _compile_text_expr(child)
+        return literal(child)
     if isinstance(child, Sequence):
         return ESTreeArrayExpression(elements=[_compile_child(item) for item in child])
     return json_expr(child)
@@ -173,12 +149,12 @@ class View(Model, Generic[ModelT_co, MsgGroupT_co]):
 
     @staticmethod
     def forward(
-        field: ModelState[ModelT, _ChildModelT],
+        field: Field[ModelT, _ChildModelT],
         component: Component[_ChildModelT, _ChildMsgGroupT],
         tagger: "GroupedMsg[MsgGroupT, _ChildMsgGroupT, None]",
     ) -> "ForwardedView[ModelT, _ChildModelT, _ChildMsgGroupT, MsgGroupT]":
         """Render a child component stored in `field`, whose model type must match."""
-        return ForwardedView(field._field_name, tagger, component.view)
+        return ForwardedView(top_level_name(field), tagger, component)
 
 
 # A child carries the model and message group of the views it contains, so that a parent view,
@@ -199,14 +175,19 @@ class MappedView(View[ModelT_co, MsgGroupT], Generic[ModelT_co, MsgGroupT_co, Ms
 
 class ForwardedView(View[ModelT, MsgGroupT], Generic[ModelT, ModelT_co, MsgGroupT_co, MsgGroupT]):
     def __init__(
-        self, field_name: str, tagger: "GroupedMsg[MsgGroupT, Any, None]", view: View[ModelT_co, MsgGroupT_co]
+        self,
+        field_name: str,
+        tagger: "GroupedMsg[MsgGroupT, Any, None]",
+        component: "Component[Any, MsgGroupT_co]",
     ) -> None:
         self._field_name = field_name
         self._tagger = tagger
-        self._view = view
+        self._component = component
 
     def __compile__(self) -> ESTreeExpression:
-        mapped_child = runtime_call((RUNTIME_HTML, RUNTIME_MAP), self._tagger.__compile__(), self._view.__compile__())
+        # The child's view reads its own `model`, bound here to the parent's field.
+        child_view = self._component.view(model_ref(self._component.model_type, ident(MODEL_IDENT)))
+        mapped_child = runtime_call((RUNTIME_HTML, RUNTIME_MAP), self._tagger.__compile__(), child_view.__compile__())
         return call(
             ESTreeFunctionExpression(
                 id=None,

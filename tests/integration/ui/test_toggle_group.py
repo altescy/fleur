@@ -20,20 +20,20 @@ def test_toggle_group_shares_toolbar_navigation_and_dispatches_selection(
     playwright_page: Callable[[str, Path], str],
 ) -> None:
     app = Component(
-        Screen(options={"a": "A", "b": "B"}, selection=["a"]),
-        Actions.cases(
-            Actions.CHANGE.then(State.set(Screen.selection, Actions.CHANGE.context)),
+        init=Screen(options={"a": "A", "b": "B"}, selection=["a"]),
+        update=lambda _: Actions.cases(
+            Actions.CHANGE.then(lambda _, context: State.set(Screen.selection, context)),
             Actions.REFRESH.then(State.set(Screen.options, {"b": "B", "a": "A", "c": "C"})),
         ),
-        VStack(
+        view=lambda model: VStack(
             Button("Before"),
             Toolbar(
-                ToggleGroup(Screen.options, label="Options", value=Screen.selection, onchange=Actions.CHANGE),
+                ToggleGroup(model.options, label="Options", value=model.selection, onchange=Actions.CHANGE),
                 Button("Refresh", onclick=Actions.REFRESH),
                 label="Tools",
             ),
             Button("After"),
-            Text(Array.join(Screen.selection), props={"role": "status"}),
+            Text(Array.join(model.selection), props={"role": "status"}),
         ),
     )
     playwright_page(bloom(app), Path(__file__).with_name("toggle_group.cjs"))

@@ -32,35 +32,38 @@ def test_default_tabs_compile_state_without_inline_styles() -> None:
 
 def test_tabs_cascade_and_activation(playwright_page: Callable[[str, Path], str]) -> None:
     panels: Mapping[Tab, View[Screen, Actions]] = {"One": Text("Panel One"), "Two": Text("Panel Two")}
-    dark = Cond.equal(Screen.mode, "dark")
-    root = Box(
-        tabs(panels, Screen.selected, Actions.SELECT, label="Page sections", props={"id": "page"}),
-        ThemeScope(
-            tabs(panels, Screen.selected, Actions.SELECT, props={"id": "scoped"}),
-            tabs(panels, Screen.selected, Actions.SELECT, props={"id": "tinted"}, tab_class="tint"),
-            tabs(panels, Screen.selected, Actions.SELECT, props={"id": "classed"}, tab_class="paint"),
-            tabs(
-                panels,
-                Screen.selected,
-                Actions.SELECT,
-                props=record({"id": "styled", "className": "wrapper"}),
-                style={"padding": "11px"},
-                tab_class=Cond.when(dark, "paint night", "paint"),
-                tab_style={"background": Cond.when(dark, "#663322", "#884433"), "padding": "5px"},
+
+    def view(model: Screen) -> View[Screen, Actions]:
+        dark = Cond.equal(model.mode, "dark")
+        return Box(
+            tabs(panels, model.selected, Actions.SELECT, label="Page sections", props={"id": "page"}),
+            ThemeScope(
+                tabs(panels, model.selected, Actions.SELECT, props={"id": "scoped"}),
+                tabs(panels, model.selected, Actions.SELECT, props={"id": "tinted"}, tab_class="tint"),
+                tabs(panels, model.selected, Actions.SELECT, props={"id": "classed"}, tab_class="paint"),
+                tabs(
+                    panels,
+                    model.selected,
+                    Actions.SELECT,
+                    props=record({"id": "styled", "className": "wrapper"}),
+                    style={"padding": "11px"},
+                    tab_class=Cond.when(dark, "paint night", "paint"),
+                    tab_style={"background": Cond.when(dark, "#663322", "#884433"), "padding": "5px"},
+                ),
+                colors={"primary": "#aa3344", "ring": "#117755", "muted-foreground": "#557788", "border": "#7e8da8"},
+                mode=model.mode,
             ),
-            colors={"primary": "#aa3344", "ring": "#117755", "muted-foreground": "#557788", "border": "#7e8da8"},
-            mode=Screen.mode,
-        ),
-        Button("Dark", props={"id": "dark"}, onclick=Actions.MODE.bind("dark")),
-        Button("Light", props={"id": "light"}, onclick=Actions.MODE.bind("light")),
-    )
+            Button("Dark", props={"id": "dark"}, onclick=Actions.MODE.bind("dark")),
+            Button("Light", props={"id": "light"}, onclick=Actions.MODE.bind("light")),
+        )
+
     app = Component(
-        Screen(selected="One", mode="light"),
-        Actions.cases(
-            Actions.SELECT.then(State.set(Screen.selected, Actions.SELECT.context)),
-            Actions.MODE.then(State.set(Screen.mode, Actions.MODE.context)),
+        init=Screen(selected="One", mode="light"),
+        update=lambda _: Actions.cases(
+            Actions.SELECT.then(lambda _, context: State.set(Screen.selected, context)),
+            Actions.MODE.then(lambda _, context: State.set(Screen.mode, context)),
         ),
-        root,
+        view=view,
     )
     theme = Theme(
         light={"card": "#e0efff", "foreground": "#112233", "border": "#98a5b8", "muted": "#ddeeff"},
@@ -86,21 +89,25 @@ def test_tabs_cascade_and_activation(playwright_page: Callable[[str, Path], str]
 def test_reordering_tabs_keeps_input_focus_and_values(chromium_title: Callable[[str], str], legacy_move: bool) -> None:
     first = Input[Screen, Actions](props={"id": "first-input"})
     second = Input[Screen, Actions](props={"id": "second-input"})
-    contents = Cond.when(
-        Cond.equal(Screen.mode, "dark"),
-        record({"Two": second, "One": first, "More options": Text("More")}),
-        record({"One": first, "Two": second}),
-    )
-    app = Component(
-        Screen(selected="Two", mode="light"),
-        Actions.cases(
-            Actions.SELECT.then(State.unchanged()),
-            Actions.MODE.then(State.set(Screen.mode, Actions.MODE.context)),
-        ),
-        Box(
+
+    def view(model: Screen) -> View[Screen, Actions]:
+        contents = Cond.when(
+            Cond.equal(model.mode, "dark"),
+            record({"Two": second, "One": first, "More options": Text("More")}),
+            record({"One": first, "Two": second}),
+        )
+        return Box(
             Button("Reverse", props={"id": "reverse"}, onclick=Actions.MODE.bind("dark")),
-            tabs(contents, Screen.selected, props={"id": "tabs"}),
+            tabs(contents, model.selected, props={"id": "tabs"}),
+        )
+
+    app = Component(
+        init=Screen(selected="Two", mode="light"),
+        update=lambda _: Actions.cases(
+            Actions.SELECT.then(State.unchanged()),
+            Actions.MODE.then(lambda _, context: State.set(Screen.mode, context)),
         ),
+        view=view,
     )
     probe = """<script>
     const byId = id => document.getElementById(id);

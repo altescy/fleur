@@ -17,17 +17,19 @@ class Actions(MsgGroup):
 def test_accordion_groups_are_independent_and_include_new_items(
     playwright_page: Callable[[str, Path], str],
 ) -> None:
-    def group(label: str) -> View[Screen, Actions]:
+    def group(model: Screen, label: str) -> View[Screen, Actions]:
         return Accordion(
             AccordionItem("First", "First panel", initial_open=True),
             AccordionItem("Second", "Second panel"),
-            Cond.when(Screen.extra, AccordionItem("Third", "Third panel"), None),
+            Cond.when(model.extra, AccordionItem("Third", "Third panel"), None),
             props={"role": "group", "aria-label": label},
         )
 
     app = Component(
-        Screen(extra=False),
-        Actions.cases(Actions.ADD.then(State.set(Screen.extra, True))),
-        VStack(group("Left"), group("Right"), Button("Add a section", onclick=Actions.ADD)),
+        init=Screen(extra=False),
+        update=lambda _: Actions.cases(Actions.ADD.then(State.set(Screen.extra, True))),
+        view=lambda model: VStack(
+            group(model, "Left"), group(model, "Right"), Button("Add a section", onclick=Actions.ADD)
+        ),
     )
     playwright_page(bloom(app), Path(__file__).with_name("accordion.cjs"))

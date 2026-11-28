@@ -1,4 +1,6 @@
 from fleur import Cond, Model, State, emit
+from fleur.core.model import model_ref
+from fleur.js.builder import ident
 from fleur.ui import Background, Text, ThemeFontSizeName, ThemeRadiusName, ThemeSpaceName, css
 
 
@@ -7,6 +9,9 @@ class CondModel(Model):
     space: State[ThemeSpaceName]
     radius: State[ThemeRadiusName]
     font: State[ThemeFontSizeName]
+
+
+model = model_ref(CondModel, ident("model"))
 
 
 class TestText:
@@ -18,12 +23,12 @@ class TestText:
         assert 'padding: "8px"' in source
 
     def test_text_supports_expr_style_args(self) -> None:
-        source = emit(Text("value", fg=css(Cond.when(CondModel.count > 0, "red", "blue"))).__compile__())
+        source = emit(Text("value", fg=css(Cond.when(model.count > 0, "red", "blue"))).__compile__())
 
         assert 'color: ((model.count>0)?"red":"blue")' in source
 
     def test_text_expr_color_tokens_are_normalized_to_css_vars(self) -> None:
-        source = emit(Text("value", fg=Background.when(CondModel.count > 0, "primary", "transparent")).__compile__())
+        source = emit(Text("value", fg=Background.when(model.count > 0, "primary", "transparent")).__compile__())
 
         assert '"var(--fleur-color-"+((model.count>0)?"primary":"transparent"))+")"' in source
 
@@ -31,9 +36,9 @@ class TestText:
         source = emit(
             Text(
                 "value",
-                p=CondModel.space,
-                radius=CondModel.radius,
-                font_size=CondModel.font,
+                p=model.space,
+                radius=model.radius,
+                font_size=model.font,
             ).__compile__()
         )
 

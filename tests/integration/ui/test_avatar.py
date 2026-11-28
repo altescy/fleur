@@ -17,13 +17,13 @@ class Actions(MsgGroup):
 
 def test_avatar_preserves_name_and_layout_during_image_updates(playwright_page: Callable[[str, Path], str]) -> None:
     app = Component(
-        Screen(source="https://avatars.example.test/portrait.gif"),
-        Actions.cases(
+        init=Screen(source="https://avatars.example.test/portrait.gif"),
+        update=lambda _: Actions.cases(
             Actions.REPLACE.then(State.set(Screen.source, "https://avatars.example.test/missing.gif")),
             Actions.CLEAR.then(State.set(Screen.source, None)),
         ),
-        VStack(
-            HStack(Avatar(name="Lead reviewer", fallback="LR", src=Screen.source), Text("The Secret Garden"), gap="sm"),
+        view=lambda model: VStack(
+            HStack(Avatar(name="Lead reviewer", fallback="LR", src=model.source), Text("The Secret Garden"), gap="sm"),
             HStack(Avatar(name=None, fallback="SR"), Text("Second reviewer"), gap="sm"),
             Button("Replace photo", onclick=Actions.REPLACE),
             Button("Remove photo", onclick=Actions.CLEAR),
